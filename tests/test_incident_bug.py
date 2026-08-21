@@ -92,6 +92,42 @@ class IncidentAndBugTests(unittest.TestCase):
         self.assertEqual(validated["classification"], "IMPLEMENTATION_DEVIATION")
         self.assertEqual(packet["delivery_profile"], "LIGHT")
 
+    def test_exact_bug_packet_retry_is_idempotent_but_conflicting_bytes_are_rejected(self) -> None:
+        baseline = self.project / "baseline.md"
+        baseline.write_text("Expected: total remains visible\n", encoding="utf-8")
+        result = host_agent_result(
+            "bug.baseline.check",
+            {
+                "classification": "IMPLEMENTATION_DEVIATION",
+                "baseline_ref": {
+                    "path": str(baseline),
+                    "hash": sha256_file(baseline),
+                    "version": 1,
+                },
+                "expected": "total remains visible",
+                "actual": "total disappears",
+                "new_rule_required": False,
+                "acceptance_criteria_decidable": True,
+                "material_conflict": False,
+                "next_action": "修复显示并跑回归",
+            },
+            "bug-attempt-retry",
+        )
+        first = persist_bug_packet(self.project, "bug-retry", result)
+        second = persist_bug_packet(self.project, "bug-retry", result)
+        self.assertEqual(first["packet_ref"], second["packet_ref"])
+        self.assertEqual(first["human_ref"], second["human_ref"])
+
+        human = self.project / first["human_ref"]["path"]
+        human.write_text("tampered\n", encoding="utf-8")
+        packet_before = (self.project / first["packet_ref"]["path"]).read_bytes()
+        with self.assertRaisesRegex(BugContractError, "different bytes"):
+            persist_bug_packet(self.project, "bug-retry", result)
+        self.assertEqual(
+            (self.project / first["packet_ref"]["path"]).read_bytes(),
+            packet_before,
+        )
+
     def test_program_does_not_choose_bug_classification_or_fill_missing_semantics(self) -> None:
         result = host_agent_result(
             "bug.baseline.check",

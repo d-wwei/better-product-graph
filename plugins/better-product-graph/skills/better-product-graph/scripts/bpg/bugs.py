@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import PolicyViolation, validate_node_result_producer
-from .storage import atomic_write_bytes, atomic_write_json, sha256_file
+from .storage import (
+    assert_managed_path,
+    atomic_write_bytes,
+    canonical_json_bytes,
+    sha256_file,
+)
 
 
 BUG_CLASSIFICATIONS = frozenset(
@@ -64,11 +69,11 @@ def persist_bug_packet(project_root: Path, bug_id: str, result: dict[str, Any]) 
     if SAFE_ID.fullmatch(bug_id) is None:
         raise BugContractError("bug_id must be path-safe")
     root = project_root.resolve()
-    directory = root / ".better-product-graph" / "bugs" / bug_id
-    packet_path = directory / "bug.delivery.packet.v1.json"
-    human_path = directory / "BUG_v1.md"
-    if packet_path.exists() or human_path.exists():
-        raise BugContractError(f"Bug packet already exists: {bug_id}")
+    directory = assert_managed_path(
+        root, root / ".better-product-graph" / "bugs" / bug_id
+    )
+    packet_path = assert_managed_path(root, directory / "bug.delivery.packet.v1.json")
+    human_path = assert_managed_path(root, directory / "BUG_v1.md")
     assessment = validate_bug_assessment(result)
     packet = {
         "schema_version": "bug.delivery.packet.v1",
@@ -85,7 +90,6 @@ def persist_bug_packet(project_root: Path, bug_id: str, result: dict[str, Any]) 
         },
         "handoff": {"mode": "LOCAL_ONLY", "remote_status": "NOT_CONFIGURED"},
     }
-    atomic_write_json(packet_path, packet)
     view = "\n".join(
         [
             f"# Bug {bug_id} v1",
@@ -97,12 +101,31 @@ def persist_bug_packet(project_root: Path, bug_id: str, result: dict[str, Any]) 
             "",
         ]
     )
-    atomic_write_bytes(human_path, view.encode())
+    packet_bytes = canonical_json_bytes(packet) + b"\n"
+    human_bytes = view.encode()
+    outputs = (
+        (packet_path, packet_bytes, "Bug packet"),
+        (human_path, human_bytes, "Bug human view"),
+    )
+    for path, expected, label in outputs:
+        if path.exists():
+            if path.is_symlink() or not path.is_file() or path.read_bytes() != expected:
+                raise BugContractError(f"{label} already exists with different bytes: {bug_id}")
+    for path, expected, _ in outputs:
+        if not path.exists():
+            atomic_write_bytes(path, expected)
     return {
         **packet,
         "packet_ref": {
+            "role": "bug_delivery_packet",
             "path": packet_path.relative_to(root).as_posix(),
             "hash": sha256_file(packet_path),
+            "version": 1,
+        },
+        "human_ref": {
+            "role": "bug_human_view",
+            "path": human_path.relative_to(root).as_posix(),
+            "hash": sha256_file(human_path),
             "version": 1,
         },
         "human_view_path": str(human_path),

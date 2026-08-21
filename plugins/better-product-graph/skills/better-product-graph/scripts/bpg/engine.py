@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from .bugs import BugContractError, persist_bug_packet
 from .connectors import LocalHandoffConnector, NullConnector
 from .git_preflight import GitPreflight, preflight_project
 from .intents import HostIntent, parse_host_entry
@@ -106,6 +107,75 @@ class HostEngine:
 
     def _prepare_handoff(self, run_id: str) -> dict[str, Any]:
         state = self.controller.load_state(run_id)
+        handoff_ref = state.get("handoff_ref")
+        if (
+            state.get("status") == "COMPLETED"
+            and state.get("current_node") == "handoff.dispatch"
+            and isinstance(handoff_ref, dict)
+            and handoff_ref.get("delivery_kind") == "BUG"
+        ):
+            packet_ref = {
+                key: handoff_ref[key]
+                for key in ("role", "path", "hash", "version")
+            }
+            return {
+                "status": "COMPLETED",
+                "delivery_kind": "BUG",
+                "delivery_status": "WRITTEN_LOCAL",
+                "sent_remote": False,
+                "run_id": run_id,
+                "bug_packet_ref": packet_ref,
+                "bug_human_ref": state["bug_human_ref"],
+                "handoff_ref": handoff_ref,
+                "state": state,
+            }
+        if (
+            state.get("status") == "ACTIVE"
+            and state.get("current_node") == "handoff.prepare"
+            and state.get("last_completed_node") == "bug.baseline.check"
+        ):
+            result_refs = [
+                ref
+                for ref in state.get("artifact_refs", {}).values()
+                if isinstance(ref, dict)
+                and ref.get("role") == "node_result"
+                and ref.get("node_id") == "bug.baseline.check"
+                and ref.get("attempt_id") in state.get("consumed_attempts", [])
+            ]
+            if len(result_refs) != 1:
+                return {
+                    "status": "NOT_READY",
+                    "run_id": run_id,
+                    "reason": "EXACT_BUG_BASELINE_RESULT_REQUIRED",
+                }
+            result_ref = result_refs[0]
+            try:
+                self.controller._validate_single_artifact_ref(result_ref)
+                result = read_json(self.project_root / result_ref["path"])
+                bug_id = f"bug-{run_id.removeprefix('run-')}"
+                packet = persist_bug_packet(self.project_root, bug_id, result)
+                completed = self.controller.complete_bug_handoff(
+                    run_id,
+                    bug_id,
+                    packet["packet_ref"],
+                    packet["human_ref"],
+                    expected_state_version=state["state_version"],
+                )
+            except (BugContractError, KeyError, OSError, ValueError) as error:
+                raise TransitionRejected(
+                    f"Bug Handoff packet could not be prepared: {error}"
+                ) from error
+            return {
+                "status": "COMPLETED",
+                "delivery_kind": "BUG",
+                "delivery_status": "WRITTEN_LOCAL",
+                "sent_remote": False,
+                "run_id": run_id,
+                "bug_packet_ref": packet["packet_ref"],
+                "bug_human_ref": packet["human_ref"],
+                "handoff_ref": completed["handoff_ref"],
+                "state": completed,
+            }
         release_ref = state.get("release_ref")
         if state.get("status") != "RELEASED" or not isinstance(release_ref, dict):
             return {"status": "NOT_READY", "run_id": run_id, "reason": "EXACT_RELEASED_READY_REQUIRED"}

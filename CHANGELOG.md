@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — Unreleased — Bug contract and local Handoff repair
+
+- Bind the Host-owned `signal.classify` node to the complete Signal Intake classification contract instead of the Controller-only Route Select instruction; keep `route.select` deterministic and reject the old misbound active dispatch as incompatible without rewriting its Run.
+- Publish the complete installed `bug.baseline.check` semantic contract, including exact baseline identity, expected/actual behavior, implementation-deviation conditions, and explicit routes, so a Host no longer needs internal source code to satisfy the Validator.
+- Execute the declared `IMPLEMENTATION_DEVIATION → handoff.prepare` path as a Controller-verified local Bug Delivery Packet plus human-readable Bug brief, without fabricating a Released PRD.
+- Make exact Bug packet creation retry-safe, reject conflicting existing bytes, bind the packet and human view into Run authority, and allow completed Bug Handoffs to be retrieved or redispatched after recovery.
+
 ## 0.2.0 — 2026-08-21 — Developer Alpha
 
 - Promote `general@0.2.0` to the configurable released default PRD template while preserving exact per-Run pins, project profile selection, rollback and the frozen upstream compatibility fallback.

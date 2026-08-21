@@ -4,6 +4,7 @@ import json
 import hashlib
 import importlib.util
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -33,15 +34,18 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         return self.plugin / "skills" / "better-product-graph" / "scripts" / "bpg_runner.py"
 
     def _invoke(self, *arguments: str) -> dict:
-        completed = subprocess.run(
+        completed = self._invoke_raw(*arguments)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        return json.loads(completed.stdout)
+
+    def _invoke_raw(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
             [sys.executable, str(self._runner()), *arguments],
             cwd=self.project,
             text=True,
             capture_output=True,
             check=False,
         )
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        return json.loads(completed.stdout)
 
     def _write_payload(self, name: str, payload: dict) -> Path:
         path = self.project / name
@@ -202,6 +206,25 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         self.assertEqual(prepared["dispatch"]["node_id"], "signal.classify")
 
         classify = prepared["dispatch"]
+        self.assertEqual(
+            classify["instruction_ref"],
+            "references/atomic-skills/signal-intake/INSTRUCTIONS.md",
+        )
+        instruction_path = Path(
+            prepared["host_execution_context"]["instruction_path"]
+        )
+        self.assertEqual(
+            classify["instruction_hash"],
+            "sha256:" + hashlib.sha256(instruction_path.read_bytes()).hexdigest(),
+        )
+        instruction = instruction_path.read_text(encoding="utf-8")
+        for field in (
+            '"route_destination"',
+            '"existing_links"',
+            '"parsed_claims"',
+            '"parsed_instructions"',
+        ):
+            self.assertIn(field, instruction)
         classify_result = {
             "schema_version": "node-result.v1",
             "node_id": "signal.classify",
@@ -227,6 +250,252 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         )
         self.assertEqual(routed["state"]["last_completed_node"], "route.select")
         self.assertEqual(routed["dispatch"]["node_id"], "evidence.collect")
+
+    def test_installed_signal_classify_rejects_invalid_contracts_without_run_writes(self) -> None:
+        build_plugin(REPO_ROOT, self.plugin)
+
+        def at_classify(label: str) -> tuple[str, dict]:
+            activated = self._invoke("new", f"分类合同负例 {label}")
+            run_id = activated["run_id"]
+            prepare = activated["dispatch"]
+            prepared = self._invoke(
+                "--operation", "submit",
+                "--run-id", run_id,
+                "--payload-file", str(
+                    self._write_payload(
+                        f"prepare-{label}.json",
+                        {
+                            "schema_version": "node-result.v1",
+                            "node_id": "signal.prepare",
+                            "attempt_id": prepare["attempt_id"],
+                            "producer": {"kind": "HOST_AGENT"},
+                            "instruction_ref": prepare["instruction_ref"],
+                            "instruction_hash": prepare["instruction_hash"],
+                            "input_refs": prepare["input_refs"],
+                            "input_hashes": prepare["input_hashes"],
+                            "semantic_output": {"prepared_signal": f"分类合同负例 {label}"},
+                            "artifact_refs": [],
+                        },
+                    )
+                ),
+                "--requested-node", "signal.classify",
+            )
+            return run_id, prepared["dispatch"]
+
+        for label in ("missing-provenance", "illegal-destination", "stale-attempt"):
+            with self.subTest(label=label):
+                run_id, dispatch = at_classify(label)
+                result = {
+                    "schema_version": "node-result.v1",
+                    "node_id": "signal.classify",
+                    "attempt_id": dispatch["attempt_id"],
+                    "producer": {"kind": "HOST_AGENT"},
+                    "instruction_ref": dispatch["instruction_ref"],
+                    "instruction_hash": dispatch["instruction_hash"],
+                    "input_refs": dispatch["input_refs"],
+                    "input_hashes": dispatch["input_hashes"],
+                    "semantic_output": {
+                        "route_destination": "DISCOVERY_START",
+                        "existing_links": [],
+                        "parsed_claims": [],
+                        "parsed_instructions": [],
+                    },
+                    "artifact_refs": [],
+                }
+                if label == "missing-provenance":
+                    result.pop("instruction_hash")
+                elif label == "illegal-destination":
+                    result["semantic_output"]["route_destination"] = "KEYWORD_GUESSED_BUG"
+                else:
+                    result["attempt_id"] = "attempt-stale-signal-classify"
+                run_root = self.project / ".better-product-graph" / "runs" / run_id
+                before = self._tree_inventory(run_root)
+                rejected = self._invoke_raw(
+                    "--operation", "submit",
+                    "--run-id", run_id,
+                    "--payload-file", str(
+                        self._write_payload(f"classify-{label}.json", result)
+                    ),
+                    "--requested-node", "route.select",
+                )
+
+                self.assertNotEqual(rejected.returncode, 0)
+                self.assertEqual(self._tree_inventory(run_root), before)
+
+    def test_installed_successor_blocks_old_misbound_signal_classify_dispatch_without_writes(self) -> None:
+        build_plugin(REPO_ROOT, self.plugin)
+        activated = self._invoke("new", "旧分类 dispatch 必须明确阻塞")
+        run_id = activated["run_id"]
+        skill_root = self.plugin / "skills" / "better-product-graph"
+        legacy_skill = self.root / "legacy-skill"
+        shutil.copytree(skill_root, legacy_skill)
+        legacy_contract_path = legacy_skill / "references" / "graph" / "node-contracts.json"
+        legacy_contracts = json.loads(legacy_contract_path.read_text(encoding="utf-8"))
+        legacy_contracts["nodes"]["signal.classify"]["instruction_ref"] = (
+            "references/atomic-skills/route-select/INSTRUCTIONS.md"
+        )
+        legacy_contract_path.write_text(
+            json.dumps(legacy_contracts, ensure_ascii=False), encoding="utf-8"
+        )
+        from src.bpg.host_runtime import HostRuntime
+
+        legacy_runtime = HostRuntime(
+            self.project,
+            legacy_skill / "references" / "graph" / "manifest.json",
+            legacy_skill,
+        )
+        prepare = activated["dispatch"]
+        old_dispatch = legacy_runtime.submit_and_advance(
+            run_id,
+            {
+                "schema_version": "node-result.v1",
+                "node_id": "signal.prepare",
+                "attempt_id": prepare["attempt_id"],
+                "producer": {"kind": "HOST_AGENT"},
+                "instruction_ref": prepare["instruction_ref"],
+                "instruction_hash": prepare["instruction_hash"],
+                "input_refs": prepare["input_refs"],
+                "input_hashes": prepare["input_hashes"],
+                "semantic_output": {"prepared_signal": "旧分类 dispatch 必须明确阻塞"},
+                "artifact_refs": [],
+            },
+            requested_node="signal.classify",
+        )["dispatch"]
+        self.assertEqual(
+            old_dispatch["instruction_ref"],
+            "references/atomic-skills/route-select/INSTRUCTIONS.md",
+        )
+        run_root = self.project / ".better-product-graph" / "runs" / run_id
+        before = self._tree_inventory(run_root)
+
+        blocked = self._invoke_raw(
+            "--operation", "dispatch", "--run-id", run_id
+        )
+
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn("contract drifted", blocked.stderr)
+        self.assertEqual(self._tree_inventory(run_root), before)
+
+    def test_installed_bug_instruction_exposes_the_complete_validator_contract(self) -> None:
+        build_plugin(REPO_ROOT, self.plugin)
+        activated = self._invoke("new", "结算总额消失，疑似线上实现偏离")
+        run_id = activated["run_id"]
+        skill_root = self.plugin / "skills" / "better-product-graph"
+        controller = StateController(
+            self.project,
+            skill_root / "references" / "graph" / "manifest.json",
+            skill_root=skill_root,
+        )
+        position_run_internal(
+            controller,
+            run_id,
+            "bug.baseline.check",
+            ["handoff.prepare", "evidence.collect"],
+        )
+
+        dispatched = self._invoke(
+            "--operation", "dispatch", "--run-id", run_id
+        )
+        instruction = Path(
+            dispatched["host_execution_context"]["instruction_path"]
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(dispatched["dispatch"]["node_id"], "bug.baseline.check")
+        for required_fragment in (
+            '"classification": "IMPLEMENTATION_DEVIATION"',
+            '"baseline_ref"',
+            '"path"',
+            '"hash"',
+            '"version"',
+            '"expected"',
+            '"actual"',
+            '"new_rule_required": false',
+            '"acceptance_criteria_decidable": true',
+            '"material_conflict": false',
+            '"next_action"',
+            "handoff.prepare",
+            "evidence.collect",
+        ):
+            self.assertIn(required_fragment, instruction)
+
+    def test_installed_implementation_deviation_completes_local_bug_handoff(self) -> None:
+        build_plugin(REPO_ROOT, self.plugin)
+        activated = self._invoke("new", "结算总额在刷新后消失")
+        run_id = activated["run_id"]
+        skill_root = self.plugin / "skills" / "better-product-graph"
+        controller = StateController(
+            self.project,
+            skill_root / "references" / "graph" / "manifest.json",
+            skill_root=skill_root,
+        )
+        position_run_internal(
+            controller,
+            run_id,
+            "bug.baseline.check",
+            ["handoff.prepare", "evidence.collect"],
+        )
+        dispatched = self._invoke(
+            "--operation", "dispatch", "--run-id", run_id
+        )["dispatch"]
+        baseline = self.project / "current-product-baseline.md"
+        baseline.write_text(
+            "结算成功后，订单总额必须持续可见。\n", encoding="utf-8"
+        )
+        result = {
+            "schema_version": "node-result.v1",
+            "node_id": "bug.baseline.check",
+            "attempt_id": dispatched["attempt_id"],
+            "producer": {"kind": "HOST_AGENT"},
+            "instruction_ref": dispatched["instruction_ref"],
+            "instruction_hash": dispatched["instruction_hash"],
+            "input_refs": dispatched["input_refs"],
+            "input_hashes": dispatched["input_hashes"],
+            "semantic_output": {
+                "classification": "IMPLEMENTATION_DEVIATION",
+                "baseline_ref": {
+                    "path": baseline.relative_to(self.project).as_posix(),
+                    "hash": "sha256:" + hashlib.sha256(baseline.read_bytes()).hexdigest(),
+                    "version": 1,
+                },
+                "expected": "结算成功后订单总额持续可见",
+                "actual": "刷新后订单总额消失",
+                "new_rule_required": False,
+                "acceptance_criteria_decidable": True,
+                "material_conflict": False,
+                "next_action": "研发按当前基线修复显示并执行回归检查",
+            },
+            "artifact_refs": [],
+        }
+
+        completed = self._invoke(
+            "--operation", "submit",
+            "--run-id", run_id,
+            "--payload-file", str(self._write_payload("bug-result.json", result)),
+            "--requested-node", "handoff.prepare",
+        )
+
+        self.assertEqual(completed["status"], "COMPLETED")
+        self.assertEqual(completed["delivery_kind"], "BUG")
+        self.assertEqual(completed["delivery_status"], "WRITTEN_LOCAL")
+        self.assertFalse(completed["sent_remote"])
+        self.assertEqual(completed["state"]["status"], "COMPLETED")
+        self.assertEqual(completed["state"]["current_node"], "handoff.dispatch")
+        self.assertIsNone(completed["state"]["release_ref"])
+        packet_path = self.project / completed["bug_packet_ref"]["path"]
+        packet = json.loads(packet_path.read_text(encoding="utf-8"))
+        self.assertEqual(packet["schema_version"], "bug.delivery.packet.v1")
+        self.assertEqual(packet["classification"], "IMPLEMENTATION_DEVIATION")
+        self.assertEqual(packet["handoff"]["mode"], "LOCAL_ONLY")
+        self.assertTrue((self.project / completed["bug_human_ref"]["path"]).is_file())
+
+        repeated = self._invoke("handoff", run_id)
+        self.assertEqual(repeated["status"], "COMPLETED")
+        self.assertEqual(repeated["bug_packet_ref"], completed["bug_packet_ref"])
+        redispatched = self._invoke(
+            "--operation", "dispatch", "--run-id", run_id
+        )
+        self.assertEqual(redispatched["status"], "COMPLETED")
+        self.assertEqual(redispatched["bug_packet_ref"], completed["bug_packet_ref"])
 
     def test_installed_submit_infers_the_only_legal_next_node(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)

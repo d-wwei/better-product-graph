@@ -2,9 +2,9 @@
   "schema_version": "node-contract-registry.v1",
   "graph_id": "better-product-graph",
   "nodes": {
-    "signal.ingest": {"instruction_ref": "references/atomic-skills/signal-intake/INSTRUCTIONS.md", "producer_kind": "DETERMINISTIC_PROGRAM", "validator": "signal_ingest", "routes": ["signal.prepare"]},
-    "signal.prepare": {"instruction_ref": "references/atomic-skills/signal-intake/INSTRUCTIONS.md", "producer_kind": "HOST_AGENT", "validator": "signal_prepare", "routes": ["signal.classify"]},
-    "signal.classify": {"instruction_ref": "references/atomic-skills/route-select/INSTRUCTIONS.md", "producer_kind": "HOST_AGENT", "validator": "signal_classify", "routes": ["route.select"]},
+    "signal.ingest": {"instruction_ref": "references/atomic-skills/signal-intake/INSTRUCTIONS.md", "compatible_instruction_hashes": ["sha256:dc61e8551b1cfc8cee41b40700d72e0b80bdd5576e271b5b5cd98ddc855a6e92"], "producer_kind": "DETERMINISTIC_PROGRAM", "validator": "signal_ingest", "routes": ["signal.prepare"]},
+    "signal.prepare": {"instruction_ref": "references/atomic-skills/signal-intake/INSTRUCTIONS.md", "compatible_instruction_hashes": ["sha256:dc61e8551b1cfc8cee41b40700d72e0b80bdd5576e271b5b5cd98ddc855a6e92"], "producer_kind": "HOST_AGENT", "validator": "signal_prepare", "routes": ["signal.classify"]},
+    "signal.classify": {"instruction_ref": "references/atomic-skills/signal-intake/INSTRUCTIONS.md", "producer_kind": "HOST_AGENT", "validator": "signal_classify", "routes": ["route.select"]},
     "route.select": {"instruction_ref": "references/atomic-skills/route-select/INSTRUCTIONS.md", "producer_kind": "DETERMINISTIC_PROGRAM", "validator": "route_select", "routes": ["incident.assess", "bug.baseline.check", "evidence.collect"]},
     "incident.assess": {"instruction_ref": "references/atomic-skills/incident-assess/INSTRUCTIONS.md", "producer_kind": "HOST_AGENT", "validator": "incident_assess", "routes": ["handoff.prepare"]},
     "bug.baseline.check": {"instruction_ref": "references/atomic-skills/bug-baseline-check/INSTRUCTIONS.md", "producer_kind": "HOST_AGENT", "validator": "bug_baseline_check", "routes": ["handoff.prepare", "evidence.collect"]},

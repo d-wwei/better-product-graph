@@ -13,6 +13,7 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 from .contracts import PolicyViolation, validate_node_result_producer
+from .bugs import validate_bug_assessment
 from .discovery_contract import build_problem_ready_output, validate_problem_ready
 from .evals_authority import EvalsAuthorityError, validate_reviewed_evals
 from .node_registry import NodeRegistry
@@ -919,8 +920,16 @@ class StateController:
                 blockers.append(
                     f"event authority fanout plan {plan.get('plan_id')} is missing or changed"
                 )
+        handoff_ref = state.get("handoff_ref")
+        is_bug_handoff = (
+            state.get("status") == "COMPLETED"
+            and isinstance(handoff_ref, dict)
+            and handoff_ref.get("delivery_kind") == "BUG"
+        )
         release_ref = state.get("release_ref")
-        if state.get("status") in {"RELEASED", "COMPLETED"}:
+        if state.get("status") == "RELEASED" or (
+            state.get("status") == "COMPLETED" and not is_bug_handoff
+        ):
             if not isinstance(release_ref, dict):
                 blockers.append("event authority Released lifecycle has no exact release ref")
             else:
@@ -938,12 +947,18 @@ class StateController:
                         blockers.append("event authority release ref is missing or changed")
                 except (KeyError, OSError, ValueError):
                     blockers.append("event authority release ref is incomplete")
-        handoff_ref = state.get("handoff_ref")
+        elif is_bug_handoff and release_ref is not None:
+            blockers.append("event authority Bug Handoff must not claim a PRD release ref")
         if state.get("status") == "COMPLETED":
             try:
                 self._validate_single_artifact_ref(handoff_ref)
             except TransitionRejected as error:
                 blockers.append(f"event authority Handoff: {error}")
+            if is_bug_handoff:
+                try:
+                    self._validate_single_artifact_ref(state.get("bug_human_ref"))
+                except TransitionRejected as error:
+                    blockers.append(f"event authority Bug human view: {error}")
         if blockers:
             raise TransitionRejected("event authority barrier: " + "; ".join(blockers))
         return state
@@ -3150,6 +3165,140 @@ class StateController:
                 "release_ref": state["release_ref"],
             },
             transaction_id="handoff-local-completed",
+        )
+
+    @serialized_run_mutation
+    def complete_bug_handoff(
+        self,
+        run_id: str,
+        bug_id: str,
+        packet_ref: dict[str, Any],
+        human_ref: dict[str, Any],
+        *,
+        expected_state_version: int,
+    ) -> dict[str, Any]:
+        """Verify one exact Bug Delivery Packet and commit the local terminal."""
+
+        state = self.load_state(run_id)
+        handoff_ref = {
+            "role": "bug_delivery_packet",
+            "path": packet_ref.get("path"),
+            "hash": packet_ref.get("hash"),
+            "version": packet_ref.get("version"),
+            "delivery_kind": "BUG",
+            "delivery": "LOCAL_ONLY",
+            "sent_remote": False,
+        }
+        exact_human_ref = {
+            "role": "bug_human_view",
+            "path": human_ref.get("path"),
+            "hash": human_ref.get("hash"),
+            "version": human_ref.get("version"),
+        }
+        if state.get("status") == "COMPLETED":
+            if (
+                state.get("current_node") != "handoff.dispatch"
+                or state.get("handoff_ref") != handoff_ref
+                or state.get("bug_human_ref") != exact_human_ref
+            ):
+                raise StateConflict("Run is already completed by a different Handoff")
+            return state
+        if expected_state_version != state["state_version"]:
+            raise StateConflict(
+                f"expected state version {expected_state_version}, current is {state['state_version']}"
+            )
+        if (
+            state.get("status") != "ACTIVE"
+            or state.get("current_node") != "handoff.prepare"
+            or state.get("last_completed_node") != "bug.baseline.check"
+            or state.get("release_ref") is not None
+        ):
+            raise TransitionRejected(
+                "Bug Handoff requires one active implementation-deviation Run at handoff.prepare"
+            )
+        expected_packet_path = (
+            Path(".better-product-graph")
+            / "bugs"
+            / bug_id
+            / "bug.delivery.packet.v1.json"
+        ).as_posix()
+        expected_human_path = (
+            Path(".better-product-graph") / "bugs" / bug_id / "BUG_v1.md"
+        ).as_posix()
+        if (
+            packet_ref.get("role") != "bug_delivery_packet"
+            or packet_ref.get("path") != expected_packet_path
+            or packet_ref.get("version") != 1
+            or human_ref.get("role") != "bug_human_view"
+            or human_ref.get("path") != expected_human_path
+            or human_ref.get("version") != 1
+        ):
+            raise TransitionRejected("Bug Handoff refs do not bind the managed Bug packet")
+        self._validate_single_artifact_ref(packet_ref)
+        self._validate_single_artifact_ref(human_ref)
+        result_refs = [
+            ref
+            for ref in state.get("artifact_refs", {}).values()
+            if isinstance(ref, dict)
+            and ref.get("role") == "node_result"
+            and ref.get("node_id") == "bug.baseline.check"
+            and ref.get("attempt_id") in state.get("consumed_attempts", [])
+        ]
+        if len(result_refs) != 1:
+            raise TransitionRejected(
+                "Bug Handoff requires one exact committed Bug Baseline result"
+            )
+        result_ref = result_refs[0]
+        self._validate_single_artifact_ref(result_ref)
+        result = read_json(self.project_root / result_ref["path"])
+        assessment = validate_bug_assessment(result)
+        if assessment.get("classification") != "IMPLEMENTATION_DEVIATION":
+            raise TransitionRejected(
+                "only IMPLEMENTATION_DEVIATION can use the lightweight Bug Handoff"
+            )
+        packet = read_json(self.project_root / packet_ref["path"])
+        expected_provenance = {
+            "attempt_id": result["attempt_id"],
+            "instruction_ref": result["instruction_ref"],
+            "instruction_hash": result["instruction_hash"],
+            "input_refs": result["input_refs"],
+            "input_hashes": result["input_hashes"],
+        }
+        if (
+            packet.get("schema_version") != "bug.delivery.packet.v1"
+            or packet.get("bug_id") != bug_id
+            or packet.get("classification") != "IMPLEMENTATION_DEVIATION"
+            or packet.get("delivery_profile") != "LIGHT"
+            or packet.get("assessment") != assessment
+            or packet.get("provenance") != expected_provenance
+            or packet.get("handoff")
+            != {"mode": "LOCAL_ONLY", "remote_status": "NOT_CONFIGURED"}
+        ):
+            raise TransitionRejected(
+                "Bug Delivery Packet does not bind the exact committed Bug assessment"
+            )
+        next_state = json.loads(canonical_json_bytes(state))
+        next_state["state_version"] += 1
+        next_state["status"] = "COMPLETED"
+        next_state["last_completed_node"] = "handoff.prepare"
+        next_state["current_node"] = "handoff.dispatch"
+        next_state["next_allowed_nodes"] = []
+        next_state["handoff_ref"] = handoff_ref
+        next_state["bug_human_ref"] = exact_human_ref
+        return self._commit_state_event(
+            run_id,
+            state,
+            next_state,
+            {
+                "event_type": "HANDOFF_LOCAL_COMMITTED",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "state_version": next_state["state_version"],
+                "handoff_ref": handoff_ref,
+                "bug_human_ref": exact_human_ref,
+                "bug_result_ref": result_ref,
+            },
+            transaction_id="handoff-local-bug-completed",
         )
 
     @serialized_run_mutation

@@ -99,11 +99,21 @@ class HostRuntime:
 
     def dispatch_current(self, run_id: str) -> dict[str, Any]:
         state = self.controller.authoritative_read_barrier(run_id)
-        if state["status"] == "RELEASED" and state["current_node"] == "handoff.prepare":
+        if (
+            state["status"] == "COMPLETED"
+            and state["current_node"] == "handoff.dispatch"
+            and isinstance(state.get("handoff_ref"), dict)
+            and state["handoff_ref"].get("delivery_kind") == "BUG"
+        ):
+            return self.engine._prepare_handoff(run_id)
+        if state["current_node"] == "handoff.prepare" and state["status"] in {
+            "ACTIVE",
+            "RELEASED",
+        }:
             result = self.engine._prepare_handoff(run_id)
             if result.get("status") != "COMPLETED":
                 raise TransitionRejected(
-                    f"exact Released Run could not complete local Handoff: {result.get('reason')}"
+                    f"exact Run could not complete local Handoff: {result.get('reason')}"
                 )
             return result
         contract = self.registry.contracts[state["current_node"]]
