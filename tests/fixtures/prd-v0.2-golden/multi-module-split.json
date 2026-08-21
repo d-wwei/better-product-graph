@@ -1,0 +1,50 @@
+{
+  "evidence_class": "LOCAL_HOST_AGENT_AUTHORED_FIXTURE",
+  "node_id": "prd.generate",
+  "attempt_id": "golden-multi-module-split",
+  "producer": {"kind": "HOST_AGENT", "host": "local-fixture"},
+  "instruction_ref": "references/atomic-skills/prd-generate/INSTRUCTIONS.md",
+  "instruction_hash": "sha256:golden-instructions",
+  "input_refs": ["decision-v1.json", "roadmap-v1.json", "plan-v1.json", "slice-v1.json", "knowledge-v1.json", "evidence-v1.json"],
+  "input_hashes": {
+    "decision-v1.json": "sha256:decision",
+    "roadmap-v1.json": "sha256:roadmap",
+    "plan-v1.json": "sha256:plan",
+    "slice-v1.json": "sha256:slice",
+    "knowledge-v1.json": "sha256:knowledge",
+    "evidence-v1.json": "sha256:evidence"
+  },
+  "semantic_output": {
+    "structure_mode": "split",
+    "document_markdown": "# PRD-GOLDEN-002_multi-module-split_v0.1_2026-08-20\n\n## 阅读摘要\n\n结论：交付订单状态聚合与通知两个模块。\n下一步：审查跨模块状态合同与失败恢复。\n\n## 1. 问题、目标与价值\n\n目标是让用户及时获得一致状态。证据：Decision v1。Authority：Owner 授权两个模块。\n\n## 2. 范围与交付切片\n\n本期覆盖状态聚合和站内通知，不含短信。\n\n## 3. 方案总览与关键流程\n\n聚合模块产生规范状态，通知模块只消费已确认变更。全局流程含去重与失败重试。\n\n## 4. 功能与规则详述\n\nMOD-1 聚合状态并保证幂等；MOD-2 根据事件偏好通知。依赖 DEP-1 由规范事件合同约束。\n\n## 5. 验收与产品评估\n\nAC-1：重复事件只产生一次通知。AC-2：通知失败不回滚订单状态。\n\n## 7. 兼容、灰度、降级与回滚\n\n先灰度聚合读取；异常时停止通知消费并保留旧查询。\n\n## 11. 风险、假设与未决事项\n\n未知：高峰期通知队列时延。风险由模块 Owner 联合负责。\n\n## 附录 C：文档变更日志\n\n版本 v0.1：首次形成本地 Golden Candidate；DOCUMENT_CHANGELOG 由归档机制维护。\n",
+    "template_mapping": {
+      "summary": "阅读摘要",
+      "problem_goal_value": "1. 问题、目标与价值",
+      "scope_slice": "2. 范围与交付切片",
+      "solution_overview": "3. 方案总览与关键流程",
+      "module_details": "4. 功能与规则详述",
+      "acceptance_evaluation": "5. 验收与产品评估",
+      "risk_open_items": "11. 风险、假设与未决事项",
+      "document_changelog": "附录 C：文档变更日志"
+    },
+    "metadata": {
+      "prd_id": "PRD-GOLDEN-002",
+      "short_title": "multi-module-split",
+      "version": "v0.1",
+      "date": "2026-08-20",
+      "status": "CANDIDATE",
+      "delivery_intent": "COMMIT",
+      "decision_refs": [{"path": "decision-v1.json", "hash": "sha256:decision", "version": 1}],
+      "roadmap_snapshot_ref": {"path": "roadmap-v1.json", "hash": "sha256:roadmap", "version": 1},
+      "product_plan_ref": {"path": "plan-v1.json", "hash": "sha256:plan", "version": 1},
+      "slice_ref": {"path": "slice-v1.json", "hash": "sha256:slice", "version": 1},
+      "active_scope_ref": {"schema_version": "active-scope-ref.v1", "plan_ref": {"path": "plan-v1.json", "hash": "sha256:plan", "version": 1}, "slice_id": "slice-golden-split", "projection_version": "active-scope-projection.v1", "scope_hash": "sha256:golden-split-scope"},
+      "spec_traceability": {"schema_version": "spec-traceability.v1", "refs": [{"role": "product_plan", "path": "plan-v1.json", "hash": "sha256:plan", "version": 1, "origin_node_id": "product.planning", "origin_attempt_id": "golden-plan"}, {"role": "slice", "path": "slice-v1.json", "hash": "sha256:slice", "version": 1, "origin_node_id": "product.planning", "origin_attempt_id": "golden-plan"}]},
+      "product_runtime_inputs": {"schema_version": "product-runtime-inputs.v1", "required": [{"input_id": "project_workspace", "kind": "PROJECT_WORKSPACE", "resolver": "HOST_PROJECT_ROOT", "binding_scope": "PROJECT", "version_policy": "project-workspace.v1", "on_missing": "FAIL_CLOSED"}, {"input_id": "product_signal", "kind": "RAW_SIGNAL_OR_EXACT_OCCURRENCE", "resolver": "SIGNAL_INTAKE", "binding_scope": "INVOCATION_OR_PROJECT_INBOX", "version_policy": "signal-contract.v1", "on_missing": "REQUEST_SIGNAL"}], "optional": []},
+      "knowledge_snapshot_ref": {"path": "knowledge-v1.json", "hash": "sha256:knowledge", "version": 1},
+      "evidence_refs": [{"path": "evidence-v1.json", "hash": "sha256:evidence", "version": 1}],
+      "evals": {"applicability": "RECOMMENDED", "reason": "跨模块事件组合建议评估"}
+    }
+  },
+  "artifact_refs": []
+}

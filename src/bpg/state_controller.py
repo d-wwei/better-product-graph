@@ -46,7 +46,7 @@ from .storage import (
     sha256_file,
     verify_event_chain,
 )
-from .templates import TemplateRegistry
+from .templates import TemplateContractError, TemplateRegistry, TemplateSelection
 
 
 class StateConflict(RuntimeError):
@@ -118,11 +118,44 @@ class StateController:
         )
 
     def _template_selection(self) -> dict[str, Any]:
+        selection = self._template_registry().resolve_for_runtime(self.project_root)
+        return self._template_selection_payload(selection)
+
+    def _template_registry(self) -> TemplateRegistry:
         source = self.skill_root / "templates"
         installed = self.skill_root / "references" / "templates"
-        selection = TemplateRegistry(source if source.is_dir() else installed).resolve(
-            self.project_root
+        return TemplateRegistry(source if source.is_dir() else installed)
+
+    def _run_created_template_pin_is_durable(
+        self, run_id: str, selection: TemplateSelection
+    ) -> bool:
+        """Return true only for an exact recoverable run-created commitment to this pin."""
+
+        journal_path = self._transaction_path(run_id, "run-created")
+        if journal_path.is_symlink() or not journal_path.is_file():
+            return False
+        journal = read_json(journal_path)
+        after_state = journal.get("after_state")
+        event = journal.get("event")
+        if not isinstance(after_state, dict) or not isinstance(event, dict):
+            return False
+        expected_pin = self._template_selection_payload(selection)
+        return (
+            journal.get("schema_version") == "state-transaction.v1"
+            and journal.get("transaction_id") == "run-created"
+            and journal.get("run_id") == run_id
+            and journal.get("status") in {"PREPARED", "COMMITTED"}
+            and event.get("event_type") == "RUN_CREATED"
+            and event.get("run_id") == run_id
+            and after_state.get("run_id") == run_id
+            and after_state.get("template_profile_pin") == expected_pin
+            and self._state_hash(after_state) == journal.get("after_state_hash")
+            and event.get("after_state_hash") == journal.get("after_state_hash")
+            and event.get("before_state_hash") == journal.get("before_state_hash")
         )
+
+    @staticmethod
+    def _template_selection_payload(selection: TemplateSelection) -> dict[str, Any]:
         return {
             "profile_id": selection.profile_id,
             "version": selection.version,
@@ -130,7 +163,52 @@ class StateController:
             "path": str(selection.path),
             "sha256": selection.sha256,
             "relative_path": selection.relative_path,
+            "source_kind": selection.origin,
+            "selection_source": selection.selection_source,
+            "fallback_reason": selection.fallback_reason,
+            "requested_profile_id": selection.requested_profile_id,
+            "requested_version": selection.requested_version,
+            "output_contract_path": str(selection.output_contract_path),
+            "output_contract_sha256": selection.output_contract_sha256,
+            "output_contract_version": selection.output_contract_version,
+            "output_contract_relative_path": selection.output_contract_relative_path,
         }
+
+    def _template_selection_from_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        source = self.skill_root / "templates"
+        installed = self.skill_root / "references" / "templates"
+        registry = TemplateRegistry(source if source.is_dir() else installed)
+        try:
+            selection = registry.selection_from_metadata(
+                self.project_root, metadata.get("template_profile")
+            )
+        except TemplateContractError as error:
+            raise TransitionRejected(f"Archived Template selection invalid: {error}") from error
+        return self._template_selection_payload(selection)
+
+    def _template_selection_from_candidate(
+        self, candidate_ref: dict[str, Any]
+    ) -> dict[str, Any]:
+        candidate_root = (self.project_root / candidate_ref.get("artifact_path", "")).resolve()
+        metadata_paths = list(candidate_root.glob("*.metadata.json"))
+        if len(metadata_paths) != 1 or metadata_paths[0].is_symlink():
+            raise TransitionRejected("Candidate Template selection metadata is not self-contained")
+        return self._template_selection_from_metadata(read_json(metadata_paths[0]))
+
+    def _template_selection_for_receipt(
+        self,
+        kind: str,
+        candidate_ref: dict[str, Any],
+        state: dict[str, Any],
+    ) -> dict[str, Any]:
+        candidate_root = (self.project_root / candidate_ref.get("artifact_path", "")).resolve()
+        metadata_paths = list(candidate_root.glob("*.metadata.json"))
+        if kind in {"document_experience", "mechanical_contracts"} and len(metadata_paths) == 1:
+            return self._template_selection_from_candidate(candidate_ref)
+        pin = state.get("template_profile_pin")
+        if isinstance(pin, dict) and pin:
+            return pin
+        return self._template_selection()
 
     @contextmanager
     def mutation_lock(self, run_id: str) -> Iterator[None]:
@@ -457,61 +535,70 @@ class StateController:
         if raw_path.exists():
             if read_json(raw_path) != raw_payload:
                 raise StateConflict(f"raw signal identity conflict: {run_id}")
-        else:
-            atomic_write_json(raw_path, raw_payload)
-        raw_ref = {
-            "path": raw_path.relative_to(self.project_root).as_posix(),
-            "hash": sha256_file(raw_path),
-            "version": 1,
-        }
-        artifact_refs = {"raw_signal": raw_ref}
         if source_signal_ref is not None:
             self._validate_single_artifact_ref(source_signal_ref)
-            artifact_refs["source_signal"] = source_signal_ref
-        state = {
-            "schema_version": "run-state.v1",
-            "run_id": run_id,
-            "run_type": run_type,
-            "state_version": 1,
-            "status": "ACTIVE",
-            "current_node": "signal.ingest",
-            "last_completed_node": None,
-            "next_allowed_nodes": self.edges.get("signal.ingest", []),
-            "artifact_refs": artifact_refs,
-            "source_signal_id": source_signal_id,
-            "source_occurrence_id": source_occurrence_id,
-            "unresolved": [],
-            "waiting": None,
-            "pause": None,
-            "interaction_policy": "ALLOW_PM_INTERVIEW",
-            "dispatch_attempts": [],
-            "fanout_plans": [],
-            "consumed_attempts": [],
-            "consumed_wait_triggers": [],
-            "current_candidate_ref": None,
-            "candidate_version": 0,
-            "ready_receipts": [],
-            "decision": None,
-            "release_ref": None,
-            "graph_manifest": {
-                "version": self.graph["version"],
-                "hash": sha256_file(self.graph_path),
-            },
-        }
-        return self._commit_state_event(
-            run_id,
-            None,
-            state,
-            {
-                "event_type": "RUN_CREATED",
-                "actor": "state-controller",
+        with self._template_registry().runtime_selection_transaction(
+            self.project_root,
+            retain_new_pin_on_error=lambda selection: self._run_created_template_pin_is_durable(
+                run_id, selection
+            ),
+        ) as selection:
+            template_profile_pin = self._template_selection_payload(selection)
+            if not raw_path.exists():
+                atomic_write_json(raw_path, raw_payload)
+            raw_ref = {
+                "path": raw_path.relative_to(self.project_root).as_posix(),
+                "hash": sha256_file(raw_path),
+                "version": 1,
+            }
+            artifact_refs = {"raw_signal": raw_ref}
+            if source_signal_ref is not None:
+                artifact_refs["source_signal"] = source_signal_ref
+            state = {
+                "schema_version": "run-state.v1",
                 "run_id": run_id,
+                "run_type": run_type,
                 "state_version": 1,
-                "raw_signal_ref": raw_ref,
-            },
-            transaction_id="run-created",
-            failpoint=failpoint,
-        )
+                "status": "ACTIVE",
+                "current_node": "signal.ingest",
+                "last_completed_node": None,
+                "next_allowed_nodes": self.edges.get("signal.ingest", []),
+                "artifact_refs": artifact_refs,
+                "source_signal_id": source_signal_id,
+                "source_occurrence_id": source_occurrence_id,
+                "unresolved": [],
+                "waiting": None,
+                "pause": None,
+                "interaction_policy": "ALLOW_PM_INTERVIEW",
+                "dispatch_attempts": [],
+                "fanout_plans": [],
+                "consumed_attempts": [],
+                "consumed_wait_triggers": [],
+                "current_candidate_ref": None,
+                "candidate_version": 0,
+                "ready_receipts": [],
+                "decision": None,
+                "release_ref": None,
+                "graph_manifest": {
+                    "version": self.graph["version"],
+                    "hash": sha256_file(self.graph_path),
+                },
+                "template_profile_pin": template_profile_pin,
+            }
+            return self._commit_state_event(
+                run_id,
+                None,
+                state,
+                {
+                    "event_type": "RUN_CREATED",
+                    "actor": "state-controller",
+                    "run_id": run_id,
+                    "state_version": 1,
+                    "raw_signal_ref": raw_ref,
+                },
+                transaction_id="run-created",
+                failpoint=failpoint,
+            )
 
     def load_state(self, run_id: str) -> dict[str, Any]:
         state = read_json(self._state_path(run_id))
@@ -1725,7 +1812,7 @@ class StateController:
         evals = metadata.get("evals", {})
         if evals.get("applicability") == "REQUIRED":
             raise TransitionRejected(
-                "REQUIRED Evals cannot enter Ready in 0.1.20: verifiable independent "
+                "REQUIRED Evals cannot enter Ready in the current skills-only Host: verifiable independent "
                 "fulfillment authority is unavailable; keep REVIEW_PENDING/NOT_RUN"
             )
         if evals.get("fulfillment") == "REVIEWED":
@@ -1816,7 +1903,7 @@ class StateController:
                 )
 
         evidence_root = self.run_path(run_id) / "ready-evidence"
-        selection = self._template_selection()
+        selection = self._template_selection_from_metadata(metadata)
         evidence_payloads = {
             "template_profile": (
                 evidence_root / "template-profile.json",
@@ -1826,6 +1913,14 @@ class StateController:
                     "version": selection["version"],
                     "template_path": selection["relative_path"],
                     "template_hash": selection["sha256"],
+                    "source_kind": selection["source_kind"],
+                    "selection_source": selection["selection_source"],
+                    "fallback_reason": selection["fallback_reason"],
+                    "requested_profile_id": selection["requested_profile_id"],
+                    "requested_version": selection["requested_version"],
+                    "output_contract_path": selection["output_contract_relative_path"],
+                    "output_contract_hash": selection["output_contract_sha256"],
+                    "output_contract_version": selection["output_contract_version"],
                 },
             ),
             "version_record": (
@@ -2037,7 +2132,7 @@ class StateController:
         evals = metadata.get("evals", {})
         if evals.get("applicability") == "REQUIRED":
             raise TransitionRejected(
-                "REQUIRED Evals cannot enter Ready in 0.1.20: verifiable independent "
+                "REQUIRED Evals cannot enter Ready in the current skills-only Host: verifiable independent "
                 "fulfillment authority is unavailable; keep REVIEW_PENDING/NOT_RUN"
             )
         if evals.get("fulfillment") != "REVIEWED":
@@ -2732,7 +2827,9 @@ class StateController:
                     node_id="prd.ready.gate",
                     attempt_id=attempts[0]["attempt_id"],
                     candidate_ref=candidate,
-                    template_selection=self._template_selection(),
+                    template_selection=self._template_selection_for_receipt(
+                        kind, candidate, state
+                    ),
                 )
             except ReceiptError as error:
                 raise TransitionRejected(f"{kind} release receipt invalid: {error}") from error
@@ -3120,7 +3217,9 @@ class StateController:
                 node_id=state["current_node"],
                 attempt_id=attempt["attempt_id"],
                 candidate_ref=candidate_ref,
-                template_selection=self._template_selection(),
+                template_selection=self._template_selection_for_receipt(
+                    kind, candidate_ref, state
+                ),
             )
         except ReceiptError as error:
             raise TransitionRejected(str(error)) from error

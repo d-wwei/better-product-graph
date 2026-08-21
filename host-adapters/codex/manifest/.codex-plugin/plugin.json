@@ -1,6 +1,6 @@
 {
   "name": "better-product-graph",
-  "version": "0.1.20",
+  "version": "0.2.0",
   "description": "Turns product signals into evidence-bound decisions, plans, versioned PRDs, and local engineering handoffs through one governed Codex Skill.",
   "author": {
     "name": "Better Product Graph contributors"

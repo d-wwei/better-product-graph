@@ -1,38 +1,47 @@
 {
   "plugin_name": "better-product-graph",
-  "plugin_version": "0.1.20",
+  "plugin_version": "0.2.0",
   "architecture_baseline": {
     "path": "docs/architecture/PRD_GRAPH_v1.4.md",
     "version": "V1.4",
     "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
   },
   "roadmap_baseline": {
-    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md",
-    "version": "v0.12",
-    "sha256": "3cd5545eed2e066b1b38748f485b12a21630ee88b8bd9e6f61dee6e8697c6a50"
+    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md",
+    "version": "v0.13",
+    "sha256": "9f3120f6b869588287811f9ddb9e4e4248324808ed358879f30798627eae3515"
   },
-  "exact_files": [
-    {
-      "source": "host-adapters/codex/manifest/.codex-plugin/plugin.json",
-      "target": ".codex-plugin/plugin.json",
-      "fingerprint": true
-    },
-    {
-      "source": "host-adapters/codex/public-skill/better-product-graph/SKILL.md",
-      "target": "skills/better-product-graph/SKILL.md",
-      "fingerprint": true
-    },
-    {
-      "source": "host-adapters/codex/public-skill/better-product-graph/scripts/bpg_runner.py",
-      "target": "skills/better-product-graph/scripts/bpg_runner.py",
-      "fingerprint": true
-    },
-    {
-      "source": "host-adapters/codex/assets/icon.svg",
-      "target": "assets/icon.svg",
-      "fingerprint": false
-    }
+  "template_source_provenance": [
+    "templates/prd/general/PRD_TEMPLATE_v0.2.md",
+    "templates/prd/general/OUTPUT_CONTRACT_v0.2.json"
   ],
+  "host": {
+    "host_id": "codex",
+    "manifest_dir": ".codex-plugin",
+    "public_skill_source_root": "host-adapters/codex/public-skill/better-product-graph",
+    "exact_files": [
+      {
+        "source": "host-adapters/codex/manifest/.codex-plugin/plugin.json",
+        "target": ".codex-plugin/plugin.json",
+        "fingerprint": true
+      },
+      {
+        "source": "host-adapters/codex/public-skill/better-product-graph/SKILL.md",
+        "target": "skills/better-product-graph/SKILL.md",
+        "fingerprint": true
+      },
+      {
+        "source": "host-adapters/codex/public-skill/better-product-graph/scripts/bpg_runner.py",
+        "target": "skills/better-product-graph/scripts/bpg_runner.py",
+        "fingerprint": true
+      },
+      {
+        "source": "host-adapters/codex/assets/icon.svg",
+        "target": "assets/icon.svg",
+        "fingerprint": false
+      }
+    ]
+  },
   "derived_transforms": [
     {
       "transform_id": "redact-upstream-local-path-v1",
@@ -49,56 +58,73 @@
     {
       "source": "src/bpg",
       "target": "skills/better-product-graph/scripts/bpg",
-      "allowed_names": ["*.py"],
+      "allowed_names": [
+        "*.py"
+      ],
       "required": true,
       "fingerprint": true
     },
     {
       "source": "src/core/atomic-skills",
       "target": "skills/better-product-graph/references/atomic-skills",
-      "allowed_names": ["INSTRUCTIONS.md"],
+      "allowed_names": [
+        "INSTRUCTIONS.md"
+      ],
       "required": true,
       "fingerprint": true
     },
     {
       "source": "src/core/graph",
       "target": "skills/better-product-graph/references/graph",
-      "allowed_names": ["*.json"],
+      "allowed_names": [
+        "*.json"
+      ],
       "required": true,
       "fingerprint": true
     },
     {
       "source": "src/core/schemas",
       "target": "skills/better-product-graph/references/schemas",
-      "allowed_names": ["*.json"],
+      "allowed_names": [
+        "*.json"
+      ],
       "required": true,
       "fingerprint": true
     },
     {
       "source": "src/core/policies",
       "target": "skills/better-product-graph/references/policies",
-      "allowed_names": ["*.json"],
+      "allowed_names": [
+        "*.json"
+      ],
       "required": true,
       "fingerprint": true
     },
     {
       "source": "src/core/templates",
       "target": "skills/better-product-graph/references/templates",
-      "allowed_names": ["*.json", "*.md"],
+      "allowed_names": [
+        "*.json",
+        "*.md"
+      ],
       "required": true,
       "fingerprint": true
     },
     {
       "source": "src/core/reasoning-catalog",
       "target": "skills/better-product-graph/references/reasoning-catalog",
-      "allowed_names": ["*.json"],
+      "allowed_names": [
+        "*.json"
+      ],
       "required": true,
       "fingerprint": true
     },
     {
       "source": "src/core/reviewer-profiles",
       "target": "skills/better-product-graph/references/reviewer-profiles",
-      "allowed_names": ["*.json"],
+      "allowed_names": [
+        "*.json"
+      ],
       "required": true,
       "fingerprint": true
     }

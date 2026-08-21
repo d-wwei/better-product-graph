@@ -10,8 +10,14 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.promote_prd_template import sync_prd_template_v02
 
 
 class BuildError(RuntimeError):
@@ -30,13 +36,89 @@ def _canonical_json(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
 
 
-def _load_config(repo_root: Path) -> dict[str, Any]:
-    path = repo_root / "config" / "plugin-build.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+DEFAULT_HOST = "codex"
+SUPPORTED_HOSTS = ("codex", "claude")
+HOST_MANIFEST_DIRS = {host: f".{host}-plugin" for host in SUPPORTED_HOSTS}
+
+OVERLAY_TOP_LEVEL_KEYS = frozenset({"overlay_schema_version", "host"})
+HOST_KEYS = frozenset(
+    {
+        "host_id",
+        "manifest_dir",
+        "public_skill_source_root",
+        "exact_files",
+        "validator",
+        "public_skill_parity",
+        "byte_identical_sources",
+    }
+)
+
+
+def _overlay_path(repo_root: Path, host: str) -> Path:
+    return repo_root / "config" / f"plugin-build.{host}.json"
+
+
+def _load_config(repo_root: Path, host: str = DEFAULT_HOST) -> tuple[dict[str, Any], list[Path]]:
+    """Load the shared base contract, then mechanically merge one exact host overlay."""
+    if host not in SUPPORTED_HOSTS:
+        raise BuildError(f"unsupported host target: {host}")
+    base_path = repo_root / "config" / "plugin-build.json"
+    config = json.loads(base_path.read_text(encoding="utf-8"))
+    sources = [base_path]
+    if config.get("host", {}).get("host_id") != DEFAULT_HOST:
+        raise BuildError("base build config must carry the default host target")
+    if host != DEFAULT_HOST:
+        overlay_path = _overlay_path(repo_root, host)
+        if not overlay_path.is_file():
+            raise BuildError(f"host overlay is missing: {overlay_path}")
+        overlay = json.loads(overlay_path.read_text(encoding="utf-8"))
+        shared_keys = sorted(set(overlay) - OVERLAY_TOP_LEVEL_KEYS)
+        if shared_keys:
+            raise BuildError(f"host overlay must not declare shared keys: {shared_keys}")
+        host_overlay = overlay.get("host")
+        if not isinstance(host_overlay, dict):
+            raise BuildError("host overlay must declare exactly one host block")
+        unknown = sorted(set(host_overlay) - HOST_KEYS)
+        if unknown:
+            raise BuildError(f"host overlay declares unknown host keys: {unknown}")
+        if host_overlay.get("host_id") != host:
+            raise BuildError("host overlay identity differs from the requested host target")
+        config["host"] = host_overlay
+        sources.append(overlay_path)
+    _validate_host_block(config["host"])
+    return config, sources
+
+
+def _validate_host_block(host: dict[str, Any]) -> None:
+    for key in ("host_id", "manifest_dir", "public_skill_source_root", "exact_files"):
+        if key not in host:
+            raise BuildError(f"host block is missing required key: {key}")
+    unknown = sorted(set(host) - HOST_KEYS)
+    if unknown:
+        raise BuildError(f"host block declares unknown keys: {unknown}")
+    manifest_dir = host["manifest_dir"]
+    if manifest_dir != f".{host['host_id']}-plugin":
+        raise BuildError("host manifest directory must match the host identity")
+    _check_relative(manifest_dir)
+    _check_relative(host["public_skill_source_root"])
+    if not host["public_skill_source_root"].startswith(f"host-adapters/{host['host_id']}/"):
+        raise BuildError("public Skill source root must live under the exact host adapter")
+    for item in host["exact_files"]:
+        _check_relative(item["source"])
+        _check_relative(item["target"])
+        if not item["source"].startswith(f"host-adapters/{host['host_id']}/"):
+            raise BuildError(f"host file must live under the exact host adapter: {item['source']}")
+    parity = host.get("public_skill_parity")
+    if parity is not None:
+        _check_relative(parity["baseline_source"])
+        _check_relative(parity["target_source"])
+    for pair in host.get("byte_identical_sources", []):
+        _check_relative(pair["baseline"])
+        _check_relative(pair["target"])
 
 
 def _verify_baseline(repo_root: Path, baseline: dict[str, str]) -> None:
-    actual = _sha256_file(repo_root / baseline["path"]).removeprefix("sha256:")
+    actual = _sha256_file(_source_path(repo_root, baseline["path"])).removeprefix("sha256:")
     if actual != baseline["sha256"]:
         raise BuildError(f"frozen baseline hash mismatch: {baseline['path']}")
 
@@ -60,6 +142,22 @@ def _check_relative(path: str) -> None:
         raise BuildError(f"path escapes plugin root: {path}")
 
 
+def _source_path(repo_root: Path, relative: str) -> Path:
+    """Resolve one declared source without lexical or symlink escape from the checkout."""
+
+    _check_relative(relative)
+    candidate = repo_root
+    for part in PurePosixPath(relative).parts:
+        candidate = candidate / part
+        if candidate.is_symlink():
+            raise BuildError(f"source path crosses a symlink: {relative}")
+    try:
+        candidate.resolve(strict=False).relative_to(repo_root.resolve())
+    except ValueError as error:
+        raise BuildError(f"source path escapes repository root: {relative}") from error
+    return candidate
+
+
 def _copy_file(source: Path, target: Path) -> None:
     if source.is_symlink():
         raise BuildError(f"symlink is not allowed: {source}")
@@ -74,11 +172,18 @@ def _allowed(relative: Path, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(relative.name, pattern) for pattern in patterns)
 
 
+# OS/interpreter noise that can never be a legitimate build input. Everything else
+# outside the allowlist still fails the build closed.
+IGNORED_SOURCE_NAMES = frozenset({".DS_Store", "Thumbs.db", ".directory"})
+
+
 def _tree_files(source_root: Path, patterns: list[str]) -> list[Path]:
     files: list[Path] = []
     for path in sorted(source_root.rglob("*")):
         relative = path.relative_to(source_root)
         if "__pycache__" in relative.parts or path.suffix in {".pyc", ".pyo"}:
+            continue
+        if path.name in IGNORED_SOURCE_NAMES:
             continue
         if path.is_symlink():
             raise BuildError(f"symlink is not allowed: {path}")
@@ -93,15 +198,71 @@ def _tree_files(source_root: Path, patterns: list[str]) -> list[Path]:
 
 
 def _validate_public_source(repo_root: Path, config: dict[str, Any]) -> None:
-    public_root = repo_root / "host-adapters" / "codex" / "public-skill" / "better-product-graph"
+    host = config["host"]
+    public_root = _source_path(repo_root, host["public_skill_source_root"])
+    if not public_root.is_dir():
+        raise BuildError(f"public Skill source root is missing: {public_root}")
+    prefix = f"host-adapters/{host['host_id']}/public-skill/"
     declared = {
-        str((repo_root / item["source"]).resolve())
-        for item in config["exact_files"]
-        if item["source"].startswith("host-adapters/codex/public-skill/")
+        str(_source_path(repo_root, item["source"]).resolve())
+        for item in host["exact_files"]
+        if item["source"].startswith(prefix)
     }
     for path in public_root.rglob("*"):
+        if "__pycache__" in path.relative_to(public_root).parts:
+            continue
+        if path.name in IGNORED_SOURCE_NAMES:
+            continue
         if path.is_file() and str(path.resolve()) not in declared:
             raise BuildError(f"public Skill source file is not allowlisted: {path}")
+
+
+def _validate_host_parity(repo_root: Path, config: dict[str, Any]) -> dict[str, Any]:
+    """Prove that host-specific public sources stay a declared delta over the default host."""
+    host = config["host"]
+    records: dict[str, Any] = {"byte_identical": [], "public_skill_parity": None}
+    for pair in host.get("byte_identical_sources", []):
+        baseline = _source_path(repo_root, pair["baseline"])
+        target = _source_path(repo_root, pair["target"])
+        baseline_hash = _sha256_file(baseline)
+        if baseline_hash != _sha256_file(target):
+            raise BuildError(f"host file must stay byte-identical to {pair['baseline']}")
+        records["byte_identical"].append({**pair, "sha256": baseline_hash})
+    parity = host.get("public_skill_parity")
+    if parity is not None:
+        baseline_text = _source_path(repo_root, parity["baseline_source"]).read_text(
+            encoding="utf-8"
+        )
+        expected = baseline_text
+        for substitution in parity["substitutions"]:
+            if expected.count(substitution["from"]) != 1:
+                raise BuildError("public Skill parity substitution source is not unique")
+            expected = expected.replace(substitution["from"], substitution["to"])
+        actual = _source_path(repo_root, parity["target_source"]).read_text(encoding="utf-8")
+        if actual != expected:
+            raise BuildError(
+                "host public Skill differs from the default host beyond its declared substitutions"
+            )
+        records["public_skill_parity"] = {
+            "baseline_source": parity["baseline_source"],
+            "baseline_sha256": _sha256_bytes(baseline_text.encode()),
+            "target_sha256": _sha256_bytes(actual.encode()),
+            "substitutions": len(parity["substitutions"]),
+        }
+    return records
+
+
+def _validate_no_source_absolute_paths(repo_root: Path, output_root: Path) -> None:
+    """No built file may leak a build-machine absolute path."""
+    needles = [str(repo_root).encode(), str(repo_root.home()).encode(), b"/Users/", b"/home/"]
+    for path in sorted(output_root.rglob("*")):
+        if not path.is_file():
+            continue
+        content = path.read_bytes()
+        for needle in needles:
+            if needle in content:
+                relative = path.relative_to(output_root).as_posix()
+                raise BuildError(f"built file leaks a source absolute path: {relative}")
 
 
 def _inventory(plugin_root: Path) -> list[dict[str, Any]]:
@@ -122,6 +283,15 @@ def _source_fingerprint(repo_root: Path, sources: list[Path]) -> str:
     records = [
         {"path": path.relative_to(repo_root).as_posix(), "sha256": _sha256_file(path)}
         for path in sorted(set(sources))
+    ]
+    return _sha256_bytes(_canonical_json(records))
+
+
+def _output_fingerprint(output_root: Path, relative_targets: list[str]) -> str:
+    """Host-independent fingerprint over exactly the shared Core trees in one built Plugin."""
+    records = [
+        {"path": relative, "sha256": _sha256_file(output_root / relative)}
+        for relative in sorted(set(relative_targets))
     ]
     return _sha256_bytes(_canonical_json(records))
 
@@ -222,27 +392,38 @@ def _apply_derived_transforms(output_root: Path, config: dict[str, Any]) -> list
     return records
 
 
-def build_plugin(repo_root: Path, output_root: Path) -> dict[str, Any]:
+def build_plugin(
+    repo_root: Path, output_root: Path, *, host: str = DEFAULT_HOST
+) -> dict[str, Any]:
     repo_root = repo_root.resolve()
     output_root = output_root.resolve()
-    config = _load_config(repo_root)
+    config, config_sources = _load_config(repo_root, host)
+    host_block = config["host"]
+    template_promotion = sync_prd_template_v02(repo_root, check=True)
     _verify_baseline(repo_root, config["architecture_baseline"])
     _verify_baseline(repo_root, config["roadmap_baseline"])
     _validate_public_source(repo_root, config)
+    host_parity = _validate_host_parity(repo_root, config)
     if output_root.exists():
         shutil.rmtree(output_root)
     output_root.mkdir(parents=True)
 
-    fingerprint_sources: list[Path] = [repo_root / "config" / "plugin-build.json"]
-    for item in config["exact_files"]:
+    fingerprint_sources: list[Path] = [
+        *config_sources,
+        *(
+            _source_path(repo_root, path)
+            for path in config.get("template_source_provenance", [])
+        ),
+    ]
+    for item in host_block["exact_files"]:
         _check_relative(item["target"])
-        source = repo_root / item["source"]
+        source = _source_path(repo_root, item["source"])
         _copy_file(source, output_root / item["target"])
         if item.get("fingerprint"):
             fingerprint_sources.append(source)
 
     plugin_manifest = json.loads(
-        (output_root / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+        (output_root / host_block["manifest_dir"] / "plugin.json").read_text(encoding="utf-8")
     )
     if (
         plugin_manifest.get("name") != config["plugin_name"]
@@ -250,8 +431,9 @@ def build_plugin(repo_root: Path, output_root: Path) -> dict[str, Any]:
     ):
         raise BuildError("Plugin manifest name/version differs from distribution config")
 
+    core_targets: list[str] = []
     for tree in config["trees"]:
-        source_root = repo_root / tree["source"]
+        source_root = _source_path(repo_root, tree["source"])
         if not source_root.exists():
             if tree.get("required"):
                 raise BuildError(f"required source tree missing: {source_root}")
@@ -261,6 +443,7 @@ def build_plugin(repo_root: Path, output_root: Path) -> dict[str, Any]:
             target_relative = Path(tree["target"]) / relative
             _check_relative(target_relative.as_posix())
             _copy_file(source, output_root / target_relative)
+            core_targets.append(target_relative.as_posix())
             if tree.get("fingerprint"):
                 fingerprint_sources.append(source)
 
@@ -268,6 +451,7 @@ def build_plugin(repo_root: Path, output_root: Path) -> dict[str, Any]:
 
     _validate_node_contracts(output_root)
     _validate_reference_catalog(output_root)
+    _validate_no_source_absolute_paths(repo_root, output_root)
 
     skills = sorted(path.relative_to(output_root).as_posix() for path in output_root.glob("skills/*/SKILL.md"))
     if skills != ["skills/better-product-graph/SKILL.md"]:
@@ -277,9 +461,16 @@ def build_plugin(repo_root: Path, output_root: Path) -> dict[str, Any]:
     build_manifest = {
         "schema_version": "build-manifest.v0alpha",
         "plugin": {"name": config["plugin_name"], "version": config["plugin_version"]},
+        "host": {
+            "host_id": host_block["host_id"],
+            "manifest_dir": host_block["manifest_dir"],
+            "parity": host_parity,
+        },
+        "core_tree_fingerprint": _output_fingerprint(output_root, core_targets),
         "git": _git_identity(repo_root),
         "architecture_baseline": config["architecture_baseline"],
         "roadmap_baseline": config["roadmap_baseline"],
+        "template_promotion": template_promotion,
         "execution_contract_fingerprint": _source_fingerprint(repo_root, fingerprint_sources),
         "derived_transforms": derived_transforms,
         "inventory": inventory,
@@ -294,7 +485,10 @@ def verify_installed_identity(plugin_root: Path) -> dict[str, Any]:
     manifest_path = plugin_root / "build-manifest.json"
     if not manifest_path.is_file():
         return {"valid": False, "errors": ["build-manifest.json missing"]}
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return {"valid": False, "errors": [str(error)]}
     actual_inventory = _inventory(plugin_root)
     errors: list[str] = []
     if actual_inventory != manifest.get("inventory"):
@@ -302,6 +496,42 @@ def verify_installed_identity(plugin_root: Path) -> dict[str, Any]:
     actual_hash = _sha256_bytes(_canonical_json(actual_inventory))
     if actual_hash != manifest.get("artifact_hash"):
         errors.append("installed artifact hash mismatch")
+    host = manifest.get("host")
+    plugin = manifest.get("plugin")
+    if not isinstance(host, dict):
+        errors.append("build manifest host binding is missing")
+    else:
+        host_id = host.get("host_id")
+        manifest_dir = host.get("manifest_dir")
+        expected_dir = HOST_MANIFEST_DIRS.get(host_id) if isinstance(host_id, str) else None
+        if expected_dir is None or manifest_dir != expected_dir:
+            errors.append("build manifest host binding is invalid")
+        found = [
+            candidate
+            for candidate, directory in HOST_MANIFEST_DIRS.items()
+            if (plugin_root / directory / "plugin.json").is_file()
+        ]
+        if found != [host_id]:
+            errors.append(
+                "installed host manifest does not match build manifest: " + str(found)
+            )
+        elif isinstance(plugin, dict):
+            try:
+                host_manifest = json.loads(
+                    (plugin_root / expected_dir / "plugin.json").read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"installed host manifest is invalid: {error}")
+            else:
+                if not isinstance(host_manifest, dict):
+                    errors.append("installed host manifest is not a JSON object")
+                elif (
+                    host_manifest.get("name") != plugin.get("name")
+                    or host_manifest.get("version") != plugin.get("version")
+                ):
+                    errors.append("installed host manifest plugin identity mismatch")
+        else:
+            errors.append("build manifest plugin binding is missing")
     skills = sorted(path.relative_to(plugin_root).as_posix() for path in plugin_root.glob("skills/*/SKILL.md"))
     if skills != ["skills/better-product-graph/SKILL.md"]:
         errors.append("installed copy does not contain exactly one public Skill")
@@ -312,8 +542,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--host", choices=SUPPORTED_HOSTS, default=DEFAULT_HOST)
     args = parser.parse_args()
-    result = build_plugin(args.repo, args.output)
+    result = build_plugin(args.repo, args.output, host=args.host)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0
 

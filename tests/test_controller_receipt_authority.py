@@ -209,6 +209,9 @@ class ControllerReceiptAuthorityTests(unittest.TestCase):
     def test_candidate_v1_receipts_cannot_release_candidate_v2(self) -> None:
         submission = deepcopy(prd_submission())
         submission["semantic_output"]["metadata"]["version"] = "v0.2"
+        submission["semantic_output"]["document_markdown"] = submission[
+            "semantic_output"
+        ]["document_markdown"].replace("_v0.1_2026-08-20", "_v0.2_2026-08-20", 1)
         assembled = assemble_prd(
             submission, TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
         )
@@ -345,6 +348,28 @@ class ControllerReceiptAuthorityTests(unittest.TestCase):
             controller.issue_controller_receipt(
                 self.request["run_id"],
                 "document-forged-template",
+                "document_experience",
+                self._subjects("document_experience"),
+                expected_state_version=state["state_version"],
+            )
+
+    def test_template_receipt_binds_exact_output_contract_and_resolution(self) -> None:
+        ref = self.request["presentation"]["template_profile_ref"]
+        path = self.project / ref["path"]
+        payload = read_json(path)
+        payload["output_contract_hash"] = "sha256:" + "0" * 64
+        payload["selection_source"] = "FORGED_FALLBACK"
+        atomic_write_json(path, payload)
+        changed = {**ref, "hash": sha256_file(path)}
+        self.request["presentation"]["template_profile_ref"] = changed
+        self._replace_authorized_ref(ref["path"], changed)
+        controller = StateController(self.project, GRAPH)
+        state = controller.load_state(self.request["run_id"])
+
+        with self.assertRaisesRegex(TransitionRejected, "Template|template|registry"):
+            controller.issue_controller_receipt(
+                self.request["run_id"],
+                "document-forged-output-contract",
                 "document_experience",
                 self._subjects("document_experience"),
                 expected_state_version=state["state_version"],

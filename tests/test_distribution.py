@@ -46,12 +46,19 @@ class DistributionContractTests(unittest.TestCase):
         )
         self.assertFalse(any(path.is_symlink() for path in self.output.rglob("*")))
         self.assertEqual(manifest["plugin"]["name"], "better-product-graph")
-        self.assertEqual(manifest["plugin"]["version"], "0.1.20")
+        self.assertEqual(manifest["plugin"]["version"], "0.2.0")
         installed_manifest = json.loads(
             (self.output / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(installed_manifest["version"], "0.1.20")
+        self.assertEqual(installed_manifest["version"], "0.2.0")
         self.assertEqual(manifest["architecture_baseline"]["version"], "V1.4")
+        self.assertEqual(
+            manifest["template_promotion"]["stage"], "RELEASED_DEFAULT"
+        )
+        self.assertEqual(
+            manifest["template_promotion"]["authenticated_host_agent_status"],
+            "NOT_ASSERTED_BY_TEMPLATE_SYNC",
+        )
         self.assertTrue(manifest["execution_contract_fingerprint"].startswith("sha256:"))
         self.assertTrue(manifest["artifact_hash"].startswith("sha256:"))
         self.assertTrue(verify_installed_identity(self.output)["valid"])

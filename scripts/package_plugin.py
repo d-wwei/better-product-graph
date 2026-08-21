@@ -16,7 +16,12 @@ from typing import Any
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.build_plugin import build_plugin, verify_installed_identity
+from scripts.build_plugin import (
+    DEFAULT_HOST,
+    SUPPORTED_HOSTS,
+    build_plugin,
+    verify_installed_identity,
+)
 
 
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
@@ -48,12 +53,13 @@ def package_plugin(
     output_zip: Path,
     *,
     require_clean: bool = False,
+    host: str = DEFAULT_HOST,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
     output_zip = output_zip.resolve()
     with tempfile.TemporaryDirectory(prefix="bpg-package-") as directory:
         plugin_root = Path(directory) / "plugin"
-        manifest = build_plugin(repo_root, plugin_root)
+        manifest = build_plugin(repo_root, plugin_root, host=host)
         if require_clean and manifest["git"]["dirty"]:
             raise ValueError("release package requires a clean exact Git commit")
         identity = verify_installed_identity(plugin_root)
@@ -99,8 +105,10 @@ def package_plugin(
         "bytes": output_zip.stat().st_size,
         "entries": len(entries),
         "plugin": manifest["plugin"],
+        "host": manifest["host"]["host_id"],
         "git": manifest["git"],
         "artifact_hash": manifest["artifact_hash"],
+        "core_tree_fingerprint": manifest["core_tree_fingerprint"],
     }
 
 
@@ -109,10 +117,16 @@ def main() -> int:
     parser.add_argument("output_zip", type=Path)
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--require-clean", action="store_true")
+    parser.add_argument("--host", choices=SUPPORTED_HOSTS, default=DEFAULT_HOST)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     try:
-        result = package_plugin(args.repo, args.output_zip, require_clean=args.require_clean)
+        result = package_plugin(
+            args.repo,
+            args.output_zip,
+            require_clean=args.require_clean,
+            host=args.host,
+        )
     except Exception as error:
         if args.json:
             print(json.dumps({"status": "FAIL", "error": str(error)}, ensure_ascii=False, sort_keys=True))

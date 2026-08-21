@@ -965,9 +965,34 @@ class HostRuntime:
                 run_id, result["semantic_output"]["metadata"]
             )
         try:
+            selection = TemplateRegistry(self._template_root()).resolve(
+                self.controller.project_root
+            )
+            run_pin = self.controller.load_state(run_id).get("template_profile_pin", {})
+            expected_pin = self.controller._template_selection_payload(selection)
+            if any(
+                run_pin.get(field) != expected_pin.get(field)
+                for field in (
+                    "profile_id",
+                    "version",
+                    "sha256",
+                    "relative_path",
+                    "source_kind",
+                    "selection_source",
+                    "fallback_reason",
+                    "requested_profile_id",
+                    "requested_version",
+                    "output_contract_sha256",
+                    "output_contract_version",
+                    "output_contract_relative_path",
+                )
+            ):
+                raise PRDContractError(
+                    "Run Template pin differs from the exact current selection; migrate explicitly"
+                )
             assembled = assemble_prd(
                 result,
-                TemplateRegistry(self._template_root()).resolve(self.controller.project_root),
+                selection,
             )
         except (PRDContractError, ValueError) as error:
             raise TransitionRejected(f"Agent PRD contract invalid: {error}") from error

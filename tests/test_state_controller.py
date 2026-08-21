@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.bpg.failpoints import begin_node_call, persist_node_dispatch
+from src.bpg.failpoints import InjectedCrash, crash_at
 from src.bpg.state_controller import StateConflict, StateController, TransitionRejected
+from src.bpg.templates import TemplateRegistry
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +54,121 @@ class StateControllerTests(unittest.TestCase):
         self.assertTrue(raw_ref["hash"].startswith("sha256:"))
         self.assertEqual(state["current_node"], "signal.ingest")
         self.assertEqual(state["state_version"], 1)
+
+    def test_durable_create_run_journal_retains_pin_and_recovers_after_default_changes(self) -> None:
+        project = self.project / "failed-create"
+        project.mkdir()
+        skill_root = self.project / "runtime-core"
+        shutil.copytree(REPO_ROOT / "src" / "core", skill_root)
+        controller = StateController(
+            project,
+            skill_root / "graph" / "manifest.json",
+            skill_root=skill_root,
+        )
+        config = project / ".better-product-graph" / "template-profile.json"
+
+        with self.assertRaises(InjectedCrash):
+            controller.create_run(
+                "run-create-crash",
+                raw_signal="crash after durable event",
+                failpoint=crash_at("after_state_event"),
+            )
+
+        self.assertTrue(config.is_file())
+        pinned = json.loads(config.read_text(encoding="utf-8"))["active"]
+        journal_path = (
+            project
+            / ".better-product-graph/runs/run-create-crash/transactions/run-created.json"
+        )
+        journal = json.loads(journal_path.read_text(encoding="utf-8"))
+        self.assertEqual(journal["status"], "PREPARED")
+        self.assertEqual(
+            journal["after_state"]["template_profile_pin"]["sha256"],
+            pinned["template_sha256"],
+        )
+
+        profiles_path = skill_root / "templates" / "profiles.json"
+        profiles = json.loads(profiles_path.read_text(encoding="utf-8"))
+        profiles["default_profile"] = {"id": "fallback", "version": "upstream-frozen"}
+        profiles_path.write_text(json.dumps(profiles), encoding="utf-8")
+
+        self.assertEqual(controller.recover_transactions("run-create-crash"), 1)
+        recovered = controller.load_state("run-create-crash")
+        self.assertEqual(recovered["state_version"], 1)
+        self.assertEqual(recovered["template_profile_pin"]["sha256"], pinned["template_sha256"])
+        resolved = TemplateRegistry(skill_root / "templates").resolve(project)
+        self.assertEqual(resolved.profile_id, "general")
+        self.assertEqual(resolved.version, "0.2.0")
+        self.assertEqual(resolved.selection_source, "REGISTRY_DEFAULT_PIN")
+        self.assertEqual(
+            controller._template_selection(),
+            recovered["template_profile_pin"],
+        )
+
+    def test_create_run_failure_before_durable_journal_removes_new_pin(self) -> None:
+        preflight_project = self.project / "failed-preflight"
+        preflight_project.mkdir()
+        preflight_controller = StateController(preflight_project, GRAPH)
+        with self.assertRaisesRegex(TransitionRejected, "escapes project root"):
+            preflight_controller.create_run(
+                "run-preflight-failure",
+                raw_signal="invalid source ref",
+                source_signal_ref={
+                    "path": "../escape.json",
+                    "hash": "sha256:" + "0" * 64,
+                    "version": 1,
+                },
+            )
+        self.assertFalse(
+            (preflight_project / ".better-product-graph/template-profile.json").exists()
+        )
+
+        project = self.project / "failed-before-journal"
+        project.mkdir()
+        controller = StateController(project, GRAPH)
+        config = project / ".better-product-graph" / "template-profile.json"
+
+        with patch("src.bpg.state_controller.atomic_write_json", side_effect=OSError("raw write")):
+            with self.assertRaisesRegex(OSError, "raw write"):
+                controller.create_run("run-raw-failure", raw_signal="cannot persist raw")
+
+        self.assertFalse(config.exists())
+        self.assertFalse(
+            (
+                project
+                / ".better-product-graph/runs/run-raw-failure/transactions/run-created.json"
+            ).exists()
+        )
+
+    def test_unrelated_run_created_journal_does_not_retain_new_pin(self) -> None:
+        project = self.project / "mismatched-journal"
+        project.mkdir()
+        controller = StateController(project, GRAPH)
+        journal_path = (
+            project
+            / ".better-product-graph/runs/run-mismatched/transactions/run-created.json"
+        )
+        journal_path.parent.mkdir(parents=True)
+        journal_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "state-transaction.v1",
+                    "transaction_id": "run-created",
+                    "run_id": "another-run",
+                    "status": "PREPARED",
+                    "after_state": {"template_profile_pin": {"sha256": "sha256:" + "9" * 64}},
+                    "event": {"event_type": "RUN_CREATED", "run_id": "another-run"},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(StateConflict, "identity conflict"):
+            controller.create_run("run-mismatched", raw_signal="journal belongs elsewhere")
+
+        self.assertFalse(
+            (project / ".better-product-graph/template-profile.json").exists()
+        )
 
     def test_agent_claimed_gate_fields_are_rejected_without_state_change(self) -> None:
         before = self.controller.load_state(self.run_id)

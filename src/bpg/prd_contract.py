@@ -9,17 +9,9 @@ from typing import Any
 
 from .contracts import PolicyViolation, validate_node_result_producer
 from .delivery_contract import DeliveryContractError, validate_candidate_delivery_contract
-from .templates import TemplateSelection
+from .templates import TemplateSelection, load_output_contract
 
 
-REQUIRED_HEADINGS = (
-    "阅读摘要",
-    "目标与成功边界",
-    "范围与交付切片",
-    "验收标准",
-    "风险、未知与回滚",
-    "版本与变更",
-)
 EXPERIMENT_FIELDS = (
     "key_unknown",
     "hypothesis",
@@ -35,6 +27,11 @@ EXPERIMENT_FIELDS = (
 )
 SAFE_SHORT_TITLE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION = re.compile(r"^v\d+\.\d+(?:\.\d+)?$")
+SAFE_STEM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$")
+TABLE_DELIMITER_CELL = re.compile(r"^:?-{3,}:?$")
+FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+H1 = re.compile(r"^ {0,3}# (.+?)\s*$")
+H2 = re.compile(r"^ {0,3}## (.+?)\s*$")
 
 
 class PRDContractError(ValueError):
@@ -91,6 +88,260 @@ def next_prd_version(version: str) -> str:
     return "v" + ".".join(str(part) for part in parts)
 
 
+def prd_stem(prd_id: str, short_title: str, version: str, document_date: str) -> str:
+    """Return the one immutable Markdown filename stem for a PRD identity."""
+
+    visible_version = version.removeprefix("v")
+    stem = f"{prd_id}_{short_title}_v{visible_version}_{document_date}"
+    if SAFE_STEM.fullmatch(stem) is None:
+        raise PRDContractError("PRD identity does not form a safe immutable filename stem")
+    return stem
+
+
+def _markdown_lines_outside_fences(markdown: str) -> list[str]:
+    visible: list[str] = []
+    fence_character: str | None = None
+    fence_length = 0
+    for line in markdown.splitlines():
+        if fence_character is not None:
+            stripped = line.lstrip(" ")
+            indent = len(line) - len(stripped)
+            run = len(stripped) - len(stripped.lstrip(fence_character))
+            if indent <= 3 and run >= fence_length and not stripped[run:].strip():
+                fence_character = None
+                fence_length = 0
+            continue
+        opening = FENCE_OPEN.match(line)
+        if opening is not None:
+            marker = opening.group(1)
+            fence_character = marker[0]
+            fence_length = len(marker)
+            continue
+        visible.append(line)
+    return visible
+
+
+def _h1_titles(markdown: str) -> list[str]:
+    return [match.group(1).strip() for line in _markdown_lines_outside_fences(markdown) if (match := H1.match(line))]
+
+
+def _h2_titles(markdown: str) -> list[str]:
+    return [match.group(1).strip() for line in _markdown_lines_outside_fences(markdown) if (match := H2.match(line))]
+
+
+def _table_cells(line: str) -> list[str] | None:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return None
+    return [cell.strip() for cell in stripped[1:-1].split("|")]
+
+
+def _has_empty_markdown_table(markdown: str) -> bool:
+    lines = _markdown_lines_outside_fences(markdown)
+    for index in range(1, len(lines)):
+        header = _table_cells(lines[index - 1])
+        delimiter = _table_cells(lines[index])
+        if (
+            not header
+            or not delimiter
+            or len(header) != len(delimiter)
+            or not all(TABLE_DELIMITER_CELL.fullmatch(cell) for cell in delimiter)
+        ):
+            continue
+        rows: list[list[str]] = []
+        cursor = index + 1
+        while cursor < len(lines):
+            cells = _table_cells(lines[cursor])
+            if cells is None:
+                break
+            rows.append(cells)
+            cursor += 1
+        if not rows or not any(any(cell for cell in row) for row in rows):
+            return True
+    return False
+
+
+def _section_bodies(markdown: str) -> dict[str, list[str]]:
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    fence_character: str | None = None
+    fence_length = 0
+    for line in markdown.splitlines():
+        if fence_character is not None:
+            if current is not None:
+                sections[current].append(line)
+            stripped = line.lstrip(" ")
+            indent = len(line) - len(stripped)
+            run = len(stripped) - len(stripped.lstrip(fence_character))
+            if indent <= 3 and run >= fence_length and not stripped[run:].strip():
+                fence_character = None
+                fence_length = 0
+            continue
+        opening = FENCE_OPEN.match(line)
+        if opening is not None:
+            if current is not None:
+                sections[current].append(line)
+            marker = opening.group(1)
+            fence_character = marker[0]
+            fence_length = len(marker)
+            continue
+        heading = H2.match(line)
+        if heading is not None:
+            current = heading.group(1).strip()
+            sections.setdefault(current, [])
+        elif current is not None:
+            sections[current].append(line)
+    return sections
+
+
+def _has_substantive_section_content(lines: list[str], policy: str) -> bool:
+    visible: list[str] = []
+    fence_character: str | None = None
+    fence_length = 0
+    fenced_content = False
+    for line in lines:
+        if fence_character is not None:
+            stripped = line.lstrip(" ")
+            indent = len(line) - len(stripped)
+            run = len(stripped) - len(stripped.lstrip(fence_character))
+            if indent <= 3 and run >= fence_length and not stripped[run:].strip():
+                fence_character = None
+                fence_length = 0
+            elif line.strip():
+                fenced_content = True
+            continue
+        opening = FENCE_OPEN.match(line)
+        if opening is not None:
+            marker = opening.group(1)
+            fence_character = marker[0]
+            fence_length = len(marker)
+            continue
+        visible.append(line)
+    if fenced_content:
+        return True
+    body = "\n".join(visible)
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
+    body = re.sub(r"^[ \t]*(?:[-*_][ \t]*){3,}$", "", body, flags=re.MULTILINE)
+    body = re.sub(r"[`*_>#\[\]()]", "", body)
+    normalized = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", body).lower()
+    if not normalized:
+        return False
+    if policy == "OMIT_OR_EXPLAIN_NOT_APPLICABLE" and normalized in {
+        "不适用",
+        "无",
+        "暂无",
+        "na",
+        "none",
+        "notapplicable",
+    }:
+        return False
+    return True
+
+
+def _validate_conditional_sections(
+    markdown: str, conditional: dict[str, str], issues: list[str]
+) -> None:
+    sections = _section_bodies(markdown)
+    for heading, policy in conditional.items():
+        if heading in sections and not _has_substantive_section_content(sections[heading], policy):
+            issues.append(
+                f"conditional section has no substantive content and should be omitted: {heading}"
+            )
+
+
+def validate_final_markdown(
+    markdown: str,
+    metadata: dict[str, Any],
+    *,
+    require_stem_identity: bool = True,
+) -> list[str]:
+    """Validate byte-level rules that must hold at assembly and again at archive."""
+
+    issues: list[str] = []
+    if "{{" in markdown or "}}" in markdown or "TBD" in markdown:
+        issues.append("template placeholder remains in Agent-authored PRD")
+    identity = [metadata.get(key) for key in ("prd_id", "short_title", "version", "date")]
+    if require_stem_identity and all(isinstance(value, str) and value for value in identity):
+        try:
+            expected = prd_stem(*identity)
+        except PRDContractError as error:
+            issues.append(str(error))
+        else:
+            titles = _h1_titles(markdown)
+            if titles != [expected]:
+                issues.append(
+                    "unique Markdown H1 identity must exactly equal archive filename stem"
+                )
+    if _has_empty_markdown_table(markdown):
+        issues.append("empty Markdown table remains in Agent-authored PRD")
+    return issues
+
+
+def _validate_output_shape(
+    markdown: str,
+    mapping: Any,
+    structure_mode: Any,
+    template: TemplateSelection,
+    issues: list[str],
+) -> str | None:
+    contract = load_output_contract(template)
+    modes = contract["allowed_structure_modes"]
+    if structure_mode is None:
+        visible_headings = set(_h2_titles(markdown))
+        legacy_required = {
+            "阅读摘要",
+            "目标与成功边界",
+            "范围与交付切片",
+            "验收标准",
+            "风险、未知与回滚",
+            "版本与变更",
+        }
+        if "legacy" in modes and legacy_required.issubset(visible_headings):
+            structure_mode = "legacy"
+        elif modes == ["legacy"]:
+            structure_mode = "legacy"
+    if structure_mode not in modes:
+        issues.append("structure_mode is not allowed by the exact output contract")
+        return None
+    headings = _h2_titles(markdown)
+    duplicates = sorted({heading for heading in headings if headings.count(heading) > 1})
+    if duplicates:
+        issues.append("duplicate H2 headings are not allowed: " + ", ".join(duplicates))
+    shape = contract["structures"][structure_mode]
+    required = [*contract["common_required_h2"], *shape["required_h2"]]
+    for heading in required:
+        if headings.count(heading) != 1:
+            issues.append(f"required heading missing or duplicated: {heading}")
+    for heading in shape["forbidden_h2"]:
+        if heading in headings:
+            issues.append(f"heading forbidden for structure_mode={structure_mode}: {heading}")
+    order = shape.get("h2_order")
+    if isinstance(order, list):
+        known = [heading for heading in headings if heading in order]
+        if known != [heading for heading in order if heading in headings]:
+            issues.append("H2 heading order differs from the exact output contract")
+        unknown = [heading for heading in headings if heading not in order]
+        if unknown:
+            issues.append("H2 heading is not declared by the exact output contract: " + ", ".join(unknown))
+    _validate_conditional_sections(markdown, contract["conditional_sections"], issues)
+    semantics = {
+        **contract["common_required_semantics"],
+        **shape["required_semantics"],
+    }
+    if not isinstance(mapping, dict) or not mapping:
+        issues.append("Agent template_mapping is required")
+    else:
+        for key, allowed_headings in semantics.items():
+            mapped = mapping.get(key)
+            if mapped not in allowed_headings or mapped not in headings:
+                issues.append(f"template_mapping.{key} does not bind a required output heading")
+        for key, mapped in mapping.items():
+            if not isinstance(key, str) or not isinstance(mapped, str) or mapped not in headings:
+                issues.append("template_mapping points to a missing Agent-authored heading")
+                break
+    return structure_mode
+
+
 def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> AssembledPRD:
     node_id = submission.get("node_id")
     if node_id not in {"prd.generate", "prd.optimize"}:
@@ -107,16 +358,7 @@ def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> Ass
     if not isinstance(markdown, str) or not markdown.strip():
         issues.append("Agent-authored document_markdown is required")
         markdown = ""
-    if "{{" in markdown or "}}" in markdown or "TBD" in markdown:
-        issues.append("template placeholder remains in Agent-authored PRD")
-    for heading in REQUIRED_HEADINGS:
-        if f"## {heading}" not in markdown:
-            issues.append(f"required heading missing: {heading}")
     mapping = output.get("template_mapping")
-    if not isinstance(mapping, dict) or not mapping:
-        issues.append("Agent template_mapping is required")
-    elif any(f"## {heading}" not in markdown for heading in mapping.values()):
-        issues.append("template_mapping points to a missing Agent-authored heading")
     metadata = output.get("metadata")
     if not isinstance(metadata, dict):
         issues.append("Agent PRD metadata is required")
@@ -134,6 +376,20 @@ def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> Ass
                 raise ValueError
         except ValueError:
             issues.append("metadata.date must be an ISO calendar date")
+    structure_mode = _validate_output_shape(
+        markdown,
+        mapping,
+        output.get("structure_mode"),
+        template,
+        issues,
+    )
+    issues.extend(
+        validate_final_markdown(
+            markdown,
+            metadata,
+            require_stem_identity=structure_mode != "legacy",
+        )
+    )
     if metadata.get("status") != "CANDIDATE":
         issues.append("Agent PRD status must be CANDIDATE before Ready")
     if metadata.get("delivery_intent") not in {"COMMIT", "EXPERIMENT"}:
@@ -178,7 +434,8 @@ def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> Ass
     elif node_id == "prd.generate" and evals.get("fulfillment") == "REVIEWED":
         issues.append(
             "prd.generate cannot self-claim REVIEWED Evals; verifiable fulfillment authority "
-            "is unavailable in 0.1.20, so REQUIRED Evals must remain REVIEW_PENDING/NOT_RUN"
+            "is unavailable in the current release, so REQUIRED Evals must remain "
+            "REVIEW_PENDING/NOT_RUN"
         )
     if metadata.get("delivery_intent") == "EXPERIMENT":
         experiment = metadata.get("experiment_contract")
@@ -192,13 +449,24 @@ def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> Ass
         raise PRDContractError("; ".join(issues))
     assembled_metadata = {
         **metadata,
+        "structure_mode": structure_mode,
         "template_mapping": mapping,
         "template_profile": {
             "id": template.profile_id,
             "version": template.version,
             "status": template.status,
-            "path": f"references/templates/{template.relative_path}",
+            "source_kind": template.origin,
+            "path": template.reference_path,
             "sha256": template.sha256,
+            "selection_source": template.selection_source,
+            "fallback_reason": template.fallback_reason,
+            "requested_profile_id": template.requested_profile_id,
+            "requested_version": template.requested_version,
+            "output_contract": {
+                "path": template.output_contract_reference_path,
+                "sha256": template.output_contract_sha256,
+                "version": template.output_contract_version,
+            },
         },
         "provenance": {
             "attempt_id": submission["attempt_id"],

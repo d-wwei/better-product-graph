@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — 2026-08-21 — Configurable template and dual-Host convergence
+
+- Promote `general@0.2.0` to the configurable released default PRD template while preserving exact per-Run pins, project profile selection, rollback and the frozen upstream compatibility fallback.
+- Add a thin Claude Host Adapter over the same Core, Controller, schemas and node instructions as Codex; Codex and Claude artifacts remain host-bound and share one Core fingerprint.
+- Release Roadmap v0.13 as the current planning baseline and add separate Codex/Claude packaging, validation and isolated-install paths.
+- Record the one authorized Claude authenticated Host trial honestly as `PARTIAL 6/7`: all tested writable, recovery, permission and Handoff boundaries pass; read-only Help rendered without runner evidence. Auto-selection and Product Golden judgment remain `NOT_RUN`.
+
 ## 0.1.20 — 2026-08-21 — Optional EvidenceRecord Ready convergence
 
 - Accept an explicit empty `evidence_refs` list when the Candidate still binds exact Decision, Roadmap, Product Plan, Slice, and Knowledge authority.

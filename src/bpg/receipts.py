@@ -185,7 +185,7 @@ def evaluate_receipt_subjects(
         raise ReceiptError(f"{kind} current Candidate artifact tree is missing or changed")
 
     metadata: dict[str, Any] = {}
-    if kind in {"document_experience", "mechanical_contracts"}:
+    if kind == "document_experience":
         metadata_paths = list(candidate_root.glob("*.metadata.json"))
         if len(metadata_paths) != 1:
             raise ReceiptError(f"{kind} Candidate metadata is not self-contained")
@@ -267,11 +267,47 @@ def evaluate_receipt_subjects(
             or template.get("version") != template_selection.get("version")
             or template.get("template_path") != template_selection.get("relative_path")
             or template.get("template_hash") != template_selection.get("sha256")
+            or template.get("source_kind") != template_selection.get("source_kind")
+            or template.get("selection_source") != template_selection.get("selection_source")
+            or template.get("fallback_reason") != template_selection.get("fallback_reason")
+            or template.get("requested_profile_id")
+            != template_selection.get("requested_profile_id")
+            or template.get("requested_version") != template_selection.get("requested_version")
+            or template.get("output_contract_path")
+            != template_selection.get("output_contract_relative_path")
+            or template.get("output_contract_hash")
+            != template_selection.get("output_contract_sha256")
+            or template.get("output_contract_version")
+            != template_selection.get("output_contract_version")
             or metadata.get("template_profile", {}).get("id") != template_selection.get("profile_id")
             or metadata.get("template_profile", {}).get("version") != template_selection.get("version")
+            or metadata.get("template_profile", {}).get("source_kind")
+            != template_selection.get("source_kind")
             or metadata.get("template_profile", {}).get("path")
-            != f"references/templates/{template_selection.get('relative_path')}"
+            != (
+                f"references/templates/{template_selection.get('relative_path')}"
+                if template_selection.get("source_kind") == "BUILTIN"
+                else template_selection.get("relative_path")
+            )
             or metadata.get("template_profile", {}).get("sha256") != template_selection.get("sha256")
+            or metadata.get("template_profile", {}).get("selection_source")
+            != template_selection.get("selection_source")
+            or metadata.get("template_profile", {}).get("fallback_reason")
+            != template_selection.get("fallback_reason")
+            or metadata.get("template_profile", {}).get("requested_profile_id")
+            != template_selection.get("requested_profile_id")
+            or metadata.get("template_profile", {}).get("requested_version")
+            != template_selection.get("requested_version")
+            or metadata.get("template_profile", {}).get("output_contract")
+            != {
+                "path": (
+                    f"references/templates/{template_selection.get('output_contract_relative_path')}"
+                    if template_selection.get("source_kind") == "BUILTIN"
+                    else template_selection.get("output_contract_relative_path")
+                ),
+                "sha256": template_selection.get("output_contract_sha256"),
+                "version": template_selection.get("output_contract_version"),
+            }
         ):
             raise ReceiptError("document_experience Template registry evidence is not exact")
         if (
@@ -311,19 +347,45 @@ def evaluate_receipt_subjects(
         observed = {"audit_integrity": "PASS", "event_head_hash": expected_head}
     elif kind == "mechanical_contracts":
         mechanical = json_subject("mechanical_validation")
+        if (
+            mechanical.get("schema_version") != "mechanical-validation.v1"
+            or mechanical.get("status") != "PASS"
+        ):
+            raise ReceiptError("mechanical_contracts subject is FAIL or not Controller-valid PASS")
+        metadata_paths = list(candidate_root.glob("*.metadata.json"))
+        if len(metadata_paths) != 1:
+            raise ReceiptError("mechanical_contracts Candidate metadata is not self-contained")
+        metadata = read_json(metadata_paths[0])
         selection = TemplateSelection(
-            template_selection["profile_id"],
-            template_selection["version"],
-            template_selection["status"],
-            Path(template_selection["path"]),
-            template_selection["sha256"],
-            template_selection["relative_path"],
+            profile_id=template_selection["profile_id"],
+            version=template_selection["version"],
+            status=template_selection["status"],
+            path=Path(template_selection["path"]),
+            sha256=template_selection["sha256"],
+            relative_path=template_selection["relative_path"],
+            output_contract_path=Path(template_selection["output_contract_path"]),
+            output_contract_sha256=template_selection["output_contract_sha256"],
+            output_contract_version=template_selection["output_contract_version"],
+            output_contract_relative_path=template_selection[
+                "output_contract_relative_path"
+            ],
+            origin=template_selection["source_kind"],
+            selection_source=template_selection["selection_source"],
+            fallback_reason=template_selection.get("fallback_reason"),
+            requested_profile_id=template_selection.get("requested_profile_id"),
+            requested_version=template_selection.get("requested_version"),
         )
         provenance = metadata.get("provenance", {})
         submitted_metadata = {
             key: value
             for key, value in metadata.items()
-            if key not in {"template_mapping", "template_profile", "provenance"}
+            if key
+            not in {
+                "structure_mode",
+                "template_mapping",
+                "template_profile",
+                "provenance",
+            }
         }
         reconstructed = {
             "node_id": "prd.generate",
@@ -335,6 +397,7 @@ def evaluate_receipt_subjects(
             "input_hashes": provenance.get("input_hashes"),
             "semantic_output": {
                 "document_markdown": (root / candidate_ref["path"]).read_text(encoding="utf-8"),
+                "structure_mode": metadata.get("structure_mode"),
                 "template_mapping": metadata.get("template_mapping"),
                 "metadata": submitted_metadata,
             },

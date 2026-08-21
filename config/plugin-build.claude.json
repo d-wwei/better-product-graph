@@ -1,0 +1,54 @@
+{
+  "overlay_schema_version": "plugin-build-host-overlay.v0alpha",
+  "host": {
+    "host_id": "claude",
+    "manifest_dir": ".claude-plugin",
+    "public_skill_source_root": "host-adapters/claude/public-skill/better-product-graph",
+    "exact_files": [
+      {
+        "source": "host-adapters/claude/manifest/.claude-plugin/plugin.json",
+        "target": ".claude-plugin/plugin.json",
+        "fingerprint": true
+      },
+      {
+        "source": "host-adapters/claude/public-skill/better-product-graph/SKILL.md",
+        "target": "skills/better-product-graph/SKILL.md",
+        "fingerprint": true
+      },
+      {
+        "source": "host-adapters/claude/public-skill/better-product-graph/scripts/bpg_runner.py",
+        "target": "skills/better-product-graph/scripts/bpg_runner.py",
+        "fingerprint": true
+      }
+    ],
+    "validator": {
+      "command": [
+        "claude",
+        "plugin",
+        "validate",
+        "{directory}",
+        "--strict"
+      ]
+    },
+    "public_skill_parity": {
+      "baseline_source": "host-adapters/codex/public-skill/better-product-graph/SKILL.md",
+      "target_source": "host-adapters/claude/public-skill/better-product-graph/SKILL.md",
+      "substitutions": [
+        {
+          "from": "Map explicit `$better-product-graph` and equivalent natural language through the same Host parser:",
+          "to": "Map explicit `/better-product-graph:better-product-graph <intent>` entries and equivalent natural language through the same Host parser:"
+        },
+        {
+          "from": "2. Run the installed `scripts/bpg_runner.py --self-check` before a state-changing intent. Resolve all paths relative to this installed Skill, never the source checkout.",
+          "to": "2. Run the installed `${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py --self-check` before a state-changing intent. Resolve every path from `${CLAUDE_PLUGIN_ROOT}`, never the source checkout."
+        }
+      ]
+    },
+    "byte_identical_sources": [
+      {
+        "baseline": "host-adapters/codex/public-skill/better-product-graph/scripts/bpg_runner.py",
+        "target": "host-adapters/claude/public-skill/better-product-graph/scripts/bpg_runner.py"
+      }
+    ]
+  }
+}

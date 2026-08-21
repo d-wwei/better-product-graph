@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import uuid4
 
-from .prd_contract import AssembledPRD
+from .prd_contract import AssembledPRD, PRDContractError, prd_stem, validate_final_markdown
 from .locking import exclusive_file_lock
 from .storage import (
     assert_managed_path,
@@ -26,7 +26,6 @@ from .storage import (
 )
 
 
-SAFE_STEM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$")
 ASSET_REF = re.compile(r"\]\(\./assets/([^)]+)\)")
 EXTERNAL_SUCCESS = re.compile(r"(?<!未)(?:已发送|已接收|已批准|已通过外部审批)")
 
@@ -164,11 +163,10 @@ def _append_changelog(project_root: Path, line: str) -> None:
 
 
 def _stem(prd_id: str, short_title: str, version: str, document_date: str) -> str:
-    visible_version = version.removeprefix("v")
-    stem = f"{prd_id}_{short_title}_v{visible_version}_{document_date}"
-    if SAFE_STEM.fullmatch(stem) is None:
-        raise ImmutableArtifactError("PRD identity does not form a safe immutable stem")
-    return stem
+    try:
+        return prd_stem(prd_id, short_title, version, document_date)
+    except PRDContractError as error:
+        raise ImmutableArtifactError(str(error)) from error
 
 
 def _document_policy_ref() -> dict[str, Any]:
@@ -273,6 +271,14 @@ def _structured_changelog_event(
             "hash": metadata["template_profile"]["sha256"],
             "version": metadata["template_profile"]["version"],
             "profile_id": metadata["template_profile"]["id"],
+            "source_kind": metadata["template_profile"]["source_kind"],
+            "selection_source": metadata["template_profile"]["selection_source"],
+            "fallback_reason": metadata["template_profile"].get("fallback_reason"),
+            "requested_profile_id": metadata["template_profile"].get(
+                "requested_profile_id"
+            ),
+            "requested_version": metadata["template_profile"].get("requested_version"),
+            "output_contract": metadata["template_profile"]["output_contract"],
         },
         "policy_ref": _document_policy_ref(),
         "review_ref": lifecycle_refs.get("review_ref") or {
@@ -317,6 +323,13 @@ def archive_prd_candidate(
     review_companion: dict[str, Any] | None = None,
     failpoint=None,
 ) -> ArtifactSet:
+    final_issues = validate_final_markdown(
+        assembled.markdown,
+        assembled.metadata,
+        require_stem_identity=assembled.metadata.get("structure_mode") != "legacy",
+    )
+    if final_issues:
+        raise ImmutableArtifactError("Final PRD Markdown invalid: " + ", ".join(final_issues))
     experience = validate_document_experience(assembled.markdown, "prd")
     if experience.status != "PASS":
         raise ImmutableArtifactError("Document Experience failed: " + ", ".join(experience.issues))

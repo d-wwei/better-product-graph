@@ -397,7 +397,12 @@ def materialize_ready_evidence(
         "version_record_ref": evidence_root / "version-record.json",
         "changelog_ref": changelog_snapshot,
     }
-    selection = TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
+    archived_metadata = read_json(
+        archived.path / f"{archived.path.name}.metadata.json"
+    )
+    selection = TemplateRegistry(TEMPLATES).selection_from_metadata(
+        project, archived_metadata["template_profile"]
+    )
     presentation_payloads = {
         "template_profile_ref": {
             "schema_version": "template-profile-evidence.v1",
@@ -405,6 +410,14 @@ def materialize_ready_evidence(
             "version": selection.version,
             "template_path": selection.relative_path,
             "template_hash": selection.sha256,
+            "source_kind": selection.origin,
+            "selection_source": selection.selection_source,
+            "fallback_reason": selection.fallback_reason,
+            "requested_profile_id": selection.requested_profile_id,
+            "requested_version": selection.requested_version,
+            "output_contract_path": selection.output_contract_relative_path,
+            "output_contract_hash": selection.output_contract_sha256,
+            "output_contract_version": selection.output_contract_version,
         },
         "version_record_ref": {
             "schema_version": "document-version-record.v1",

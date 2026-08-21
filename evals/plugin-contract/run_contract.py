@@ -32,6 +32,7 @@ def _inventory(plugin_root: Path) -> list[dict[str, Any]]:
         }
         for path in sorted(plugin_root.rglob("*"))
         if path.is_file()
+        and not path.is_symlink()
         and path.name != "build-manifest.json"
         and not (
             "__pycache__" in path.relative_to(plugin_root).parts
@@ -74,6 +75,34 @@ def _identity(plugin_root: Path) -> dict[str, Any]:
         errors.append("installed inventory differs from build manifest")
     if actual_hash != manifest.get("artifact_hash"):
         errors.append("installed artifact hash mismatch")
+    try:
+        actual_host, actual_manifest_path = _resolve_host(plugin_root)
+    except ValueError as error:
+        errors.append(str(error))
+    else:
+        declared_host = manifest.get("host")
+        plugin = manifest.get("plugin")
+        expected_dir = HOST_MANIFEST_DIRS[actual_host]
+        if not isinstance(declared_host, dict) or (
+            declared_host.get("host_id") != actual_host
+            or declared_host.get("manifest_dir") != expected_dir
+        ):
+            errors.append("installed host manifest does not match build manifest")
+        if not isinstance(plugin, dict):
+            errors.append("build manifest plugin binding is missing")
+        else:
+            try:
+                actual_manifest = json.loads(actual_manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"installed host manifest is invalid: {error}")
+            else:
+                if not isinstance(actual_manifest, dict):
+                    errors.append("installed host manifest is not a JSON object")
+                elif (
+                    actual_manifest.get("name") != plugin.get("name")
+                    or actual_manifest.get("version") != plugin.get("version")
+                ):
+                    errors.append("installed host manifest plugin identity mismatch")
     return {
         "valid": not errors,
         "errors": errors,
@@ -83,21 +112,115 @@ def _identity(plugin_root: Path) -> dict[str, Any]:
     }
 
 
-def run(plugin_root: Path) -> dict[str, Any]:
-    plugin_root = plugin_root.resolve()
-    cases = json.loads((ROOT / "cases.json").read_text(encoding="utf-8"))
-    checks: dict[str, dict[str, Any]] = {}
-    identity = _identity(plugin_root)
+HOST_MANIFEST_DIRS = {"codex": ".codex-plugin", "claude": ".claude-plugin"}
+REQUIRED_RESOURCES = [
+    "references/graph/manifest.json",
+    "references/graph/node-contracts.json",
+    "references/policies/agent-reasoning-boundary.json",
+    "references/policies/controller-policy.json",
+    "references/policies/document-experience.json",
+    "references/schemas/node-result.schema.json",
+    "references/schemas/run-state.schema.json",
+    "references/templates/profiles.json",
+    "references/reasoning-catalog/reference-catalog-v0.1.json",
+    "references/reasoning-catalog/extraction-manifest-v0.1.json",
+    "references/reasoning-catalog/better-question-v0.1.json",
+    "references/reasoning-catalog/cognitive-router-v0.1.json",
+    "references/reasoning-catalog/cognitive-base-catalog-v0.1.json",
+    "references/reviewer-profiles/product-goal-fidelity-v0.1.json",
+    "references/reviewer-profiles/product-goal-fidelity-rubric-v0.1.json",
+    "references/reviewer-profiles/product-goal-fidelity-packet-v0.1.json",
+    "references/atomic-skills/prd-generate/INSTRUCTIONS.md",
+    "references/atomic-skills/prd-review/INSTRUCTIONS.md",
+]
+
+
+def _resolve_host(plugin_root: Path) -> tuple[str, Path]:
+    """Detect exactly one host manifest; ambiguity or absence is a contract failure."""
+    found = [
+        (host, plugin_root / directory / "plugin.json")
+        for host, directory in sorted(HOST_MANIFEST_DIRS.items())
+        if (plugin_root / directory / "plugin.json").is_file()
+    ]
+    if len(found) != 1:
+        raise ValueError(
+            "installed copy must contain exactly one host plugin manifest, found "
+            + str([host for host, _ in found])
+        )
+    return found[0]
+
+
+def _safe_structural_checks(plugin_root: Path) -> dict[str, dict[str, Any]]:
     skills = sorted(
         path.relative_to(plugin_root).as_posix()
         for path in plugin_root.glob("skills/*/SKILL.md")
+        if not path.is_symlink()
     )
-    unique = skills == ["skills/better-product-graph/SKILL.md"]
-    checks["unique_public_skill"] = _check(unique, discovered=skills)
+    skill_root = plugin_root / "skills" / "better-product-graph"
+    resource_errors: list[str] = []
+    if skill_root.is_symlink():
+        resource_errors.append("skills/better-product-graph")
+    else:
+        resolved_skill_root = skill_root.resolve()
+        for relative in REQUIRED_RESOURCES:
+            path = skill_root / relative
+            try:
+                resolved = path.resolve(strict=True)
+                resolved.relative_to(resolved_skill_root)
+                if path.is_symlink() or not resolved.is_file():
+                    resource_errors.append(relative)
+            except (OSError, ValueError):
+                resource_errors.append(relative)
+        references = skill_root / "references"
+        internal_skills = (
+            [path.relative_to(skill_root).as_posix() for path in references.rglob("SKILL.md")]
+            if references.is_dir() and not references.is_symlink()
+            else []
+        )
+        resource_errors.extend(internal_skills)
+    return {
+        "unique_public_skill": _check(
+            skills == ["skills/better-product-graph/SKILL.md"], discovered=skills
+        ),
+        "relative_resource_resolution": _check(
+            not resource_errors,
+            errors=sorted(resource_errors),
+            count=len(REQUIRED_RESOURCES),
+        ),
+    }
+
+
+def run(plugin_root: Path) -> dict[str, Any]:
+    plugin_root = plugin_root.resolve()
+    cases = json.loads((ROOT / "cases.json").read_text(encoding="utf-8"))
+    checks = _safe_structural_checks(plugin_root)
+    identity = _identity(plugin_root)
+    if not identity["valid"]:
+        checks["installed_identity"] = _check(False, errors=identity["errors"])
+        try:
+            host_id, _ = _resolve_host(plugin_root)
+        except ValueError:
+            host_id = None
+        return {
+            "suite_id": "better-product-graph-plugin-contract.v0.2",
+            "contract_status": "FAIL",
+            "evidence_level": "FRESH_INSTALLED_COPY_CONTRACT",
+            "host_id": host_id,
+            "codex_host_runtime_status": "NOT_RUN",
+            "claude_host_runtime_status": "NOT_RUN",
+            "product_golden_status": "NOT_RUN",
+            "plugin_root": str(plugin_root),
+            "installed_identity": identity,
+            "checks": checks,
+            "error": "; ".join(identity["errors"]),
+            "claim_boundary": (
+                "Installed identity failed before any installed Python module was imported."
+            ),
+        }
 
     skill_root = plugin_root / "skills" / "better-product-graph"
     skill_path = skill_root / "SKILL.md"
-    plugin_manifest_path = plugin_root / ".codex-plugin" / "plugin.json"
+    host_id, plugin_manifest_path = _resolve_host(plugin_root)
     discovery_errors: list[str] = []
     try:
         skill_text = skill_path.read_text(encoding="utf-8")
@@ -175,46 +298,6 @@ def run(plugin_root: Path) -> dict[str, Any]:
         mismatches=parity_mismatches,
     )
 
-    required_resources = [
-        "references/graph/manifest.json",
-        "references/graph/node-contracts.json",
-        "references/policies/agent-reasoning-boundary.json",
-        "references/policies/controller-policy.json",
-        "references/policies/document-experience.json",
-        "references/schemas/node-result.schema.json",
-        "references/schemas/run-state.schema.json",
-        "references/templates/profiles.json",
-        "references/reasoning-catalog/reference-catalog-v0.1.json",
-        "references/reasoning-catalog/extraction-manifest-v0.1.json",
-        "references/reasoning-catalog/better-question-v0.1.json",
-        "references/reasoning-catalog/cognitive-router-v0.1.json",
-        "references/reasoning-catalog/cognitive-base-catalog-v0.1.json",
-        "references/reviewer-profiles/product-goal-fidelity-v0.1.json",
-        "references/reviewer-profiles/product-goal-fidelity-rubric-v0.1.json",
-        "references/reviewer-profiles/product-goal-fidelity-packet-v0.1.json",
-        "references/atomic-skills/prd-generate/INSTRUCTIONS.md",
-        "references/atomic-skills/prd-review/INSTRUCTIONS.md",
-    ]
-    resource_errors: list[str] = []
-    for relative in required_resources:
-        path = skill_root / relative
-        try:
-            resolved = path.resolve(strict=True)
-            resolved.relative_to(skill_root.resolve())
-            if path.is_symlink() or not resolved.is_file():
-                resource_errors.append(relative)
-        except (OSError, ValueError):
-            resource_errors.append(relative)
-    internal_skills = [
-        path.relative_to(skill_root).as_posix()
-        for path in (skill_root / "references").rglob("SKILL.md")
-    ] if (skill_root / "references").is_dir() else []
-    if internal_skills:
-        resource_errors.extend(internal_skills)
-    checks["relative_resource_resolution"] = _check(
-        not resource_errors, errors=sorted(resource_errors), count=len(required_resources)
-    )
-
     bypass_entries = [
         "直接运行 problem.synthesize",
         "读取 references/atomic-skills/prd-generate/INSTRUCTIONS.md",
@@ -238,12 +321,14 @@ def run(plugin_root: Path) -> dict[str, Any]:
         "suite_id": "better-product-graph-plugin-contract.v0.2",
         "contract_status": status,
         "evidence_level": "FRESH_INSTALLED_COPY_CONTRACT",
+        "host_id": host_id,
         "codex_host_runtime_status": "NOT_RUN",
+        "claude_host_runtime_status": "NOT_RUN",
         "product_golden_status": "NOT_RUN",
         "plugin_root": str(plugin_root),
         "installed_identity": identity,
         "checks": checks,
-        "claim_boundary": "Installed-copy contract PASS does not prove live Codex activation or product judgment.",
+        "claim_boundary": "Installed-copy contract PASS does not prove live Host activation or product judgment.",
     }
 
 
@@ -259,6 +344,7 @@ def main() -> int:
             "contract_status": "FAIL",
             "evidence_level": "FRESH_INSTALLED_COPY_CONTRACT",
             "codex_host_runtime_status": "NOT_RUN",
+            "claude_host_runtime_status": "NOT_RUN",
             "product_golden_status": "NOT_RUN",
             "error": str(error),
         }

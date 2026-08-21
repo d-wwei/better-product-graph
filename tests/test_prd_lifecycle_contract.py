@@ -82,6 +82,8 @@ class PRDLifecycleContractTests(unittest.TestCase):
                 {"decision", "roadmap", "product_plan", "slice", "knowledge", "evidence"},
             )
             self.assertTrue(release["template_ref"]["hash"].startswith("sha256:"))
+            self.assertIn("requested_profile_id", release["template_ref"])
+            self.assertIn("requested_version", release["template_ref"])
             self.assertTrue(release["policy_ref"]["hash"].startswith("sha256:"))
             self.assertEqual(release["review_ref"]["hash"], archived.review_hash)
             self.assertEqual(release["ready_ref"]["hash"], sha256_file(released.path / "READY_ASSERTION.json"))

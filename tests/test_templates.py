@@ -31,13 +31,25 @@ class TemplateProfileTests(unittest.TestCase):
     def test_vendored_fallback_has_exact_frozen_upstream_hash(self) -> None:
         fallback = self.templates / "fallback" / "product-prd-template.md"
         self.assertEqual(sha256_file(fallback), FALLBACK_HASH)
-        self.assertEqual(self.registry.resolve(self.project).profile_id, "fallback")
+        selected = self.registry.pin(self.project, "fallback", "upstream-frozen")
+        self.assertEqual(selected.profile_id, "fallback")
+
+    def test_general_v02_is_the_default_with_an_exact_output_contract(self) -> None:
+        selected = self.registry.resolve(self.project)
+        self.assertEqual(selected.profile_id, "general")
+        self.assertEqual(selected.version, "0.2.0")
+        self.assertEqual(selected.status, "RELEASED_DEFAULT")
+        self.assertTrue(selected.output_contract_path.is_file())
+        self.assertEqual(
+            sha256_file(selected.output_contract_path),
+            selected.output_contract_sha256,
+        )
 
     def test_general_draft_can_be_explicitly_pinned_without_promotion_gate(self) -> None:
         selected = self.registry.pin(self.project, "general", "0.1.0-draft")
         resolved = self.registry.resolve(self.project)
         self.assertEqual(resolved, selected)
-        self.assertEqual(resolved.status, "DRAFT_BOOTSTRAP_CANDIDATE")
+        self.assertEqual(resolved.status, "ARCHIVED_DRAFT")
 
     def test_pinned_version_does_not_silently_migrate_when_registry_adds_newer_version(self) -> None:
         pinned = self.registry.pin(self.project, "general", "0.1.0-draft")

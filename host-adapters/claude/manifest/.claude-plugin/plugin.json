@@ -1,0 +1,17 @@
+{
+  "name": "better-product-graph",
+  "version": "0.2.0",
+  "description": "Turns product signals into evidence-bound decisions, plans, versioned PRDs, and local engineering handoffs through one governed Claude Code Skill.",
+  "author": {
+    "name": "Better Product Graph contributors"
+  },
+  "homepage": "https://github.com/d-wwei/better-product-graph",
+  "keywords": [
+    "product-management",
+    "prd",
+    "product-decision",
+    "local-first",
+    "governed-workflow"
+  ],
+  "skills": "./skills/"
+}

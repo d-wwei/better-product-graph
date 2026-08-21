@@ -3,12 +3,13 @@
   "generated_at": "2026-08-21",
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
-  "source_branch": "main",
-  "source_commit": "8b953b7d7883c31d9f8f1a28dbd676b68d856ee7",
-  "plugin_version": "0.1.20",
+  "source_branch": "codex/bpg-three-line-convergence-0.2.0",
+  "source_commit": "95c6e66c9bbf7e571612de26a8bda4052b37f489",
+  "release_evidence_commit": "346cae77416728960641457ebe3b9abdbeafc553",
+  "plugin_version": "0.2.0",
   "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
   "release_sanitizations": [
-    "Replaced developer-specific absolute paths in three negative test fixtures with /Users/example equivalents; test semantics are unchanged."
+    "Replaced developer-specific absolute paths in three negative or optional-local test fixtures with /Users/example equivalents; test semantics are unchanged."
   ],
   "documents": {
     "product_prd": {
@@ -21,11 +22,26 @@
       "version": "V1.4",
       "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
     },
-    "roadmap_build_baseline": {
-      "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md",
-      "version": "v0.12",
-      "sha256": "3cd5545eed2e066b1b38748f485b12a21630ee88b8bd9e6f61dee6e8697c6a50"
+    "roadmap": {
+      "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md",
+      "version": "v0.13",
+      "sha256": "9f3120f6b869588287811f9ddb9e4e4248324808ed358879f30798627eae3515"
+    },
+    "default_prd_template": {
+      "path": "templates/prd/general/PRD_TEMPLATE_v0.2.md",
+      "version": "general@0.2.0",
+      "sha256": "c276e951bba16ff868f5b2cf7dacb1642adf5eac512fb2a3898f4ad825ad64a4"
     }
+  },
+  "release_evidence": {
+    "source_tests": "391/391 PASS",
+    "repair_verifier": "53/53 findings, 167 exact executions, failed=[]",
+    "codex_package_sha256": "c5fcd18c713cfc593471e9bd5116100455b30d45492544869f26c98a7f37e709",
+    "claude_package_sha256": "165475de1993a528e5c90b911b1f84175e2bf297ea14b382dbe07e451373f4cf",
+    "core_tree_fingerprint": "sha256:db4b1d9dad41c0c7c09a89c6bd00942036b0090dae770c5b6b543d255bacb31b",
+    "claude_authenticated_host": "PARTIAL_6_OF_7",
+    "auto_selection": "NOT_RUN",
+    "product_golden_agent_judgment": "NOT_RUN"
   },
   "excluded_from_release_history": [
     "local Graph runtime state",
@@ -33,7 +49,7 @@
     "raw audits and adversarial probes",
     "internal historical-finding audit verifier",
     "Superpowers construction plans",
-    "experimental host adapters",
+    "development-only capability and verification reports",
     "draft and archived product documents",
     "project assistant memory"
   ]

@@ -1,0 +1,63 @@
+{
+  "evidence_class": "LOCAL_HOST_AGENT_AUTHORED_FIXTURE",
+  "node_id": "prd.generate",
+  "attempt_id": "golden-experiment-high-compliance",
+  "producer": {"kind": "HOST_AGENT", "host": "local-fixture"},
+  "instruction_ref": "references/atomic-skills/prd-generate/INSTRUCTIONS.md",
+  "instruction_hash": "sha256:golden-instructions",
+  "input_refs": ["decision-v1.json", "roadmap-v1.json", "plan-v1.json", "slice-v1.json", "knowledge-v1.json", "evidence-v1.json"],
+  "input_hashes": {
+    "decision-v1.json": "sha256:decision",
+    "roadmap-v1.json": "sha256:roadmap",
+    "plan-v1.json": "sha256:plan",
+    "slice-v1.json": "sha256:slice",
+    "knowledge-v1.json": "sha256:knowledge",
+    "evidence-v1.json": "sha256:evidence"
+  },
+  "semantic_output": {
+    "structure_mode": "split",
+    "document_markdown": "# PRD-GOLDEN-003_experiment-compliance_v0.1_2026-08-20\n\n## 阅读摘要\n\n结论：仅向同意参与的低风险样本开放推荐解释实验。\n下一步：完成隐私与内容安全专业确认后再进入受控实验。\n\n## 1. 问题、目标与价值\n\n目标是验证解释是否帮助用户判断推荐。证据：Decision v1。Authority：实验 Owner 无权代替合规批准。\n\n## 2. 范围与交付切片\n\n仅覆盖已同意样本，禁止使用敏感属性，禁止跨境传输。\n\n## 3. 方案总览与关键流程\n\n解释服务读取最小化特征并输出候选说明，策略层执行内容过滤与曝光控制。\n\n## 4. 功能与规则详述\n\nMOD-1 生成解释；MOD-2 执行合规过滤；MOD-3 记录撤回与删除。任何过滤失败均不曝光。\n\n## 5. 验收与产品评估\n\nAC-1：未同意用户零曝光。Evals 必须保持 REVIEW_PENDING，不能由生成 Agent 自证通过。\n\n## 7. 兼容、灰度、降级与回滚\n\n实验按白名单灰度；触发伤害护栏立即停止曝光并删除实验派生数据。\n\n## 10. 跨团队与上线配套\n\n隐私、内容安全与法务结论均为待专业确认；客服同步实验边界与退出方式。\n\n## 11. 风险、假设与未决事项\n\n未知：解释可能造成错误信赖。风险包括隐私、偏见与舆情，必须按 kill 条件停止。\n\n## 附录 C：文档变更日志\n\n版本 v0.1：首次形成本地 Golden Candidate；DOCUMENT_CHANGELOG 由归档机制维护。\n",
+    "template_mapping": {
+      "summary": "阅读摘要",
+      "problem_goal_value": "1. 问题、目标与价值",
+      "scope_slice": "2. 范围与交付切片",
+      "solution_overview": "3. 方案总览与关键流程",
+      "module_details": "4. 功能与规则详述",
+      "acceptance_evaluation": "5. 验收与产品评估",
+      "risk_open_items": "11. 风险、假设与未决事项",
+      "document_changelog": "附录 C：文档变更日志"
+    },
+    "metadata": {
+      "prd_id": "PRD-GOLDEN-003",
+      "short_title": "experiment-compliance",
+      "version": "v0.1",
+      "date": "2026-08-20",
+      "status": "CANDIDATE",
+      "delivery_intent": "EXPERIMENT",
+      "decision_refs": [{"path": "decision-v1.json", "hash": "sha256:decision", "version": 1}],
+      "roadmap_snapshot_ref": {"path": "roadmap-v1.json", "hash": "sha256:roadmap", "version": 1},
+      "product_plan_ref": {"path": "plan-v1.json", "hash": "sha256:plan", "version": 1},
+      "slice_ref": {"path": "slice-v1.json", "hash": "sha256:slice", "version": 1},
+      "active_scope_ref": {"schema_version": "active-scope-ref.v1", "plan_ref": {"path": "plan-v1.json", "hash": "sha256:plan", "version": 1}, "slice_id": "slice-golden-experiment", "projection_version": "active-scope-projection.v1", "scope_hash": "sha256:golden-experiment-scope"},
+      "spec_traceability": {"schema_version": "spec-traceability.v1", "refs": [{"role": "product_plan", "path": "plan-v1.json", "hash": "sha256:plan", "version": 1, "origin_node_id": "product.planning", "origin_attempt_id": "golden-plan"}, {"role": "slice", "path": "slice-v1.json", "hash": "sha256:slice", "version": 1, "origin_node_id": "product.planning", "origin_attempt_id": "golden-plan"}]},
+      "product_runtime_inputs": {"schema_version": "product-runtime-inputs.v1", "required": [{"input_id": "project_workspace", "kind": "PROJECT_WORKSPACE", "resolver": "HOST_PROJECT_ROOT", "binding_scope": "PROJECT", "version_policy": "project-workspace.v1", "on_missing": "FAIL_CLOSED"}, {"input_id": "product_signal", "kind": "RAW_SIGNAL_OR_EXACT_OCCURRENCE", "resolver": "SIGNAL_INTAKE", "binding_scope": "INVOCATION_OR_PROJECT_INBOX", "version_policy": "signal-contract.v1", "on_missing": "REQUEST_SIGNAL"}], "optional": []},
+      "knowledge_snapshot_ref": {"path": "knowledge-v1.json", "hash": "sha256:knowledge", "version": 1},
+      "evidence_refs": [{"path": "evidence-v1.json", "hash": "sha256:evidence", "version": 1}],
+      "evals": {"applicability": "REQUIRED", "fulfillment": "REVIEW_PENDING", "execution_status": "NOT_RUN"},
+      "experiment_contract": {
+        "key_unknown": "解释是否改善判断",
+        "hypothesis": "受控解释提高正确理解",
+        "audience_exposure": "仅已同意白名单",
+        "specific_change": "展示一条过滤后的解释",
+        "observable_measurement": "理解问卷与退出率",
+        "result_mapping": "继续、调整或停止",
+        "monitoring": "隐私与伤害监控",
+        "kill_rollback": "停止曝光并删除派生数据",
+        "owner": "experiment-owner",
+        "end_time": "2026-09-20",
+        "harm_guardrails": "零敏感属性与零未同意曝光"
+      }
+    }
+  },
+  "artifact_refs": []
+}

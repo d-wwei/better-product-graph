@@ -241,7 +241,7 @@ def ready_and_release(
     evals = request.get("evals", {})
     if evals.get("applicability") == "REQUIRED":
         raise PRDNotReady(
-            "REQUIRED Evals cannot release in 0.1.20: verifiable independent "
+            "REQUIRED Evals cannot release in the current skills-only Host: verifiable independent "
             "fulfillment authority is unavailable"
         )
     if evals.get("fulfillment") == "REVIEWED":
@@ -381,6 +381,10 @@ def ready_and_release(
     result = calculate_prd_ready(effective)
     if result.status != "READY":
         raise PRDNotReady("PRD is NOT_READY: " + ", ".join(item["category"] for item in result.unmet))
+    template_ref = deepcopy(effective["presentation"]["template_profile_ref"])
+    template_evidence = read_json(project_root / template_ref["path"])
+    template_ref["requested_profile_id"] = template_evidence.get("requested_profile_id")
+    template_ref["requested_version"] = template_evidence.get("requested_version")
     assertion = {
         "schema_version": "prd-ready-assertion.v1",
         "status": "READY",
@@ -388,7 +392,7 @@ def ready_and_release(
         "candidate_tree_hash": archived.tree_hash,
         "review_companion_hash": archived.review_hash,
         "upstream_refs": deepcopy(effective["upstream_refs"]),
-        "template_ref": deepcopy(effective["presentation"]["template_profile_ref"]),
+        "template_ref": template_ref,
         "review_ref": {
             **deepcopy(effective["review"]["companion_view_ref"]),
             "version": archived.version,

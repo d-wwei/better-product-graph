@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 
+HOST_MANIFEST_DIRS = {"codex": ".codex-plugin", "claude": ".claude-plugin"}
+
+
 def _sha256_bytes(value: bytes) -> str:
     return "sha256:" + hashlib.sha256(value).hexdigest()
 
@@ -48,4 +51,40 @@ def verify_installed_identity(plugin_root: Path) -> dict[str, Any]:
         errors.append("installed inventory differs from build manifest")
     if artifact_hash != manifest.get("artifact_hash"):
         errors.append("installed artifact hash mismatch")
+    host = manifest.get("host")
+    plugin = manifest.get("plugin")
+    if not isinstance(host, dict):
+        errors.append("build manifest host binding is missing")
+    else:
+        host_id = host.get("host_id")
+        manifest_dir = host.get("manifest_dir")
+        expected_dir = HOST_MANIFEST_DIRS.get(host_id) if isinstance(host_id, str) else None
+        if expected_dir is None or manifest_dir != expected_dir:
+            errors.append("build manifest host binding is invalid")
+        found = [
+            candidate
+            for candidate, directory in HOST_MANIFEST_DIRS.items()
+            if (root / directory / "plugin.json").is_file()
+        ]
+        if found != [host_id]:
+            errors.append(
+                "installed host manifest does not match build manifest: " + str(found)
+            )
+        elif isinstance(plugin, dict):
+            try:
+                host_manifest = json.loads(
+                    (root / expected_dir / "plugin.json").read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"installed host manifest is invalid: {error}")
+            else:
+                if not isinstance(host_manifest, dict):
+                    errors.append("installed host manifest is not a JSON object")
+                elif (
+                    host_manifest.get("name") != plugin.get("name")
+                    or host_manifest.get("version") != plugin.get("version")
+                ):
+                    errors.append("installed host manifest plugin identity mismatch")
+        else:
+            errors.append("build manifest plugin binding is missing")
     return {"valid": not errors, "errors": errors, "artifact_hash": artifact_hash}
