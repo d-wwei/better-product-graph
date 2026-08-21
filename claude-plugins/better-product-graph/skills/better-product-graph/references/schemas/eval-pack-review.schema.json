@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph.eval-pack-review.authority.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "execution_status",
+    "reviewer_role",
+    "reviewer_authority",
+    "reviewer",
+    "reviewed_at",
+    "subjects",
+    "finding_closure",
+    "new_high_findings",
+    "evidence_boundary"
+  ],
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "better-product-graph.eval-pack-review.v0.1",
+        "better-product-graph.eval-pack-review.v1"
+      ]
+    },
+    "status": {"const": "REVIEWED"},
+    "execution_status": {"const": "NOT_RUN"},
+    "reviewer_role": {"const": "INDEPENDENT_TESTABILITY_REVIEWER"},
+    "reviewer_authority": {"const": "ADVISORY_ONLY"},
+    "reviewer": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "reviewed_at": {"type": "string", "minLength": 1},
+    "subjects": {
+      "type": "object",
+      "required": ["prd_draft_ref", "fixtures_ref", "eval_pack_ref"],
+      "properties": {
+        "prd_draft_ref": {"type": "object"},
+        "fixtures_ref": {"type": "object"},
+        "eval_pack_ref": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "finding_closure": {"type": "array"},
+    "new_high_findings": {"const": 0},
+    "evidence_boundary": {
+      "type": "object",
+      "required": ["runtime_execution", "test_execution", "independent_reader_validation"],
+      "properties": {
+        "runtime_execution": {"const": "NOT_RUN"},
+        "test_execution": {"const": "NOT_RUN"},
+        "independent_reader_validation": {"const": "NOT_RUN"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

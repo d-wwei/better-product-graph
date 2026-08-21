@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph/node-result.v1",
+  "type": "object",
+  "required": ["schema_version", "node_id", "attempt_id", "producer", "artifact_refs"],
+  "properties": {
+    "schema_version": {"const": "node-result.v1"},
+    "node_id": {"type": "string"},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "producer": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["HOST_AGENT", "DETERMINISTIC_PROGRAM"]},
+        "component": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "instruction_ref": {"type": "string"},
+    "instruction_hash": {"type": "string", "pattern": "^sha256:"},
+    "input_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "input_hashes": {"type": "object"},
+    "semantic_output": {"type": "object"},
+    "mechanical_output": {"type": "object"},
+    "artifact_refs": {"type": "array"},
+    "resource_refs": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,57 @@
+name: Installation problem
+description: Get help installing or updating the Codex or Claude Code package.
+title: "[Install]: "
+labels: []
+assignees: []
+body:
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host
+      options:
+        - Codex
+        - Claude Code
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Better Product Graph, Host, operating system, Python, and Git versions.
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Installation source
+      options:
+        - Public Git marketplace
+        - GitHub Release ZIP
+        - Source checkout
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands and complete sanitized output
+      description: Include the exact command and output. Remove access tokens and private paths where possible.
+    validations:
+      required: true
+  - type: input
+    id: checksum
+    attributes:
+      label: Package SHA-256
+      description: Required for a GitHub Release ZIP; write N/A for a Git marketplace install.
+    validations:
+      required: true
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you already tried?
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, tokens, customer data, and private product content.
+          required: true

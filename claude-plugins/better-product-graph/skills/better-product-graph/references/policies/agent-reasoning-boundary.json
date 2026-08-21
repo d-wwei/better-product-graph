@@ -1,0 +1,36 @@
+{
+  "policy_id": "agent-reasoning-boundary",
+  "version": "0.1.0",
+  "semantic_producer": "HOST_AGENT",
+  "required_semantic_provenance": [
+    "attempt_id",
+    "instruction_ref",
+    "instruction_hash",
+    "input_refs",
+    "input_hashes"
+  ],
+  "program_allowed": [
+    "input_normalization",
+    "schema_validation",
+    "exact_ref_validation",
+    "permission_validation",
+    "state_transition",
+    "authorized_value_routing",
+    "versioning",
+    "persistence",
+    "attempt_join",
+    "template_assembly",
+    "file_write",
+    "mechanical_gate"
+  ],
+  "program_forbidden": [
+    "problem_inference",
+    "mvu_selection",
+    "product_recommendation",
+    "product_outcome_selection",
+    "plan_generation",
+    "prd_semantic_authoring",
+    "semantic_review_finding_generation"
+  ],
+  "product_golden_contract_fixture_product_status": "NOT_RUN"
+}

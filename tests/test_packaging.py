@@ -51,6 +51,8 @@ class PackagingTests(unittest.TestCase):
                 names = [item.filename for item in infos]
                 self.assertEqual(names, sorted(names))
                 self.assertIn(".codex-plugin/plugin.json", names)
+                self.assertIn("LICENSE", names)
+                self.assertIn("NOTICE", names)
                 self.assertIn("skills/better-product-graph/SKILL.md", names)
                 self.assertFalse(any(name.startswith("better-product-graph/") for name in names))
                 self.assertFalse(any("__pycache__" in name or name.endswith((".pyc", ".pyo")) for name in names))

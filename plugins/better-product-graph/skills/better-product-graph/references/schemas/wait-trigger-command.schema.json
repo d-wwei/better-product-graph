@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph/wait-trigger-command.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "trigger_id",
+    "trigger_type",
+    "run_id",
+    "waiting_state_version",
+    "waiting_condition",
+    "evidence_ref",
+    "received_at",
+    "source"
+  ],
+  "properties": {
+    "schema_version": {"const": "wait-trigger-command.v1"},
+    "trigger_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "trigger_type": {"const": "NEW_EVIDENCE"},
+    "run_id": {"type": "string", "minLength": 1},
+    "waiting_state_version": {"type": "integer", "minimum": 1},
+    "waiting_condition": {"type": "string", "minLength": 1},
+    "evidence_ref": {
+      "type": "object",
+      "required": ["path", "hash", "version"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "version": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "received_at": {"type": "string", "minLength": 1},
+    "source": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {"kind": {"type": "string", "minLength": 1}},
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

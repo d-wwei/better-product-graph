@@ -1,0 +1,24 @@
+{
+  "policy_id": "state-controller-policy",
+  "version": "0.1.0-alpha.1",
+  "formal_state_writer": "state-controller",
+  "forbidden_transition_request_fields": [
+    "gate_passed",
+    "validator_passed",
+    "all_reviewers_passed",
+    "reviewers_approved"
+  ],
+  "transition_order": [
+    "read_current_state_graph_policy",
+    "cas_check",
+    "validate_attempt_schema_artifact_hashes_refs",
+    "audit_verify",
+    "structural_validators",
+    "policy_validators",
+    "transition_specific_mechanical_checks",
+    "append_rejection_or_commit_event",
+    "atomic_state_replace"
+  ],
+  "reviewer_authority": "ADVISORY_ONLY",
+  "host_enforcement": "detect_only"
+}

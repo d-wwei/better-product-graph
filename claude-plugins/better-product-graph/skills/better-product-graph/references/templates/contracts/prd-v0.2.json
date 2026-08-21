@@ -1,0 +1,134 @@
+{
+  "schema_version": "template-output-contract.v2",
+  "contract_version": "better-product-graph.prd.general.0.2",
+  "default_structure_mode": "split",
+  "allowed_structure_modes": [
+    "split",
+    "compact",
+    "legacy"
+  ],
+  "common_required_h2": [
+    "阅读摘要"
+  ],
+  "common_required_semantics": {
+    "summary": ["阅读摘要"]
+  },
+  "structures": {
+    "split": {
+      "required_h2": [
+        "1. 问题、目标与价值",
+        "2. 范围与交付切片",
+        "3. 方案总览与关键流程",
+        "4. 功能与规则详述",
+        "5. 验收与产品评估",
+        "7. 兼容、灰度、降级与回滚",
+        "11. 风险、假设与未决事项",
+        "附录 C：文档变更日志"
+      ],
+      "forbidden_h2": [
+        "3. 方案与功能规则"
+      ],
+      "required_semantics": {
+        "problem_goal_value": ["1. 问题、目标与价值"],
+        "scope_slice": ["2. 范围与交付切片"],
+        "solution_overview": ["3. 方案总览与关键流程"],
+        "module_details": ["4. 功能与规则详述"],
+        "acceptance_evaluation": ["5. 验收与产品评估"],
+        "risk_open_items": ["11. 风险、假设与未决事项"],
+        "document_changelog": ["附录 C：文档变更日志"]
+      },
+      "h2_order": [
+        "阅读摘要",
+        "1. 问题、目标与价值",
+        "2. 范围与交付切片",
+        "3. 方案总览与关键流程",
+        "4. 功能与规则详述",
+        "5. 验收与产品评估",
+        "6. 非功能性要求",
+        "7. 兼容、灰度、降级与回滚",
+        "8. 数据上报与分析影响",
+        "9. 多语言、文案与内容呈现",
+        "10. 跨团队与上线配套",
+        "11. 风险、假设与未决事项",
+        "附录 A：支撑材料",
+        "附录 B：决策与变更依据",
+        "附录 C：文档变更日志",
+        "附录 D：交付检查与覆盖索引"
+      ]
+    },
+    "compact": {
+      "required_h2": [
+        "1. 问题、目标与价值",
+        "2. 范围与交付切片",
+        "3. 方案与功能规则",
+        "5. 验收与产品评估",
+        "7. 兼容、灰度、降级与回滚",
+        "11. 风险、假设与未决事项",
+        "附录 C：文档变更日志"
+      ],
+      "forbidden_h2": [
+        "3. 方案总览与关键流程",
+        "4. 功能与规则详述"
+      ],
+      "required_semantics": {
+        "problem_goal_value": ["1. 问题、目标与价值"],
+        "scope_slice": ["2. 范围与交付切片"],
+        "solution_overview": ["3. 方案与功能规则"],
+        "module_details": ["3. 方案与功能规则"],
+        "acceptance_evaluation": ["5. 验收与产品评估"],
+        "risk_open_items": ["11. 风险、假设与未决事项"],
+        "document_changelog": ["附录 C：文档变更日志"]
+      },
+      "h2_order": [
+        "阅读摘要",
+        "1. 问题、目标与价值",
+        "2. 范围与交付切片",
+        "3. 方案与功能规则",
+        "5. 验收与产品评估",
+        "6. 非功能性要求",
+        "7. 兼容、灰度、降级与回滚",
+        "8. 数据上报与分析影响",
+        "9. 多语言、文案与内容呈现",
+        "10. 跨团队与上线配套",
+        "11. 风险、假设与未决事项",
+        "附录 A：支撑材料",
+        "附录 B：决策与变更依据",
+        "附录 C：文档变更日志",
+        "附录 D：交付检查与覆盖索引"
+      ]
+    },
+    "legacy": {
+      "required_h2": [
+        "目标与成功边界",
+        "范围与交付切片",
+        "验收标准",
+        "风险、未知与回滚",
+        "版本与变更"
+      ],
+      "forbidden_h2": [],
+      "required_semantics": {
+        "goal": ["目标与成功边界"],
+        "scope": ["范围与交付切片"],
+        "acceptance": ["验收标准"],
+        "risk": ["风险、未知与回滚"]
+      },
+      "h2_order": [
+        "阅读摘要",
+        "目标与成功边界",
+        "范围与交付切片",
+        "验收标准",
+        "风险、未知与回滚",
+        "版本与变更"
+      ]
+    }
+  },
+  "conditional_sections": {
+    "6. 非功能性要求": "OMIT_OR_EXPLAIN_NOT_APPLICABLE",
+    "8. 数据上报与分析影响": "OMIT_OR_EXPLAIN_NOT_APPLICABLE",
+    "9. 多语言、文案与内容呈现": "OMIT_OR_EXPLAIN_NOT_APPLICABLE",
+    "10. 跨团队与上线配套": "OMIT_OR_EXPLAIN_NOT_APPLICABLE",
+    "附录 A：支撑材料": "OMIT_WHEN_EMPTY",
+    "附录 B：决策与变更依据": "OMIT_WHEN_EMPTY",
+    "附录 D：交付检查与覆盖索引": "OMIT_WHEN_EMPTY"
+  }
+}

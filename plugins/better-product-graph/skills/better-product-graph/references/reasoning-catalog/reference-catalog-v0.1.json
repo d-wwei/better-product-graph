@@ -1,0 +1,38 @@
+{
+  "schema_version": "internal-reference-catalog.v1",
+  "version": "v0.1",
+  "discoverable": false,
+  "extraction_manifest": {"path": "references/reasoning-catalog/extraction-manifest-v0.1.json", "hash": "sha256:5be7722fb854bac278f55d4b23c870c5a303f76168836e990cd7e9d08e9af618"},
+  "core_reasoning": [
+    {"resource_id": "better-question", "kind": "CORE_REASONING", "version": "v0.1", "path": "references/reasoning-catalog/better-question-v0.1.json", "hash": "sha256:a38f72fe4828f956fee6663deac0c30883b2a22f6c029dc1fd0a4e676b088ea0"},
+    {"resource_id": "cognitive-router", "kind": "CORE_REASONING", "version": "v0.1", "path": "references/reasoning-catalog/cognitive-router-v0.1.json", "hash": "sha256:31879d99319aa91f6c446e7ece7e204954e548206400dd29c7931316202a1e15"},
+    {"resource_id": "cognitive-base-catalog", "kind": "CORE_REASONING", "version": "v0.1", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"}
+  ],
+  "cognitive_bases": [
+    {"resource_id": "attention-allocation", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "attention-allocation", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "bayesian-reasoning", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "bayesian-reasoning", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "cognitive-base-creator", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "cognitive-base-creator", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "constraint-as-catalyst", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "constraint-as-catalyst", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "conviction-override", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "conviction-override", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "cross-domain-connector", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "cross-domain-connector", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "dialectical-thinking", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "dialectical-thinking", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "double-loop-learning", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "double-loop-learning", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "first-principles", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "first-principles", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "frame-auditing", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "frame-auditing", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "interactive-cognition", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "interactive-cognition", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "inversion-thinking", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "inversion-thinking", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "motivation-audit", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "motivation-audit", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "non-attachment", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "non-attachment", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "principled-action", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "principled-action", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "results-driven", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "results-driven", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "second-order-thinking", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "second-order-thinking", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "systems-thinking", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "systems-thinking", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "tacit-knowledge", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "tacit-knowledge", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"},
+    {"resource_id": "temporal-wisdom", "kind": "COGNITIVE_BASE", "version": "v0.1", "selector": "temporal-wisdom", "path": "references/reasoning-catalog/cognitive-base-catalog-v0.1.json", "hash": "sha256:139818a0a8809d2bc831aa238c6b7648206886a9468168841be067ca07a3d2d4"}
+  ],
+  "reviewer_profiles": [
+    {"resource_id": "goal-fidelity-profile", "kind": "REVIEWER_PROFILE", "version": "v0.1", "path": "references/reviewer-profiles/product-goal-fidelity-v0.1.json", "hash": "sha256:6e5d4cea2e3a06b77e50b62063934db55a6b830ccaea97292b237627280d610e"},
+    {"resource_id": "goal-fidelity-rubric", "kind": "REVIEWER_RUBRIC", "version": "v0.1", "path": "references/reviewer-profiles/product-goal-fidelity-rubric-v0.1.json", "hash": "sha256:3db8b6a5b11dbb3221e0ffdbdcc594fd9333b3bb6ebd5829dcdc987dcbca221f"},
+    {"resource_id": "goal-fidelity-packet-contract", "kind": "REVIEWER_PACKET_CONTRACT", "version": "v0.1", "path": "references/reviewer-profiles/product-goal-fidelity-packet-v0.1.json", "hash": "sha256:b5a06ef701b2decfa286f361fdfcbf250015d707972f3ee1304c9cbba63c5b42"}
+  ]
+}

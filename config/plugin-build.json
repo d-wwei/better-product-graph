@@ -7,10 +7,22 @@
     "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
   },
   "roadmap_baseline": {
-    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md",
-    "version": "v0.13",
-    "sha256": "9f3120f6b869588287811f9ddb9e4e4248324808ed358879f30798627eae3515"
+    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md",
+    "version": "v0.14",
+    "sha256": "82db4ff724513054db96bbb37489e05489d6fde151a02ccfdf7df76f4d12e4dc"
   },
+  "shared_exact_files": [
+    {
+      "source": "LICENSE",
+      "target": "LICENSE",
+      "fingerprint": true
+    },
+    {
+      "source": "NOTICE",
+      "target": "NOTICE",
+      "fingerprint": true
+    }
+  ],
   "template_source_provenance": [
     "templates/prd/general/PRD_TEMPLATE_v0.2.md",
     "templates/prd/general/OUTPUT_CONTRACT_v0.2.json"

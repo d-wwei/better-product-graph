@@ -1,0 +1,27 @@
+{
+  "schema_version": "reference-extraction-manifest.v1",
+  "source_root_id": "upstream:cognitive-bases",
+  "version": "v0.1",
+  "entries": [
+    {"resource_id": "attention-allocation", "source_relative_path": "attention-allocation/SKILL.md", "source_sha256": "sha256:c8d8f2867358dca8eeee20baaea594cedd5d89392c167d3f24278b3dca7648d4"},
+    {"resource_id": "bayesian-reasoning", "source_relative_path": "bayesian-reasoning/SKILL.md", "source_sha256": "sha256:efbdc8a23db4f5f8f5187babc142c70c101933d4f8b0d6c33ac0e670326880cb"},
+    {"resource_id": "cognitive-base-creator", "source_relative_path": "cognitive-base-creator/SKILL.md", "source_sha256": "sha256:08dd1c7546012cf4f529752a4a646215d0598623686bc025a008244326357abd"},
+    {"resource_id": "constraint-as-catalyst", "source_relative_path": "constraint-as-catalyst/SKILL.md", "source_sha256": "sha256:85c0451f20e6397db249cc660e138e14d94bb18ec8516a94ac8ee833e782b921"},
+    {"resource_id": "conviction-override", "source_relative_path": "conviction-override/SKILL.md", "source_sha256": "sha256:28b0ac1be0902ea3ab401e8748d32a55951524a6956aa707540a8a051f40c259"},
+    {"resource_id": "cross-domain-connector", "source_relative_path": "cross-domain-connector/SKILL.md", "source_sha256": "sha256:cc83c0bbc1e4b22dcae752c216d1d06fa1fa59d44054c6da4a69b6494af23c6e"},
+    {"resource_id": "dialectical-thinking", "source_relative_path": "dialectical-thinking/SKILL.md", "source_sha256": "sha256:6c222ced4c8fe3594073961cb1ef1126d4004e64a3dc83d74b13864f167217de"},
+    {"resource_id": "double-loop-learning", "source_relative_path": "double-loop-learning/SKILL.md", "source_sha256": "sha256:d7d405639f36762f33a22bcc688ddf54b10209f4ab19801f5826a28b4136cd23"},
+    {"resource_id": "first-principles", "source_relative_path": "first-principles/SKILL.md", "source_sha256": "sha256:a038dce309d94b143dcefd778898152041cde519df9acb88d5ac4ac4de7525cb"},
+    {"resource_id": "frame-auditing", "source_relative_path": "frame-auditing/SKILL.md", "source_sha256": "sha256:311d0ca7ca8129ce7d4aeb9455f45ce3e9a607d397bdbdc8a24e679cf3510063"},
+    {"resource_id": "interactive-cognition", "source_relative_path": "interactive-cognition/SKILL.md", "source_sha256": "sha256:2320c64adfb86bc91ec541feddc4875cb3299a1bbc737a619df484a4b1935c6d"},
+    {"resource_id": "inversion-thinking", "source_relative_path": "inversion-thinking/SKILL.md", "source_sha256": "sha256:d9d39385952c756d57ee441cbd7e437e5d1ba033ddc44df77846927cbf11f74b"},
+    {"resource_id": "motivation-audit", "source_relative_path": "motivation-audit/SKILL.md", "source_sha256": "sha256:857a877d2de43800e6ab5c5d8c0798d65f5873fc7064d972368a3a3f7464e0b0"},
+    {"resource_id": "non-attachment", "source_relative_path": "non-attachment/SKILL.md", "source_sha256": "sha256:b2f90f684286d807849e2b1dc2b9442fe02a46cbb3d8ca0e1e2abbc16584491e"},
+    {"resource_id": "principled-action", "source_relative_path": "principled-action/SKILL.md", "source_sha256": "sha256:6611a671bbe3745d3e4d7c3f6462a47dba34a8c9572009d806afae6b4887c939"},
+    {"resource_id": "results-driven", "source_relative_path": "results-driven/SKILL.md", "source_sha256": "sha256:1dc6d0f6f58c4d867514a98fa92d780fda1d6e63312d1e05e8db82038cca74d4"},
+    {"resource_id": "second-order-thinking", "source_relative_path": "second-order-thinking/SKILL.md", "source_sha256": "sha256:a0626ea3c495a2a1a6ea6f79655f77939f9e8abc5480b84f6cfc4561b49eb69b"},
+    {"resource_id": "systems-thinking", "source_relative_path": "systems-thinking/SKILL.md", "source_sha256": "sha256:693fa7b828943a0bed274bdb2e40e2fd418f742bd208aa3914e8da6513d9d5cd"},
+    {"resource_id": "tacit-knowledge", "source_relative_path": "tacit-knowledge/SKILL.md", "source_sha256": "sha256:53c77438562f388ea1eb5e5288ddb9bcd605e2c184e0488dfc1d5707c4262e34"},
+    {"resource_id": "temporal-wisdom", "source_relative_path": "temporal-wisdom/SKILL.md", "source_sha256": "sha256:6ee07329a246a939427662e806d3600d51eef1d1a8bd79171dd8f0e610d2bbb2"}
+  ]
+}

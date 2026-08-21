@@ -1,0 +1,12 @@
+{
+  "schema_version": "reviewer-rubric.v1",
+  "resource_id": "goal-fidelity-rubric",
+  "version": "v0.1",
+  "authority": "ADVISORY_ONLY",
+  "checks": ["goal and desired outcome fidelity", "confirmed scope and non-goal fidelity", "evidence boundary fidelity", "decision and assumption traceability", "observable acceptance and eval strategy", "unresolved contradiction disclosure"],
+  "finding_contract": ["finding_id", "topic_id", "stance", "concern", "concern_level", "basis_refs", "possible_impact", "professional_recommendation", "confidence", "confidence_basis"],
+  "provenance": [
+    {"source_id": "upstream:product-goal-based-audit/SKILL.md", "sha256": "sha256:5a5524896e49ef28cb40785116b2b96de392f93184f9a71201f1c5fef6436600"},
+    {"source_id": "upstream:product-goal-based-audit/references/expert-role-taxonomy.md", "sha256": "sha256:851409be68c699b28d42bc89063d27039dbc42c3559e1a7e0e823efbe470f827"}
+  ]
+}

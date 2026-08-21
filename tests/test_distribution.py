@@ -52,6 +52,9 @@ class DistributionContractTests(unittest.TestCase):
         )
         self.assertEqual(installed_manifest["version"], "0.2.0")
         self.assertEqual(manifest["architecture_baseline"]["version"], "V1.4")
+        self.assertEqual(manifest["roadmap_baseline"]["version"], "v0.14")
+        self.assertTrue((self.output / "LICENSE").is_file())
+        self.assertTrue((self.output / "NOTICE").is_file())
         self.assertEqual(
             manifest["template_promotion"]["stage"], "RELEASED_DEFAULT"
         )
@@ -71,6 +74,8 @@ class DistributionContractTests(unittest.TestCase):
         self.assertEqual(paths, sorted(paths))
         self.assertNotIn("build-manifest.json", paths)
         self.assertIn(".codex-plugin/plugin.json", paths)
+        self.assertIn("LICENSE", paths)
+        self.assertIn("NOTICE", paths)
         self.assertIn("skills/better-product-graph/SKILL.md", paths)
 
     def test_installed_identity_ignores_only_runtime_bytecode_cache(self) -> None:

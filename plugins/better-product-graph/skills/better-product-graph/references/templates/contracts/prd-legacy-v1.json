@@ -1,0 +1,37 @@
+{
+  "schema_version": "template-output-contract.v2",
+  "contract_version": "better-product-graph.prd.legacy.v1",
+  "default_structure_mode": "legacy",
+  "allowed_structure_modes": ["legacy"],
+  "common_required_h2": [
+    "阅读摘要",
+    "目标与成功边界",
+    "范围与交付切片",
+    "验收标准",
+    "风险、未知与回滚",
+    "版本与变更"
+  ],
+  "common_required_semantics": {
+    "summary": ["阅读摘要"],
+    "goal": ["目标与成功边界"],
+    "scope": ["范围与交付切片"],
+    "acceptance": ["验收标准"],
+    "risk": ["风险、未知与回滚"]
+  },
+  "structures": {
+    "legacy": {
+      "required_h2": [],
+      "forbidden_h2": [],
+      "required_semantics": {},
+      "h2_order": [
+        "阅读摘要",
+        "目标与成功边界",
+        "范围与交付切片",
+        "验收标准",
+        "风险、未知与回滚",
+        "版本与变更"
+      ]
+    }
+  },
+  "conditional_sections": {}
+}

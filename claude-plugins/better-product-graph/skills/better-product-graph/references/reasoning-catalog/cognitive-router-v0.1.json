@@ -1,0 +1,21 @@
+{
+  "schema_version": "agent-reference.v1",
+  "resource_id": "cognitive-router",
+  "version": "v0.1",
+  "kind": "AGENT_REASONING_ROUTER_INSTRUCTIONS",
+  "authority": "ADVISORY_INTERNAL",
+  "agent_contract": {
+    "default": "Choose one primary lens and at most three supporting lenses based on the current uncertainty; the Agent must record what it used.",
+    "selection_signals": [
+      {"signal": "unclear premises or inherited framing", "candidate_lenses": ["frame-auditing", "first-principles"]},
+      {"signal": "uncertain evidence or confidence", "candidate_lenses": ["bayesian-reasoning", "inversion-thinking"]},
+      {"signal": "repeated system behavior or downstream effects", "candidate_lenses": ["systems-thinking", "second-order-thinking", "temporal-wisdom"]},
+      {"signal": "blocked action or hidden incentives", "candidate_lenses": ["attention-allocation", "motivation-audit", "constraint-as-catalyst"]}
+    ],
+    "guardrails": ["This catalog is not a Graph Node or checklist.", "Python must not choose lenses or infer product meaning.", "Unused lenses remain available references, not mandatory steps."]
+  },
+  "provenance": [
+    {"source_id": "upstream:better-question/SKILL.md", "sha256": "sha256:3d5ae399f40648d75a7e8c0f029959d3380ad5a8a5263c23c907bf5fe18a13af"},
+    {"source_id": "upstream:better-question/references/cognitive-lenses.md", "sha256": "sha256:0843dfbba64395e4e7343664a3b7ca0c4fb8e8e7e44a35927d17eab8a5386155"}
+  ]
+}

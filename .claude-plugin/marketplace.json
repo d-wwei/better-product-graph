@@ -1,0 +1,1 @@
+{"description":"Better Product Graph official Developer Alpha marketplace.","name":"better-product-graph","owner":{"name":"eli and Better Product Graph contributors"},"plugins":[{"description":"Turn product signals into auditable decisions, plans, PRDs, and local handoffs.","name":"better-product-graph","source":"./claude-plugins/better-product-graph"}]}

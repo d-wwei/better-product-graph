@@ -1,0 +1,13 @@
+{
+  "schema_version": "reviewer-packet-contract.v1",
+  "resource_id": "goal-fidelity-packet-contract",
+  "version": "v0.1",
+  "authority": "ADVISORY_ONLY",
+  "required_packet_fields": ["goal", "candidate_ref", "commitment_refs"],
+  "required_binding": "Candidate and commitment refs must be exact, versioned, hash-bound inputs to the Reviewer attempt.",
+  "scope_rule": "Unconfirmed commitment scope must remain visibly provisional; an Agent Reviewer cannot confirm commitments for the Owner.",
+  "provenance": [
+    {"source_id": "upstream:product-goal-based-audit/SKILL.md", "sha256": "sha256:5a5524896e49ef28cb40785116b2b96de392f93184f9a71201f1c5fef6436600"},
+    {"source_id": "upstream:product-goal-based-audit/references/commitment-confirmation.md", "sha256": "sha256:82a7ed0ae4ea811394f8887f8ab596c9582a51e652b3849a8ee953f265248274"}
+  ]
+}

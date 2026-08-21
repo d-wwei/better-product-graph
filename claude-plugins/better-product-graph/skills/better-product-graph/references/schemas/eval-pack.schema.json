@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph.eval-pack.authority.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "candidate_ref",
+    "applicability",
+    "execution_status",
+    "ground_truth_provenance",
+    "producer",
+    "evaluator_contract",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "enum": ["better-product-graph.eval-pack.v0.2", "better-product-graph.eval-pack.v1"]
+    },
+    "status": {"enum": ["SPECIFICATION_REVIEW_PENDING", "REVIEWED"]},
+    "candidate_ref": {
+      "type": "object",
+      "required": ["path", "hash", "version"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "version": {"type": ["string", "integer"]}
+      },
+      "additionalProperties": true
+    },
+    "applicability": {"const": "REQUIRED"},
+    "execution_status": {"const": "NOT_RUN"},
+    "ground_truth_provenance": {
+      "type": "object",
+      "required": ["type", "statement", "exact_refs"],
+      "properties": {
+        "type": {"const": "CONTRACT_DERIVED_EXPECTATIONS"},
+        "statement": {"type": "string", "minLength": 1},
+        "exact_refs": {"type": "array"}
+      },
+      "additionalProperties": false
+    },
+    "producer": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "evaluator_contract": {
+      "type": "object",
+      "required": ["contract_id", "fixtures_ref"],
+      "properties": {
+        "contract_id": {"type": "string", "minLength": 1},
+        "fixtures_ref": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "cases": {"type": "array"}
+  },
+  "additionalProperties": true
+}

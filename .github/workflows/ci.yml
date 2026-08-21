@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Run source tests
+        run: python -m unittest discover -s tests -t . -v
+
+      - name: Build deterministic Codex Marketplace bundles
+        run: |
+          python scripts/package_marketplace.py "$RUNNER_TEMP/better-product-graph-codex-a.zip" --host codex --require-clean --json
+          python scripts/package_marketplace.py "$RUNNER_TEMP/better-product-graph-codex-b.zip" --host codex --require-clean --json
+          cmp "$RUNNER_TEMP/better-product-graph-codex-a.zip" "$RUNNER_TEMP/better-product-graph-codex-b.zip"
+
+      - name: Build deterministic Claude Marketplace bundles
+        run: |
+          python scripts/package_marketplace.py "$RUNNER_TEMP/better-product-graph-claude-a.zip" --host claude --require-clean --json
+          python scripts/package_marketplace.py "$RUNNER_TEMP/better-product-graph-claude-b.zip" --host claude --require-clean --json
+          cmp "$RUNNER_TEMP/better-product-graph-claude-a.zip" "$RUNNER_TEMP/better-product-graph-claude-b.zip"
+
+      - name: Confirm the build did not mutate source
+        run: git diff --exit-code

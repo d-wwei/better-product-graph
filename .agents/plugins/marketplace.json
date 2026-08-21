@@ -1,0 +1,1 @@
+{"interface":{"displayName":"Better Product Graph"},"name":"better-product-graph","plugins":[{"category":"Productivity","name":"better-product-graph","policy":{"authentication":"ON_USE","installation":"AVAILABLE"},"source":{"path":"./plugins/better-product-graph","source":"local"}}]}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph/owner-choice-command.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "decision_id",
+    "proposal_ref",
+    "proposal_hash",
+    "actor",
+    "expected_state_version",
+    "choice",
+    "commit_timing",
+    "outcome_details"
+  ],
+  "properties": {
+    "schema_version": {"const": "owner-choice-command.v1"},
+    "decision_id": {"type": "string", "minLength": 1},
+    "proposal_ref": {"type": "object"},
+    "proposal_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "actor": {"type": "object"},
+    "expected_state_version": {"type": "integer", "minimum": 1},
+    "choice": {"enum": ["STOP", "WAIT", "RESEARCH", "EXPERIMENT", "COMMIT"]},
+    "commit_timing": {"type": ["string", "null"]},
+    "outcome_details": {"type": "object"}
+  },
+  "additionalProperties": false
+}

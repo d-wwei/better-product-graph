@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible Better Product Graph failure.
+title: "[Bug]: "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Remove credentials, customer data, private PRDs, and unrelated local paths before submitting.
+  - type: input
+    id: version
+    attributes:
+      label: Better Product Graph version
+      placeholder: 0.2.0 or exact commit
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host
+      options:
+        - Codex
+        - Claude Code
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Host version, Python version, and installation source.
+      placeholder: macOS 15, Codex ..., Python 3.13, GitHub Release ZIP
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Give the shortest repeatable path from a clean state.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and evidence
+      description: Include sanitized command output, state, or artifact references. Do not paste secrets or private product content.
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - Wrong Ready or Release
+        - Permission or evidence bypass
+        - Data corruption or unrecoverable Run
+        - Cannot produce or hand off a PRD
+        - Other functional problem
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, customer data, private PRDs, and unrelated local paths.
+          required: true
+        - label: This is not a vulnerability that should be reported privately.
+          required: true

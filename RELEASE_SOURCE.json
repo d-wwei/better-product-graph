@@ -3,10 +3,12 @@
   "generated_at": "2026-08-21",
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
-  "source_branch": "codex/bpg-three-line-convergence-0.2.0",
-  "source_commit": "95c6e66c9bbf7e571612de26a8bda4052b37f489",
-  "release_evidence_commit": "346cae77416728960641457ebe3b9abdbeafc553",
+  "source_branch": "main",
+  "source_commit": "980110a413440d9874099ab5c36cf4a2ac457cac",
+  "release_evidence_commit": "980110a413440d9874099ab5c36cf4a2ac457cac",
   "plugin_version": "0.2.0",
+  "release_channel": "Developer Alpha",
+  "intended_tag": "v0.2.0",
   "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
   "release_sanitizations": [
     "Replaced developer-specific absolute paths in three negative or optional-local test fixtures with /Users/example equivalents; test semantics are unchanged."
@@ -23,9 +25,9 @@
       "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
     },
     "roadmap": {
-      "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md",
-      "version": "v0.13",
-      "sha256": "9f3120f6b869588287811f9ddb9e4e4248324808ed358879f30798627eae3515"
+      "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md",
+      "version": "v0.14",
+      "sha256": "82db4ff724513054db96bbb37489e05489d6fde151a02ccfdf7df76f4d12e4dc"
     },
     "default_prd_template": {
       "path": "templates/prd/general/PRD_TEMPLATE_v0.2.md",
@@ -33,21 +35,42 @@
       "sha256": "c276e951bba16ff868f5b2cf7dacb1642adf5eac512fb2a3898f4ad825ad64a4"
     }
   },
+  "release_artifacts": {
+    "codex_marketplace_zip": {
+      "name": "better-product-graph-codex-0.2.0.zip",
+      "sha256": "e4b29fdc61f85958cea41175d2492e3b6b894c75548c2cd7ed09577b6132027d",
+      "bytes": 240436,
+      "plugin_artifact_hash": "sha256:13013b79fc7e5d4d8e9c2571547b1db4458f16b791002c117397231b66884467"
+    },
+    "claude_marketplace_zip": {
+      "name": "better-product-graph-claude-0.2.0.zip",
+      "sha256": "8d89c39b948e73dc86efbd680f602fdfb479cd83df355048a95bf445e21fb909",
+      "bytes": 241109,
+      "plugin_artifact_hash": "sha256:5beb71ad1f23b91370ee580795d0637bf106461b08d43bdba35b0afb027740a1"
+    },
+    "core_tree_fingerprint": "sha256:db4b1d9dad41c0c7c09a89c6bd00942036b0090dae770c5b6b543d255bacb31b"
+  },
   "release_evidence": {
-    "source_tests": "391/391 PASS",
+    "source_tests": "394/394 PASS",
+    "public_snapshot_tests": "381/381 PASS; 1 optional local-upstream check skipped",
     "repair_verifier": "53/53 findings, 167 exact executions, failed=[]",
-    "codex_package_sha256": "c5fcd18c713cfc593471e9bd5116100455b30d45492544869f26c98a7f37e709",
-    "claude_package_sha256": "165475de1993a528e5c90b911b1f84175e2bf297ea14b382dbe07e451373f4cf",
-    "core_tree_fingerprint": "sha256:db4b1d9dad41c0c7c09a89c6bd00942036b0090dae770c5b6b543d255bacb31b",
-    "claude_authenticated_host": "PARTIAL_6_OF_7",
+    "deterministic_marketplace_packages": "PASS for Codex and Claude Code",
+    "codex_marketplace_local_install": "PASS",
+    "claude_marketplace_local_install": "PASS",
+    "plugin_creator_validator": "PASS",
+    "claude_strict_validator": "PASS",
+    "authenticated_host_exact_release_commit": "NOT_RUN",
+    "claude_authenticated_host_prior_core_evidence": "PARTIAL_6_OF_7",
     "auto_selection": "NOT_RUN",
     "product_golden_agent_judgment": "NOT_RUN"
   },
+  "deferred": [
+    "Bootstrap is planned for the next Developer Alpha and is not part of v0.2.0."
+  ],
   "excluded_from_release_history": [
     "local Graph runtime state",
     "Better Work execution records",
     "raw audits and adversarial probes",
-    "internal historical-finding audit verifier",
     "Superpowers construction plans",
     "development-only capability and verification reports",
     "draft and archived product documents",

@@ -415,6 +415,13 @@ def build_plugin(
             for path in config.get("template_source_provenance", [])
         ),
     ]
+    for item in config.get("shared_exact_files", []):
+        _check_relative(item["source"])
+        _check_relative(item["target"])
+        source = _source_path(repo_root, item["source"])
+        _copy_file(source, output_root / item["target"])
+        if item.get("fingerprint"):
+            fingerprint_sources.append(source)
     for item in host_block["exact_files"]:
         _check_relative(item["target"])
         source = _source_path(repo_root, item["source"])

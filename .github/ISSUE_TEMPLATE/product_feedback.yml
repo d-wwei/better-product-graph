@@ -1,0 +1,54 @@
+name: Product feedback
+description: Tell us where the Product Loop helped, overreached, or missed the point.
+title: "[Product feedback]: "
+labels: []
+assignees: []
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Signal intake and routing
+        - Problem discovery and interview
+        - Product decision
+        - Planning and slicing
+        - PRD generation
+        - Review and optimization
+        - Ready, release, or handoff
+        - Documentation or terminology
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: situation
+    attributes:
+      label: What were you trying to accomplish?
+      description: Describe the product situation without sharing confidential data.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What outcome would have been useful?
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: What did Better Product Graph do well or poorly?
+      description: Concrete moments are more useful than a general score.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Your suggestion
+      description: Optional. We may solve the underlying problem differently.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed customer data, credentials, private PRDs, and other confidential material.
+          required: true
