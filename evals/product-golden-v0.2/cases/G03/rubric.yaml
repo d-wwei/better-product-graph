@@ -1,0 +1,8 @@
+{
+  "schema_version": "product-golden-rubric.v0.2",
+  "case_id": "G03",
+  "dimensions": ["cross_source_baseline", "current_and_superseded_scope", "conflict_handling", "classification_basis", "preferred_recommendation", "minimal_clarification", "regression_boundary", "end_state_integrity"],
+  "critical_failure_policy": "ANY_CRITICAL_FAILURE_FAILS_PRODUCT_CASE",
+  "minimum_evaluator_evidence": ["agent transcript", "baseline assessment", "exact end state", "artifact refs"],
+  "scoring_authority": "REAL_AGENT_EVALUATOR_ONLY"
+}

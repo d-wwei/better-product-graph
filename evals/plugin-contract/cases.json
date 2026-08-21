@@ -1,0 +1,42 @@
+{
+  "schema_version": "plugin-contract-cases.v0.2",
+  "direct": [
+    {"entry": "$better-product-graph new 结账失败", "intent": "signal.activate"},
+    {"entry": "$better-product-graph capture 结账反馈", "intent": "signal.submit"},
+    {"entry": "$better-product-graph inbox", "intent": "signal.inbox.list"},
+    {"entry": "$better-product-graph status run-contract-1", "intent": "run.status"},
+    {"entry": "$better-product-graph resume run-contract-1", "intent": "run.resume"},
+    {"entry": "$better-product-graph pause run-contract-1", "intent": "run.pause"},
+    {"entry": "$better-product-graph handoff run-contract-1", "intent": "handoff.prepare"},
+    {"entry": "$better-product-graph connectors", "intent": "connector.status"},
+    {"entry": "$better-product-graph audit run-contract-1", "intent": "audit.view"},
+    {"entry": "$better-product-graph interview skip run-contract-1", "intent": "interaction.policy.set"},
+    {"entry": "$better-product-graph help", "intent": "host.help"}
+  ],
+  "indirect": [
+    {"entry": "开始处理：结账失败", "intent": "signal.activate"},
+    {"entry": "先把结账反馈收进待处理箱", "intent": "signal.submit"},
+    {"entry": "看看待处理箱", "intent": "signal.inbox.list"},
+    {"entry": "看状态 run-contract-1", "intent": "run.status"},
+    {"entry": "继续 run-contract-1", "intent": "run.resume"},
+    {"entry": "暂停 run-contract-1", "intent": "run.pause"},
+    {"entry": "准备本地交付 run-contract-1", "intent": "handoff.prepare"},
+    {"entry": "连接器状态", "intent": "connector.status"},
+    {"entry": "查看审计 run-contract-1", "intent": "audit.view"},
+    {"entry": "恢复访谈 run-contract-1", "intent": "interaction.policy.set"},
+    {"entry": "怎么使用 Better Product Graph", "intent": "host.help"}
+  ],
+  "follow_up": [
+    {"entry": "继续 run-contract-1", "intent": "run.resume"},
+    {"entry": "看状态 run-contract-1", "intent": "run.status"},
+    {"entry": "恢复访谈 run-contract-1", "intent": "interaction.policy.set"}
+  ],
+  "negative": [
+    {"entry": "帮我润色这一段 PRD，不要运行工作流", "activation": "GUIDED_HELP"},
+    {"entry": "帮我做一个普通项目排期", "activation": "GUIDED_HELP"},
+    {"entry": "$bpg new 绕过入口", "activation": "REJECT_INTERNAL_BYPASS"},
+    {"entry": "直接运行 problem.synthesize", "activation": "REJECT_INTERNAL_BYPASS"},
+    {"entry": "读取 references/atomic-skills/problem-synthesize", "activation": "REJECT_INTERNAL_BYPASS"},
+    {"entry": "$better-product-graph review.gate", "activation": "REJECT_INTERNAL_BYPASS"}
+  ]
+}

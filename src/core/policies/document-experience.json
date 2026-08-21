@@ -1,0 +1,21 @@
+{
+  "schema_version": "document-experience.v1",
+  "graph_effect": "CROSS_CUTTING_ONLY",
+  "common_rules": [
+    "CONCLUSION_FIRST",
+    "NEXT_ACTION_VISIBLE",
+    "EVIDENCE_UNKNOWN_AUTHORITY_SEPARATED",
+    "VERSION_AND_CHANGELOG_VISIBLE",
+    "LOCAL_STATUS_NOT_EXTERNAL_SUCCESS"
+  ],
+  "profiles": {
+    "problem": {"density": "STANDARD"},
+    "decision": {"density": "STANDARD"},
+    "plan": {"density": "STANDARD"},
+    "prd": {"density": "FULL"},
+    "incident": {"density": "MINIMAL_ACTIONABLE", "max_lines": 40},
+    "bug": {"density": "MINIMAL_ACTIONABLE", "max_lines": 40},
+    "internal_review": {"density": "CONCERNS_ONLY"},
+    "handoff": {"density": "SOURCE_STATUS_NEXT_ACTION"}
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prd-graph.local/schemas/eval-case.schema.json",
+  "title": "Product Graph Eval Case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["case_id", "title", "description", "source_kind", "risk", "tags", "input", "oracle", "checks"],
+  "properties": {
+    "case_id": {"type": "string", "pattern": "^PG-[A-Z]+-[0-9]{3}$"},
+    "title": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "source_kind": {"enum": ["synthetic", "historical"]},
+    "risk": {"enum": ["low", "medium", "high", "critical"]},
+    "tags": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "input": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["objective", "signals", "knowledge_snapshot", "plugin_capabilities"],
+      "properties": {
+        "objective": {"enum": ["product_only", "product_to_dev", "end_to_end"]},
+        "signals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["signal_id", "type_hint", "source", "content"],
+            "properties": {
+              "signal_id": {"type": "string", "minLength": 1},
+              "type_hint": {"enum": ["idea", "feedback", "issue", "unknown"]},
+              "source": {"type": "string", "minLength": 1},
+              "content": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "knowledge_snapshot": {"type": "object", "required": ["snapshot_id"], "additionalProperties": true},
+        "plugin_capabilities": {"type": "object", "required": ["dev", "test"], "additionalProperties": true}
+      }
+    },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "expected_signal_types",
+        "expected_route",
+        "expected_duplicate_clusters",
+        "required_evidence_refs",
+        "required_conflicts",
+        "must_include_requirements",
+        "must_exclude_scope",
+        "required_open_questions",
+        "required_escalations",
+        "allowed_decisions",
+        "forbidden_claims",
+        "expected_product_status",
+        "expected_aggregate_verdict",
+        "expected_max_claim_scope"
+      ],
+      "properties": {
+        "expected_signal_types": {"type": "array", "items": {"enum": ["idea", "feedback", "issue", "unknown"]}},
+        "expected_route": {"type": "string", "minLength": 1},
+        "expected_duplicate_clusters": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}},
+        "required_evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "required_conflicts": {"type": "array", "items": {"type": "string"}},
+        "must_include_requirements": {"type": "array", "items": {"type": "string"}},
+        "must_exclude_scope": {"type": "array", "items": {"type": "string"}},
+        "required_open_questions": {"type": "array", "items": {"type": "string"}},
+        "required_escalations": {"type": "array", "items": {"type": "string"}},
+        "allowed_decisions": {"type": "array", "items": {"type": "string"}},
+        "forbidden_claims": {"type": "array", "items": {"type": "string"}},
+        "expected_product_status": {"enum": ["PRODUCT_GENERATED", "PRODUCT_PROVISIONAL", "PRODUCT_VALIDATED", "PRODUCT_OWNER_APPROVED"]},
+        "expected_aggregate_verdict": {"enum": ["COMPLETE", "PARTIAL", "BLOCKED", "FAIL"]},
+        "expected_max_claim_scope": {"enum": ["product_draft", "product_validated", "owner_approved", "dev_accepted", "test_accepted", "release_ready"]}
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deterministic", "model_judge_dimensions", "human_review_required"],
+      "properties": {
+        "deterministic": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "model_judge_dimensions": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "human_review_required": {"type": "boolean"}
+      }
+    }
+  }
+}
+

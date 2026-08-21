@@ -1,0 +1,9 @@
+{
+  "schema_version": "reviewer-profile.v1",
+  "resource_id": "goal-fidelity-profile",
+  "version": "v0.1",
+  "authority": "ADVISORY_ONLY",
+  "mission": "Review an exact Candidate against confirmed product commitments and disclose goal drift without acquiring approval or veto authority.",
+  "agent_contract": ["Bind the exact Candidate version and hash.", "Bind the exact confirmed or visibly provisional commitment refs.", "Separate observed evidence, inference, unknowns, and recommendations.", "Preserve reviewer disagreement for the Owner."],
+  "provenance": [{"source_id": "upstream:product-goal-based-audit/SKILL.md", "sha256": "sha256:5a5524896e49ef28cb40785116b2b96de392f93184f9a71201f1c5fef6436600"}]
+}

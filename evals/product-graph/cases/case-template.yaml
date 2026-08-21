@@ -1,0 +1,52 @@
+schema_version: "0.1"
+case_id: PG-REAL-000
+title: Replace with a concise case title
+description: Explain what real failure or capability this case represents.
+source_kind: historical
+risk: medium
+tags: []
+
+input:
+  objective: product_only
+  signals:
+    - signal_id: SIG-001
+      type_hint: unknown
+      source: fixture://replace-me
+      content: Redacted or synthetic summary. Use a restricted fixture ref for private raw data.
+  knowledge_snapshot:
+    snapshot_id: KS-REPLACE
+    fixture_ref: fixture://replace-me
+    content_hash: sha256:replace-me
+    known_limitations: []
+  plugin_capabilities:
+    dev: unconfigured
+    test: unconfigured
+
+oracle:
+  expected_signal_types: []
+  expected_route: replace-me
+  expected_duplicate_clusters: []
+  required_evidence_refs: []
+  required_conflicts: []
+  must_include_requirements: []
+  must_exclude_scope: []
+  required_open_questions: []
+  required_escalations: []
+  allowed_decisions: []
+  forbidden_claims: []
+  expected_product_status: PRODUCT_PROVISIONAL
+  expected_aggregate_verdict: PARTIAL
+  expected_max_claim_scope: product_draft
+
+checks:
+  deterministic: []
+  model_judge_dimensions:
+    - problem_framing
+    - evidence_fidelity
+    - decision_quality
+    - scope_discipline
+    - implementability
+    - testability
+    - traceability
+  human_review_required: false
+

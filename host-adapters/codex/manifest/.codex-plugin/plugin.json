@@ -1,0 +1,29 @@
+{
+  "name": "better-product-graph",
+  "version": "0.1.20",
+  "description": "Turns product signals into evidence-bound decisions, plans, versioned PRDs, and local engineering handoffs through one governed Codex Skill.",
+  "author": {
+    "name": "Better Product Graph contributors"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Better Product Graph",
+    "shortDescription": "Govern product decisions",
+    "longDescription": "A local-first product workflow that preserves source evidence, helps a PM reach an explicit product decision, plans outcome-oriented increments, produces versioned PRDs, and prepares exact local handoffs. Semantic product work is performed by the Host Agent under versioned instructions; deterministic local code enforces state, permissions, validation, versions, recovery, and release identity.",
+    "developerName": "Better Product Graph contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Local product signal intake",
+      "Evidence-bound product decisions",
+      "Versioned plans and PRDs",
+      "Recoverable local runs"
+    ],
+    "defaultPrompt": [
+      "Analyze this product signal and help me decide what to do next.",
+      "Resume my current Better Product Graph run.",
+      "Show the exact local handoff for this run."
+    ],
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg"
+  }
+}

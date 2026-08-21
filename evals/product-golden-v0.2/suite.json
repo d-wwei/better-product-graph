@@ -1,0 +1,17 @@
+{
+  "schema_version": "product-golden-suite.v0.2",
+  "suite_id": "better-product-graph-product-golden-v0.2",
+  "cases": ["G01", "G03", "G04"],
+  "agent_visible_files": ["input.yaml", "knowledge-snapshot.yaml", "pm-response-bank.yaml"],
+  "evaluator_only_files": ["expected-envelope.yaml", "rubric.yaml"],
+  "evidence_policy": {
+    "fixture_contract_pass_implies_product_pass": false,
+    "plugin_contract_pass_implies_product_pass": false,
+    "missing_agent_runtime_status": "NOT_RUN"
+  },
+  "legacy_source": {
+    "path": "../product-graph",
+    "version": "0.1",
+    "status": "LEGACY / DOCUMENT-ONLY / NOT A V1.4 ACCEPTANCE BASELINE"
+  }
+}

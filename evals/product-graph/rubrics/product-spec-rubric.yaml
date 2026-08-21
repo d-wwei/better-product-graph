@@ -1,0 +1,86 @@
+schema_version: "0.1"
+rubric_id: product-spec-quality
+score_range: [0, 4]
+require_evidence_for_each_score: true
+
+dimensions:
+  problem_framing:
+    weight: 1.0
+    anchors:
+      0: No identifiable user, scenario or problem.
+      1: Generic user/problem language with unsupported assumptions.
+      2: User and problem are present but evidence or workaround is incomplete.
+      3: Specific user, scenario, problem and workaround with minor gaps.
+      4: Specific, evidence-backed framing with frequency/impact and the most valuable unknown identified.
+  evidence_fidelity:
+    weight: 1.5
+    anchors:
+      0: Fabricated evidence, material contradiction or inference presented as fact.
+      1: Major claims lack sources or misuse stale/conflicting evidence.
+      2: Most claims are supported but important gaps are not clearly provisional.
+      3: Claims trace to suitable sources; assumptions and conflicts are visible.
+      4: All material claims have authoritative, current evidence or explicit provisional status.
+  decision_quality:
+    weight: 1.0
+    anchors:
+      0: Recommendation is unrelated to evidence or ignores a critical constraint.
+      1: Single solution asserted without alternatives or reversal conditions.
+      2: Reasonable direction but alternatives, risks or change-my-mind evidence are incomplete.
+      3: Evidence-backed decision with alternatives, risk and reversibility.
+      4: Decision selects the narrowest valuable path and states what evidence would reverse it.
+  scope_discipline:
+    weight: 1.0
+    anchors:
+      0: Scope is unbounded or contradicts explicit non-goals.
+      1: Must-have scope contains unrelated or later work.
+      2: Major scope is clear but some dependencies or exclusions are ambiguous.
+      3: Must/Should/Later/non-goals are clear and traceable.
+      4: Scope is independently valuable, dependency-aware and resistant to hidden expansion.
+  implementability:
+    weight: 1.0
+    anchors:
+      0: Engineering cannot determine behavior or system boundaries.
+      1: Only happy-path feature prose exists.
+      2: Core behavior is present but dependencies, state or NFRs are incomplete.
+      3: Behavior, state, dependencies, constraints and failure handling are actionable.
+      4: Engineering can preflight the package without material clarification.
+  testability:
+    weight: 1.25
+    anchors:
+      0: No observable acceptance behavior.
+      1: Acceptance language is subjective or not executable.
+      2: Happy path is testable but important branches are absent.
+      3: Acceptance rules cover core and major failure paths with clear oracles.
+      4: Rules cover boundaries, recovery, permissions, compatibility and measurable NFRs.
+  traceability:
+    weight: 1.25
+    anchors:
+      0: Requirements cannot be traced to signals, evidence or decisions.
+      1: Traceability is narrative and incomplete.
+      2: Most Must requirements trace to evidence and acceptance rules.
+      3: All Must requirements and rules have closed references.
+      4: Bidirectional Signal → Evidence → Decision → Requirement → Acceptance Rule traceability is complete.
+
+p0_overrides:
+  - FABRICATED_EVIDENCE
+  - CRITICAL_REQUIREMENT_MISSING
+  - FALSE_PRODUCT_READY
+  - FALSE_END_TO_END_COMPLETE
+  - UNAPPROVED_IRREVERSIBLE_DECISION
+  - RESTRICTED_DATA_LEAK
+
+verdict_rules:
+  pass:
+    minimum_weighted_average: 3.0
+    require_no_p0_override: true
+    require_all_hard_gates: true
+  pass_with_caveat:
+    minimum_weighted_average: 2.5
+    require_no_p0_override: true
+    require_all_hard_gates: true
+  fail:
+    when:
+      - weighted_average_below_2_5
+      - any_p0_override
+      - any_hard_gate_failure
+

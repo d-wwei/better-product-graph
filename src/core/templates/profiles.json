@@ -1,0 +1,23 @@
+{
+  "schema_version": "template-profiles.v1",
+  "default_profile": {
+    "id": "fallback",
+    "version": "upstream-frozen"
+  },
+  "profiles": [
+    {
+      "id": "fallback",
+      "version": "upstream-frozen",
+      "status": "EXACT_UPSTREAM_FALLBACK",
+      "path": "fallback/product-prd-template.md",
+      "sha256": "sha256:ffe22669d8cff3ed7b94566d6cefa3d3381b9d4ce34d99a14039576b730dafa8"
+    },
+    {
+      "id": "general",
+      "version": "0.1.0-draft",
+      "status": "DRAFT_BOOTSTRAP_CANDIDATE",
+      "path": "general/PRD_TEMPLATE_v0.1.md",
+      "sha256": "sha256:c0da4c9ac59c94f09ebfb927946137ded949330f9c60de5c233267f2d6ae4021"
+    }
+  ]
+}

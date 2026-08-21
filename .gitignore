@@ -1,0 +1,35 @@
+.DS_Store
+**/.DS_Store
+
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Generated dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+__pycache__/
+*.py[cod]
+
+# Local scratch space
+.assistant/work/
+
+# Local Graph runtime state. Released product documents are kept separately.
+.better-product-graph/
+.better-work/
+*.lock
+
+# Host-specific worktrees and local session state
+.claude/worktrees/
+
+# Local release staging and generated packages
+.release-work/
+*.zip
+
+# Read-only upstream repositories are maintained independently.
+references/upstream-skills/

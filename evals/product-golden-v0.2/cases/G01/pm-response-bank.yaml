@@ -1,0 +1,9 @@
+{
+  "schema_version": "pm-response-bank.v0.2",
+  "case_id": "G01",
+  "responses": [
+    {"question_key": "measurement", "answer": "目前没有总体量和错误率基线。"},
+    {"question_key": "scope", "answer": "可以先只给内部销售建议，不自动发给客户。"},
+    {"question_key": "risk_acceptance", "answer": "Sponsor 接受试点延期，不接受泄漏客户数据。"}
+  ]
+}

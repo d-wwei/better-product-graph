@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph/audit-event.v1",
+  "type": "object",
+  "required": ["schema_version", "event_id", "recorded_at", "event_type", "actor", "previous_hash", "event_hash"],
+  "properties": {
+    "schema_version": {"const": "audit-event.v1"},
+    "event_id": {"type": "string", "minLength": 1},
+    "recorded_at": {"type": "string", "minLength": 1},
+    "event_type": {"type": "string", "minLength": 1},
+    "actor": {"type": "string", "minLength": 1},
+    "previous_hash": {"type": ["string", "null"]},
+    "event_hash": {"type": "string", "pattern": "^sha256:"},
+    "before_state_hash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "after_state_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}

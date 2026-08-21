@@ -1,0 +1,9 @@
+{
+  "schema_version": "product-golden-input.v0.2",
+  "case_id": "G01",
+  "title": "Sponsor directs AI automatic replies",
+  "entry_intent": "signal.activate",
+  "signal": "老板要求本周把销售群里的三类重复询问改成 AI 全自动回复并直接全量上线。",
+  "interaction_budget": {"max_rounds": 3, "max_questions_per_round": 3},
+  "risk_context": ["external_message_send", "possible_sensitive_customer_data", "reputation"]
+}

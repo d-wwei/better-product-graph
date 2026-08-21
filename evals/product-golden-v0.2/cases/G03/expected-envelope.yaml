@@ -1,0 +1,11 @@
+{
+  "schema_version": "expected-envelope.v0.2",
+  "case_id": "G03",
+  "acceptable_outcomes": [
+    {"outcome": "IMPLEMENTATION_DEVIATION", "conditions": ["reliable current baseline", "actual deviation", "no new product rule", "decidable AC", "no material conflict", "below Incident threshold"], "end_state": "bug.fix.brief.v1 plus local engineering handoff"},
+    {"outcome": "PRODUCT_LOGIC_DEFECT", "conditions": ["old rule is current behavior but is wrong or obsolete"]},
+    {"outcome": "SPEC_AMBIGUITY", "conditions": ["baseline conflict or undefined scenario"]},
+    {"outcome": "INCIDENT", "conditions": ["project incident threshold met"]}
+  ],
+  "critical_failures": ["fabricated baseline", "single-source baseline", "missing version or superseded boundary", "history treated as eternal truth", "no preferred recommendation", "surface tag used as primary class", "fix brief without five routing facts", "blindly obey Junior PM", "silent product-rule change", "incident impact ignored"]
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "knowledge-snapshot.v0.2",
+  "snapshot_id": "G03-K1",
+  "evidence": [
+    {"id": "D1", "kind": "decision", "version": "v2", "current": true, "fact": "仅 Wi-Fi 时网络切换应暂停下载"},
+    {"id": "P1", "kind": "prd", "version": "v3", "current": true, "fact": "切换到蜂窝时进入 PAUSED_NETWORK"},
+    {"id": "A1", "kind": "acceptance_criteria", "version": "v3", "current": true, "fact": "Wi-Fi 离开后 2 秒内停止字节增长"},
+    {"id": "UI1", "kind": "design", "version": "v2", "current": true, "fact": "显示等待 Wi-Fi"},
+    {"id": "API1", "kind": "api_contract", "version": "v4", "current": true, "fact": "network_policy=WIFI_ONLY"},
+    {"id": "C1", "kind": "external_commitment", "version": "2026-07", "current": true, "fact": "不会使用蜂窝流量"},
+    {"id": "H1", "kind": "historical_behavior", "version": "6.3", "current": true, "fact": "旧版本在切换时暂停"}
+  ],
+  "conflicts": [],
+  "superseded": [{"id": "D0", "by": "D1"}],
+  "actual_observation": {"reproducible": true, "diff_from_ac": true, "new_rule_needed": false}
+}

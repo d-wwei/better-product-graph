@@ -1,0 +1,8 @@
+{
+  "schema_version": "pm-response-bank.v0.2",
+  "case_id": "G03",
+  "responses": [
+    {"question_key": "override", "answer": "没有新的产品规则或临时 override。"},
+    {"question_key": "impact", "answer": "目前没有资损、隐私或大面积影响。"}
+  ]
+}

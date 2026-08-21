@@ -1,0 +1,11 @@
+{
+  "schema_version": "knowledge-snapshot.v0.2",
+  "snapshot_id": "G01-K1",
+  "evidence": [
+    {"id": "E1", "kind": "observed_sales_inquiries", "fact": "三条近期询问来自销售转述", "representativeness": "UNKNOWN"},
+    {"id": "E2", "kind": "authority", "fact": "Sponsor 有产品方向授权", "epistemic_support": false},
+    {"id": "E3", "kind": "capability", "fact": "现有系统支持人工确认后发送", "rollback_available": true}
+  ],
+  "unknowns": ["真实问题频率与分布", "错误回复伤害率", "敏感数据边界", "可接受 kill threshold"],
+  "policy": {"full_auto_send_allowed": false, "external_send_requires_guardrails": true}
+}

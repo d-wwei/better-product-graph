@@ -1,0 +1,12 @@
+{
+  "schema_version": "knowledge-snapshot.v0.2",
+  "snapshot_id": "G04-K1",
+  "evidence": [
+    {"id": "F1", "kind": "user_feedback", "fact": "one user requested clear-all", "representativeness": "UNKNOWN", "solution_proposal": "one-click clear all"},
+    {"id": "R1", "kind": "current_rule", "fact": "messages can be archived individually and restored for 30 days", "version": "v5"},
+    {"id": "B1", "kind": "behavior_data", "fact": "bulk unread counts exist but deletion intent is not measured", "coverage": "aggregate only"},
+    {"id": "D1", "kind": "historical_decision", "fact": "irreversible bulk delete was previously rejected", "version": "v2", "current": true}
+  ],
+  "unknowns": ["user seeks less visual load or permanent deletion", "context and frequency", "recoverability expectation"],
+  "ai_retrievable": ["current rules", "historical decision", "aggregate behavior data"]
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": "product-golden-input.v0.2",
+  "case_id": "G04",
+  "title": "Solution-shaped single feedback with a Junior PM",
+  "entry_intent": "signal.activate",
+  "signal": "消息太多，请增加一键清空全部消息。",
+  "pm_context": {"experience": "junior", "authority": "recommendation_only"},
+  "interaction_budget": {"initial_max_rounds": 2, "max_questions_per_round": 3}
+}

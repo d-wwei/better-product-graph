@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence-record.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kind",
+    "version",
+    "run_id",
+    "status",
+    "authorized",
+    "received_at",
+    "source",
+    "producer",
+    "content",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "evidence-record.v1"},
+    "kind": {"const": "evidence"},
+    "version": {"type": "integer", "minimum": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"const": "RECORDED"},
+    "authorized": {"const": true},
+    "received_at": {"type": "string", "minLength": 1},
+    "source": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {"kind": {"type": "string", "minLength": 1}},
+      "additionalProperties": true
+    },
+    "producer": {
+      "type": "object",
+      "required": ["node_id", "attempt_id"],
+      "properties": {
+        "node_id": {"enum": ["evidence.collect", "problem.learning.loop"]},
+        "attempt_id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "content": {"type": "object"},
+    "content_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

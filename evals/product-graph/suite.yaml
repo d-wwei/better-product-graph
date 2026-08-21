@@ -1,0 +1,165 @@
+schema_version: "0.1"
+suite_id: product-graph-evals
+name: Product Graph Evals
+purpose: >-
+  Evaluate whether Product Graph converts real product signals into
+  evidence-backed, decision-ready, development-ready, testable and traceable specifications.
+
+datasets:
+  starter_adversarial:
+    path: cases/starter-adversarial.yaml
+    visibility: repository
+    synthetic: true
+  historical_target:
+    minimum_cases: 20
+    recommended_maximum_initial_cases: 50
+    visibility: restricted
+    required_splits:
+      - development
+      - regression
+      - holdout
+
+layers:
+  L0:
+    name: contract_and_integrity
+    methods: [deterministic]
+  L1:
+    name: capability
+    methods: [deterministic, model_judge, human_calibration]
+  L2:
+    name: historical_replay
+    methods: [deterministic, model_judge, human_calibration]
+  L3:
+    name: downstream_acceptance
+    methods: [telemetry, human_feedback]
+  L4:
+    name: outcome_and_traceability
+    methods: [telemetry, incident_review]
+
+metrics:
+  efficiency:
+    - signal_to_triage_latency_ms
+    - triage_to_decision_latency_ms
+    - decision_to_prd_ready_latency_ms
+    - human_intervention_count
+    - model_call_count
+    - estimated_model_cost
+  classification_and_routing:
+    - signal_classification_macro_f1
+    - routing_accuracy
+    - critical_misroute_rate
+    - dedup_precision
+    - dedup_recall
+    - dedup_f1
+  evidence_and_context:
+    - required_evidence_recall
+    - unsupported_claim_rate
+    - critical_unsupported_claim_count
+    - incorrect_evidence_reference_rate
+    - stale_knowledge_usage_rate
+    - conflict_detection_recall
+    - inference_written_as_fact_rate
+    - restricted_knowledge_violation_count
+  product_spec:
+    - must_requirement_coverage
+    - traceability_closure
+    - orphan_requirement_count
+    - orphan_acceptance_rule_count
+    - requirement_ambiguity_rate
+    - acceptance_rule_coverage
+    - requirement_testability_rate
+    - branch_coverage
+  downstream:
+    - dev_first_pass_acceptance_rate
+    - dev_clarification_count
+    - test_clarification_count
+    - spec_induced_rework_rate
+    - acceptance_rule_to_test_case_coverage
+    - escaped_spec_defect_rate
+  outcome:
+    - target_outcome_attainment_rate
+    - issue_to_requirement_trace_rate
+    - missed_requirement_issue_rate
+
+promotion_gates:
+  hard:
+    schema_validation_rate: 1.0
+    must_requirement_traceability: 1.0
+    acceptance_rule_traceability: 1.0
+    critical_signal_recall: 1.0
+    critical_unsupported_claim_count: 0
+    false_product_ready_count: 0
+    false_end_to_end_complete_count: 0
+    restricted_knowledge_violation_count: 0
+    plugin_absence_state_accuracy: 1.0
+  pilot_targets:
+    signal_classification_macro_f1: 0.85
+    routing_accuracy: 0.90
+    dedup_precision: 0.90
+    dedup_recall: 0.85
+    required_evidence_recall: 0.90
+    must_requirement_coverage: 0.95
+    acceptance_rule_coverage: 0.80
+    model_human_key_judgment_agreement: 0.80
+    dev_first_pass_acceptance_rate: 0.70
+    median_dev_clarification_count_max: 2
+    spec_induced_rework_rate_max: 0.15
+  stable_targets:
+    acceptance_rule_coverage: 0.95
+    dev_first_pass_acceptance_rate: 0.85
+    median_dev_clarification_count_max: 1
+    spec_induced_rework_rate_max: 0.05
+    critical_spec_defect_escape_count: 0
+
+judge_policy:
+  rubric: rubrics/product-spec-rubric.yaml
+  require_evidence_for_each_score: true
+  blind_to_candidate_identity: true
+  human_calibration_sample_rate: 0.20
+  human_review_required_for:
+    - any_p0_override
+    - critical_decision
+    - low_confidence_high_impact
+    - model_judge_disagreement
+
+run_policy:
+  smoke:
+    triggers: [code_change, prompt_change, model_change, policy_change, schema_change]
+    minimum_cases: 10
+  regression:
+    triggers: [pull_request, release_candidate]
+    include_all_regression_cases: true
+  drift:
+    cadence: weekly
+  outcome_review:
+    cadence: monthly
+  add_regression_case_on:
+    - dev_rejection
+    - test_spec_defect
+    - production_spec_incident
+    - signal_classification_error
+    - routing_error
+    - duplicate_error
+    - stale_or_wrong_knowledge
+    - false_ready
+
+failure_taxonomy:
+  - SIGNAL_CLASSIFICATION_ERROR
+  - ROUTING_ERROR
+  - DUPLICATE_FALSE_MERGE
+  - DUPLICATE_MISS
+  - CONTEXT_MISS
+  - STALE_CONTEXT_USED
+  - CONFLICT_NOT_DETECTED
+  - UNSUPPORTED_CLAIM
+  - INCORRECT_EVIDENCE_REFERENCE
+  - DECISION_EVIDENCE_MISMATCH
+  - SCOPE_GAP
+  - AMBIGUOUS_REQUIREMENT
+  - ACCEPTANCE_RULE_GAP
+  - TRACEABILITY_BREAK
+  - FALSE_PRODUCT_READY
+  - FALSE_END_TO_END_COMPLETE
+  - PLUGIN_CONTRACT_ERROR
+  - RESTRICTED_DATA_LEAK
+

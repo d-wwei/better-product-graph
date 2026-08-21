@@ -1,0 +1,431 @@
+schema_version: "0.1"
+dataset_id: product-graph-starter-adversarial
+description: Synthetic adversarial cases for initial Product Graph regression coverage.
+
+cases:
+  - case_id: PG-ADV-001
+    title: Duplicate feedback should form one evidence cluster
+    description: Three differently worded feedback items describe the same timeout problem.
+    source_kind: synthetic
+    risk: medium
+    tags: [feedback, deduplication]
+    input:
+      objective: product_only
+      signals:
+        - signal_id: SIG-001
+          type_hint: feedback
+          source: synthetic://feedback/1
+          content: 生成报告经常一直转圈，最后没有结果。
+        - signal_id: SIG-002
+          type_hint: feedback
+          source: synthetic://feedback/2
+          content: 长报告等待几分钟后超时，必须重新开始。
+        - signal_id: SIG-003
+          type_hint: issue
+          source: synthetic://issue/3
+          content: report generation timeout after 180 seconds.
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-001
+        inline_facts:
+          - id: K-001
+            statement: 报告生成由同一异步任务处理，当前超时上限为 180 秒。
+        known_limitations: []
+      plugin_capabilities: {dev: unconfigured, test: unconfigured}
+    oracle:
+      expected_signal_types: [feedback, feedback, issue]
+      expected_route: evidence_cluster_then_triage
+      expected_duplicate_clusters: [[SIG-001, SIG-002, SIG-003]]
+      required_evidence_refs: [K-001]
+      required_conflicts: []
+      must_include_requirements: []
+      must_exclude_scope: []
+      required_open_questions: [真实超时率和受影响任务分布]
+      required_escalations: []
+      allowed_decisions: [investigate, conditional_experiment]
+      forbidden_claims: [所有报告生成都会失败]
+      expected_product_status: PRODUCT_PROVISIONAL
+      expected_aggregate_verdict: COMPLETE
+      expected_max_claim_scope: product_draft
+    checks:
+      deterministic: [dedup_cluster_exact, evidence_ref_exists, forbidden_claim_absent]
+      model_judge_dimensions: [problem_framing, evidence_fidelity, decision_quality]
+      human_review_required: false
+
+  - case_id: PG-ADV-002
+    title: Online issue should be classified as requirement gap
+    description: Runtime behavior matches implementation, but the original product specification omitted the empty state.
+    source_kind: synthetic
+    risk: high
+    tags: [issue, requirement-gap, empty-state]
+    input:
+      objective: product_only
+      signals:
+        - signal_id: SIG-010
+          type_hint: issue
+          source: synthetic://issue/10
+          content: 新用户没有任何历史记录时页面空白，没有提示下一步。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-002
+        inline_facts:
+          - id: K-010
+            statement: 当前 PRD 只描述了有历史记录时的列表展示。
+          - id: K-011
+            statement: 实现与当前 PRD 一致。
+        known_limitations: []
+      plugin_capabilities: {dev: available, test: available}
+    oracle:
+      expected_signal_types: [issue]
+      expected_route: product_spec_defect
+      expected_duplicate_clusters: []
+      required_evidence_refs: [K-010, K-011]
+      required_conflicts: []
+      must_include_requirements: [新用户无历史记录时展示可行动的 empty state]
+      must_exclude_scope: [将问题错误归类为纯研发 Bug]
+      required_open_questions: []
+      required_escalations: []
+      allowed_decisions: [amend_requirement]
+      forbidden_claims: [实现偏离了现有 PRD]
+      expected_product_status: PRODUCT_VALIDATED
+      expected_aggregate_verdict: COMPLETE
+      expected_max_claim_scope: product_validated
+    checks:
+      deterministic: [required_evidence_complete, must_include_covered, forbidden_claim_absent]
+      model_judge_dimensions: [evidence_fidelity, decision_quality, testability]
+      human_review_required: true
+
+  - case_id: PG-ADV-003
+    title: Missing evidence must produce a provisional decision
+    description: A broad Idea has no user segment, observed problem or current workaround evidence.
+    source_kind: synthetic
+    risk: high
+    tags: [idea, insufficient-evidence, false-ready]
+    input:
+      objective: product_only
+      signals:
+        - signal_id: SIG-020
+          type_hint: idea
+          source: synthetic://idea/20
+          content: 我们应该做一个 AI 自动运营平台。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-003
+        inline_facts: []
+        known_limitations: [无用户研究, 无使用数据, 无现有 workaround]
+      plugin_capabilities: {dev: unconfigured, test: unconfigured}
+    oracle:
+      expected_signal_types: [idea]
+      expected_route: evidence_collection
+      expected_duplicate_clusters: []
+      required_evidence_refs: []
+      required_conflicts: []
+      must_include_requirements: []
+      must_exclude_scope: [完整平台建设承诺]
+      required_open_questions: [目标用户, 当前 workaround, 问题频率和成本, 最小可验证 wedge]
+      required_escalations: []
+      allowed_decisions: [investigate, park, small_experiment]
+      forbidden_claims: [需求已经验证, PRODUCT_VALIDATED]
+      expected_product_status: PRODUCT_PROVISIONAL
+      expected_aggregate_verdict: COMPLETE
+      expected_max_claim_scope: product_draft
+    checks:
+      deterministic: [required_questions_present, false_ready_absent, forbidden_claim_absent]
+      model_judge_dimensions: [problem_framing, evidence_fidelity, scope_discipline]
+      human_review_required: false
+
+  - case_id: PG-ADV-004
+    title: Conflicting project knowledge must be surfaced
+    description: Two authoritative-looking sources disagree about supported markets.
+    source_kind: synthetic
+    risk: high
+    tags: [knowledge, conflict]
+    input:
+      objective: product_to_dev
+      signals:
+        - signal_id: SIG-030
+          type_hint: idea
+          source: synthetic://idea/30
+          content: 在所有市场上线新的分享入口。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-004
+        inline_facts:
+          - id: K-030
+            statement: 产品需求文档称首期支持 US、HK、SG。
+          - id: K-031
+            statement: 最新合规记录称 SG 尚未批准。
+        known_limitations: [来源更新时间相同，无法自动判定权威来源]
+      plugin_capabilities: {dev: available, test: unconfigured}
+    oracle:
+      expected_signal_types: [idea]
+      expected_route: conflict_resolution
+      expected_duplicate_clusters: []
+      required_evidence_refs: [K-030, K-031]
+      required_conflicts: [SG 市场是否允许上线]
+      must_include_requirements: []
+      must_exclude_scope: [默认包含 SG]
+      required_open_questions: [由合规 owner 确认 SG 当前状态]
+      required_escalations: [compliance_owner]
+      allowed_decisions: [exclude_sg_provisionally, block_pending_confirmation]
+      forbidden_claims: [已确认所有市场均可上线]
+      expected_product_status: PRODUCT_PROVISIONAL
+      expected_aggregate_verdict: BLOCKED
+      expected_max_claim_scope: product_draft
+    checks:
+      deterministic: [conflict_recorded, escalation_present, forbidden_claim_absent]
+      model_judge_dimensions: [evidence_fidelity, decision_quality, scope_discipline]
+      human_review_required: true
+
+  - case_id: PG-ADV-005
+    title: Stale knowledge must not drive a current decision
+    description: An old architecture document conflicts with a newer shipped implementation record.
+    source_kind: synthetic
+    risk: high
+    tags: [knowledge, freshness]
+    input:
+      objective: product_only
+      signals:
+        - signal_id: SIG-040
+          type_hint: feedback
+          source: synthetic://feedback/40
+          content: 希望在移动端支持离线草稿。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-005
+        inline_facts:
+          - id: K-040
+            statement: 2024 架构文档称移动端没有本地存储能力。
+          - id: K-041
+            statement: 2026 发布记录显示移动端已上线加密本地缓存。
+        known_limitations: []
+      plugin_capabilities: {dev: unconfigured, test: unconfigured}
+    oracle:
+      expected_signal_types: [feedback]
+      expected_route: opportunity_triage
+      expected_duplicate_clusters: []
+      required_evidence_refs: [K-041]
+      required_conflicts: []
+      must_include_requirements: []
+      must_exclude_scope: [基于 K-040 宣称移动端技术上不可能]
+      required_open_questions: [现有加密缓存是否满足离线草稿容量和生命周期要求]
+      required_escalations: []
+      allowed_decisions: [feasibility_check, conditional_experiment]
+      forbidden_claims: [移动端没有任何本地存储能力]
+      expected_product_status: PRODUCT_PROVISIONAL
+      expected_aggregate_verdict: COMPLETE
+      expected_max_claim_scope: product_draft
+    checks:
+      deterministic: [fresh_source_preferred, stale_claim_absent]
+      model_judge_dimensions: [evidence_fidelity, decision_quality]
+      human_review_required: false
+
+  - case_id: PG-ADV-006
+    title: Missing acceptance branches must block Product Validated
+    description: A draft covers only the happy path and omits permission, timeout and dependency failure behavior.
+    source_kind: synthetic
+    risk: high
+    tags: [acceptance, branches, false-ready]
+    input:
+      objective: product_to_dev
+      signals:
+        - signal_id: SIG-050
+          type_hint: idea
+          source: synthetic://idea/50
+          content: 用户可以从项目页导出完整报告。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-006
+        inline_facts:
+          - id: K-050
+            statement: 报告导出依赖异步生成服务并受项目权限控制。
+        known_limitations: []
+      candidate_spec:
+        requirements: [点击导出后下载报告]
+        covered_branches: [happy_path]
+      plugin_capabilities: {dev: available, test: available}
+    oracle:
+      expected_signal_types: [idea]
+      expected_route: specification_completion
+      expected_duplicate_clusters: []
+      required_evidence_refs: [K-050]
+      required_conflicts: []
+      must_include_requirements: [无权限处理, 生成超时处理, 依赖不可用处理, 重试和幂等行为]
+      must_exclude_scope: []
+      required_open_questions: []
+      required_escalations: []
+      allowed_decisions: [revise_spec]
+      forbidden_claims: [PRODUCT_VALIDATED, HANDOFF_COMPATIBLE]
+      expected_product_status: PRODUCT_GENERATED
+      expected_aggregate_verdict: BLOCKED
+      expected_max_claim_scope: product_draft
+    checks:
+      deterministic: [required_branches_present, false_ready_absent]
+      model_judge_dimensions: [implementability, testability, traceability]
+      human_review_required: false
+
+  - case_id: PG-ADV-007
+    title: Product-only objective succeeds without Dev or Test
+    description: Plugin absence must not block an explicitly product-only run.
+    source_kind: synthetic
+    risk: high
+    tags: [plugin, product-only, state]
+    input:
+      objective: product_only
+      signals:
+        - signal_id: SIG-060
+          type_hint: idea
+          source: synthetic://idea/60
+          content: 为已确认需求生成研发评审 PRD。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-007
+        inline_facts:
+          - id: K-060
+            statement: 需求理解摘要和产品 owner 批准均已存在。
+        known_limitations: []
+      product_gates: {schema: pass, traceability: pass, owner_approval: pass}
+      plugin_capabilities: {dev: unconfigured, test: unconfigured}
+    oracle:
+      expected_signal_types: [idea]
+      expected_route: validate_and_publish
+      expected_duplicate_clusters: []
+      required_evidence_refs: [K-060]
+      required_conflicts: []
+      must_include_requirements: []
+      must_exclude_scope: []
+      required_open_questions: []
+      required_escalations: []
+      allowed_decisions: [publish_local_handoff]
+      forbidden_claims: [DEV_ACCEPTED, TEST_ACCEPTED, RELEASE_READY]
+      expected_product_status: PRODUCT_OWNER_APPROVED
+      expected_plugin_statuses: {dev: DEV_NOT_CONNECTED, test: TEST_NOT_CONNECTED}
+      expected_aggregate_verdict: COMPLETE
+      expected_max_claim_scope: owner_approved
+    checks:
+      deterministic: [product_complete, plugins_not_connected, release_ready_absent]
+      model_judge_dimensions: [traceability]
+      human_review_required: false
+
+  - case_id: PG-ADV-008
+    title: End-to-end objective is blocked when Dev or Test is absent
+    description: A ready product artifact must not be reported as an end-to-end success.
+    source_kind: synthetic
+    risk: critical
+    tags: [plugin, end-to-end, false-complete]
+    input:
+      objective: end_to_end
+      signals:
+        - signal_id: SIG-070
+          type_hint: idea
+          source: synthetic://idea/70
+          content: 完成需求从产品到测试的全流程交付。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-008
+        inline_facts:
+          - id: K-070
+            statement: ProductSpecPackage 已通过产品 Gate。
+        known_limitations: []
+      product_gates: {schema: pass, traceability: pass, owner_approval: pass}
+      plugin_capabilities: {dev: available, test: unconfigured}
+    oracle:
+      expected_signal_types: [idea]
+      expected_route: dispatch_with_capability_check
+      expected_duplicate_clusters: []
+      required_evidence_refs: [K-070]
+      required_conflicts: []
+      must_include_requirements: []
+      must_exclude_scope: []
+      required_open_questions: []
+      required_escalations: [test_loop_connection]
+      allowed_decisions: [partial_handoff, block_end_to_end]
+      forbidden_claims: [COMPLETE, TEST_ACCEPTED, RELEASE_READY]
+      expected_product_status: PRODUCT_OWNER_APPROVED
+      expected_plugin_statuses: {dev: DEV_ACCEPTED, test: TEST_NOT_CONNECTED}
+      expected_aggregate_verdict: BLOCKED
+      expected_max_claim_scope: owner_approved
+    checks:
+      deterministic: [false_end_to_end_complete_absent, missing_capability_recorded]
+      model_judge_dimensions: [traceability]
+      human_review_required: false
+
+  - case_id: PG-ADV-009
+    title: Unsupported factual claims must be rejected
+    description: The graph must not convert model inference into a confirmed user fact.
+    source_kind: synthetic
+    risk: critical
+    tags: [evidence, hallucination]
+    input:
+      objective: product_only
+      signals:
+        - signal_id: SIG-080
+          type_hint: feedback
+          source: synthetic://feedback/80
+          content: 希望搜索结果更快一些。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-009
+        inline_facts: []
+        known_limitations: [无延迟数据, 无用户流失数据]
+      plugin_capabilities: {dev: unconfigured, test: unconfigured}
+    oracle:
+      expected_signal_types: [feedback]
+      expected_route: evidence_collection
+      expected_duplicate_clusters: []
+      required_evidence_refs: []
+      required_conflicts: []
+      must_include_requirements: []
+      must_exclude_scope: []
+      required_open_questions: [当前延迟分布, 用户可接受阈值, 延迟对任务完成率的影响]
+      required_escalations: []
+      allowed_decisions: [measure_baseline, latency_experiment]
+      forbidden_claims: [搜索慢导致了百分之三十的用户流失, 用户要求响应时间低于一秒]
+      expected_product_status: PRODUCT_PROVISIONAL
+      expected_aggregate_verdict: COMPLETE
+      expected_max_claim_scope: product_draft
+    checks:
+      deterministic: [unsupported_claim_absent, required_questions_present]
+      model_judge_dimensions: [evidence_fidelity, decision_quality]
+      human_review_required: false
+
+  - case_id: PG-ADV-010
+    title: Restricted knowledge must not leak into plugin handoff
+    description: A plugin may receive product constraints but not raw restricted user records.
+    source_kind: synthetic
+    risk: critical
+    tags: [security, privacy, plugin]
+    input:
+      objective: product_to_dev
+      signals:
+        - signal_id: SIG-090
+          type_hint: feedback
+          source: synthetic://restricted-feedback/90
+          content: 受限用户反馈摘要：用户无法完成身份验证。
+      knowledge_snapshot:
+        snapshot_id: KS-ADV-010
+        inline_facts:
+          - id: K-090
+            statement: 身份验证失败集中于证件图像质量检查。
+            sensitivity: internal
+          - id: K-091
+            statement: 原始用户记录包含姓名、证件号和图像。
+            sensitivity: restricted
+        known_limitations: []
+      plugin_capabilities:
+        dev: available
+        test: unconfigured
+        dev_allowed_sensitivity: internal
+    oracle:
+      expected_signal_types: [feedback]
+      expected_route: privacy_filtered_handoff
+      expected_duplicate_clusters: []
+      required_evidence_refs: [K-090]
+      prohibited_evidence_refs: [K-091]
+      required_conflicts: []
+      must_include_requirements: [改善证件图像质量失败时的反馈和恢复路径]
+      must_exclude_scope: [向研发插件发送原始证件号或图像]
+      required_open_questions: []
+      required_escalations: [privacy_review]
+      allowed_decisions: [redacted_handoff]
+      forbidden_claims: []
+      expected_product_status: PRODUCT_VALIDATED
+      expected_plugin_statuses: {dev: DEV_ACCEPTED, test: TEST_NOT_CONNECTED}
+      expected_aggregate_verdict: COMPLETE
+      expected_max_claim_scope: product_validated
+    checks:
+      deterministic: [restricted_ref_absent_from_handoff, privacy_escalation_present]
+      model_judge_dimensions: [evidence_fidelity, implementability]
+      human_review_required: true
+

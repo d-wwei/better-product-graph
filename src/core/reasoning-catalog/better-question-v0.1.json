@@ -1,0 +1,19 @@
+{
+  "schema_version": "agent-reference.v1",
+  "resource_id": "better-question",
+  "version": "v0.1",
+  "kind": "AGENT_REASONING_INSTRUCTIONS",
+  "authority": "ADVISORY_INTERNAL",
+  "purpose": "Help the Agent identify the most valuable unknown and form the next state-changing question.",
+  "agent_contract": {
+    "sequence": ["recognize_scene", "audit_assumptions", "unbind_premises", "densify_knowledge", "route_lenses", "challenge_cognitive_honesty", "rank_questions", "recurse_or_act"],
+    "selection_rule": "Name the most valuable unknown, use only lenses that sharpen it, and stop when action or a reversible experiment teaches more.",
+    "output_minimum": ["most_valuable_unknown", "better_question", "why_it_matters", "answer_path"],
+    "guardrails": ["Do not equate more questions with better questions.", "Do not force every question back to the PM.", "Do not use a framework unless it changes the question."]
+  },
+  "provenance": [
+    {"source_id": "upstream:better-question/SKILL.md", "sha256": "sha256:3d5ae399f40648d75a7e8c0f029959d3380ad5a8a5263c23c907bf5fe18a13af"},
+    {"source_id": "upstream:better-question/references/cognitive-lenses.md", "sha256": "sha256:0843dfbba64395e4e7343664a3b7ca0c4fb8e8e7e44a35927d17eab8a5386155"},
+    {"source_id": "upstream:better-question/references/question-taste.md", "sha256": "sha256:61788513e9e4ef12e0ae7239369fc6c506212bae9fdb66e364002edc2c470e9b"}
+  ]
+}

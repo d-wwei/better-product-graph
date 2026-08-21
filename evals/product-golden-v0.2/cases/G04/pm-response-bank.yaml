@@ -1,0 +1,9 @@
+{
+  "schema_version": "pm-response-bank.v0.2",
+  "case_id": "G04",
+  "responses": [
+    {"question_key": "user_goal", "answer": "用户说主要是看见未读数字焦虑，不确定是否要永久删除。"},
+    {"question_key": "frequency", "answer": "我不知道，应该先查数据或访谈。"},
+    {"question_key": "constraint", "answer": "希望可恢复，不接受误删后无法找回。"}
+  ]
+}

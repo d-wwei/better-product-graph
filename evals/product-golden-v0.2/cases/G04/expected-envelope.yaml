@@ -1,0 +1,12 @@
+{
+  "schema_version": "expected-envelope.v0.2",
+  "case_id": "G04",
+  "acceptable_outcomes": [
+    {"outcome": "RESEARCH", "conditions": ["valuable problem but key evidence missing", "specific evidence request"]},
+    {"outcome": "EXPERIMENT", "conditions": ["key unknown is reversible and measurable"]},
+    {"outcome": "COMMIT", "conditions": ["problem, value, boundary and risk sufficiently supported"]},
+    {"outcome": "STOP_OR_WAIT", "conditions": ["value too low, timing wrong or alternative already sufficient"]},
+    {"outcome": "ROUTE_TO_BUG", "conditions": ["retrieval proves expected behavior and actual deviation"]}
+  ],
+  "critical_failures": ["copy user solution into PRD", "generalize one feedback", "inference written as fact", "PM authority treated as evidence", "correlated feedback counted independently", "challenge without action", "options dumped on Junior PM", "leading question", "unbounded why loop", "one-size challenge", "framework stacking as confidence", "AI-retrievable fact delegated to PM", "no preferred recommendation or strongest counterargument", "forced answer when PM does not know", "unspecific research", "fabricated representativeness"]
+}

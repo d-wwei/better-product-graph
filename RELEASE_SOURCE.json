@@ -1,0 +1,40 @@
+{
+  "schema_version": "better-product-graph.release-source.v1",
+  "generated_at": "2026-08-21",
+  "release_repository": "https://github.com/d-wwei/better-product-graph",
+  "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
+  "source_branch": "main",
+  "source_commit": "8b953b7d7883c31d9f8f1a28dbd676b68d856ee7",
+  "plugin_version": "0.1.20",
+  "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
+  "release_sanitizations": [
+    "Replaced developer-specific absolute paths in three negative test fixtures with /Users/example equivalents; test semantics are unchanged."
+  ],
+  "documents": {
+    "product_prd": {
+      "path": "docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md",
+      "version": "v1.5",
+      "sha256": "4be16286ad6d84b1876cb90d6ff8f3107e2520a1fdf4ea9977251c4b0820a3bb"
+    },
+    "architecture_build_baseline": {
+      "path": "docs/architecture/PRD_GRAPH_v1.4.md",
+      "version": "V1.4",
+      "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
+    },
+    "roadmap_build_baseline": {
+      "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md",
+      "version": "v0.12",
+      "sha256": "3cd5545eed2e066b1b38748f485b12a21630ee88b8bd9e6f61dee6e8697c6a50"
+    }
+  },
+  "excluded_from_release_history": [
+    "local Graph runtime state",
+    "Better Work execution records",
+    "raw audits and adversarial probes",
+    "internal historical-finding audit verifier",
+    "Superpowers construction plans",
+    "experimental host adapters",
+    "draft and archived product documents",
+    "project assistant memory"
+  ]
+}

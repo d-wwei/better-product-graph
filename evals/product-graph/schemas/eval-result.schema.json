@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prd-graph.local/schemas/eval-result.schema.json",
+  "title": "Product Graph Eval Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "result_id",
+    "case_id",
+    "run_identity",
+    "started_at",
+    "finished_at",
+    "assertions",
+    "judge_scores",
+    "failures",
+    "product_status",
+    "aggregate_verdict",
+    "max_claim_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "result_id": {"type": "string", "minLength": 1},
+    "case_id": {"type": "string", "pattern": "^PG-[A-Z]+-[0-9]{3}$"},
+    "run_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_graph_version", "model_version", "prompt_version", "knowledge_snapshot", "policy_version", "product_spec_schema_version"],
+      "properties": {
+        "product_graph_version": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "knowledge_snapshot": {"type": "string", "minLength": 1},
+        "policy_version": {"type": "string", "minLength": 1},
+        "product_spec_schema_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check_id", "status", "evidence_refs", "reason"],
+        "properties": {
+          "check_id": {"type": "string", "minLength": 1},
+          "status": {"enum": ["pass", "warn", "fail", "blocked", "not_applicable"]},
+          "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "judge_scores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dimension", "score", "evidence_refs", "reason"],
+        "properties": {
+          "dimension": {"type": "string", "minLength": 1},
+          "score": {"type": "integer", "minimum": 0, "maximum": 4},
+          "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "node", "evidence_refs", "impact"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "severity": {"enum": ["P0", "P1", "P2"]},
+          "node": {"type": "string", "minLength": 1},
+          "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "impact": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "product_status": {"enum": ["PRODUCT_GENERATED", "PRODUCT_PROVISIONAL", "PRODUCT_VALIDATED", "PRODUCT_OWNER_APPROVED"]},
+    "aggregate_verdict": {"enum": ["COMPLETE", "PARTIAL", "BLOCKED", "FAIL"]},
+    "max_claim_scope": {"enum": ["product_draft", "product_validated", "owner_approved", "dev_accepted", "test_accepted", "release_ready"]},
+    "human_calibration": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["reviewer_role", "agreement", "notes"],
+      "properties": {
+        "reviewer_role": {"type": "string", "minLength": 1},
+        "agreement": {"enum": ["agree", "partially_agree", "disagree"]},
+        "notes": {"type": "string"}
+      }
+    }
+  }
+}
+

@@ -1,0 +1,9 @@
+{
+  "schema_version": "product-golden-input.v0.2",
+  "case_id": "G03",
+  "title": "Online behavior deviates from an existing product baseline",
+  "entry_intent": "signal.activate",
+  "signal": "用户开启仅 Wi-Fi 自动下载后，从 Wi-Fi 切到蜂窝网络，当前下载仍继续。",
+  "interaction_budget": {"target_rounds": "0-1", "clarify_only_if_route_material": true},
+  "observed_impact": "单用户可复现，未达到项目 Incident 门槛"
+}

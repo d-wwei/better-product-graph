@@ -1,0 +1,31 @@
+{
+  "schema_version": "cognitive-base-catalog.v1",
+  "resource_id": "cognitive-base-catalog",
+  "version": "v0.1",
+  "kind": "AGENT_REASONING_REFERENCE_CATALOG",
+  "authority": "ADVISORY_INTERNAL",
+  "selection_contract": "The Agent chooses a small relevant subset and records used resource IDs; no programmatic semantic routing is authorized.",
+  "bases": [
+    {"id": "attention-allocation", "prompt": "What is consuming scarce attention, and what binding constraint deserves it instead?", "source_sha256": "sha256:c8d8f2867358dca8eeee20baaea594cedd5d89392c167d3f24278b3dca7648d4"},
+    {"id": "bayesian-reasoning", "prompt": "What prior confidence is justified, and what evidence would materially update it?", "source_sha256": "sha256:efbdc8a23db4f5f8f5187babc142c70c101933d4f8b0d6c33ac0e670326880cb"},
+    {"id": "cognitive-base-creator", "prompt": "Is a reusable cognitive protocol warranted, and what falsifiable contract would it need?", "source_sha256": "sha256:08dd1c7546012cf4f529752a4a646215d0598623686bc025a008244326357abd"},
+    {"id": "constraint-as-catalyst", "prompt": "Which constraint can be used as a design force rather than treated only as a limitation?", "source_sha256": "sha256:85c0451f20e6397db249cc660e138e14d94bb18ec8516a94ac8ee833e782b921"},
+    {"id": "conviction-override", "prompt": "What evidence should override the current conviction, and has that threshold already been met?", "source_sha256": "sha256:28b0ac1be0902ea3ab401e8748d32a55951524a6956aa707540a8a051f40c259"},
+    {"id": "cross-domain-connector", "prompt": "Where else does this causal structure appear, and which differences invalidate the analogy?", "source_sha256": "sha256:cc83c0bbc1e4b22dcae752c216d1d06fa1fa59d44054c6da4a69b6494af23c6e"},
+    {"id": "dialectical-thinking", "prompt": "What useful truth is retained by each opposing view, and what synthesis survives evidence?", "source_sha256": "sha256:6c222ced4c8fe3594073961cb1ef1126d4004e64a3dc83d74b13864f167217de"},
+    {"id": "double-loop-learning", "prompt": "Should the governing assumption or objective change, not only the action?", "source_sha256": "sha256:d7d405639f36762f33a22bcc688ddf54b10209f4ab19801f5826a28b4136cd23"},
+    {"id": "first-principles", "prompt": "What is directly true, what is convention, and what can be rebuilt from those facts?", "source_sha256": "sha256:a038dce309d94b143dcefd778898152041cde519df9acb88d5ac4ac4de7525cb"},
+    {"id": "frame-auditing", "prompt": "Which frame makes this problem look inevitable, and what changes under another valid frame?", "source_sha256": "sha256:311d0ca7ca8129ce7d4aeb9455f45ce3e9a607d397bdbdc8a24e679cf3510063"},
+    {"id": "interactive-cognition", "prompt": "Which part requires user context, Agent reasoning, source retrieval, local evidence, or an experiment?", "source_sha256": "sha256:2320c64adfb86bc91ec541feddc4875cb3299a1bbc737a619df484a4b1935c6d"},
+    {"id": "inversion-thinking", "prompt": "What would reliably produce failure, and which of those conditions are present?", "source_sha256": "sha256:d9d39385952c756d57ee441cbd7e437e5d1ba033ddc44df77846927cbf11f74b"},
+    {"id": "motivation-audit", "prompt": "Which stated goal, incentive, identity, or avoided discomfort is actually driving the choice?", "source_sha256": "sha256:857a877d2de43800e6ab5c5d8c0798d65f5873fc7064d972368a3a3f7464e0b0"},
+    {"id": "non-attachment", "prompt": "Which preferred answer, sunk cost, or self-story prevents an honest update?", "source_sha256": "sha256:b2f90f684286d807849e2b1dc2b9442fe02a46cbb3d8ca0e1e2abbc16584491e"},
+    {"id": "principled-action", "prompt": "What action follows from the declared principles under the actual constraints?", "source_sha256": "sha256:6611a671bbe3745d3e4d7c3f6462a47dba34a8c9572009d806afae6b4887c939"},
+    {"id": "results-driven", "prompt": "What observable outcome matters, and which activity is being mistaken for progress?", "source_sha256": "sha256:1dc6d0f6f58c4d867514a98fa92d780fda1d6e63312d1e05e8db82038cca74d4"},
+    {"id": "second-order-thinking", "prompt": "What happens next, who adapts, and which delayed consequence dominates?", "source_sha256": "sha256:a0626ea3c495a2a1a6ea6f79655f77939f9e8abc5480b84f6cfc4561b49eb69b"},
+    {"id": "systems-thinking", "prompt": "What feedback loops, incentives, stocks, and boundaries repeatedly produce this outcome?", "source_sha256": "sha256:693fa7b828943a0bed274bdb2e40e2fd418f742bd208aa3914e8da6513d9d5cd"},
+    {"id": "tacit-knowledge", "prompt": "What experienced practitioners notice or do that the explicit process does not capture?", "source_sha256": "sha256:53c77438562f388ea1eb5e5288ddb9bcd605e2c184e0488dfc1d5707c4262e34"},
+    {"id": "temporal-wisdom", "prompt": "How do timing, sequence, path dependence, and the relevant horizon change the decision?", "source_sha256": "sha256:6ee07329a246a939427662e806d3600d51eef1d1a8bd79171dd8f0e610d2bbb2"}
+  ],
+  "provenance": {"source_collection": "upstream:cognitive-bases", "source_file_per_base": "<base-id>/SKILL.md"}
+}
