@@ -13,6 +13,7 @@ SEMANTIC_NODES = frozenset(
     {
         "signal.prepare",
         "signal.classify",
+        "planning.context.prepare",
         "incident.assess",
         "bug.baseline.check",
         "evidence.collect",

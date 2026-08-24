@@ -185,6 +185,29 @@ class PRDContractTests(unittest.TestCase):
         self.assertEqual(assembled.markdown, submission["semantic_output"]["document_markdown"])
         self.assertEqual(assembled.metadata["template_profile"]["sha256"], self.selection.sha256)
         self.assertEqual(assembled.metadata["prd_id"], "PRD-CHECKOUT-001")
+        self.assertEqual(
+            assembled.metadata["document_experience"]["profile_ref"]["id"],
+            "prd-plain-language-zh-CN",
+        )
+        self.assertEqual(
+            assembled.metadata["document_experience"]["profile_ref"]["version"],
+            "0.2.0",
+        )
+
+    def test_agent_cannot_substitute_a_different_document_experience_binding(self) -> None:
+        submission = prd_submission()
+        submission["semantic_output"]["metadata"]["document_experience"] = {
+            "schema_version": "prd-document-experience-binding.v1",
+            "profile_ref": {
+                "id": "unregistered-profile",
+                "version": "latest",
+                "path": "latest",
+                "hash": "sha256:untrusted",
+            },
+        }
+
+        with self.assertRaisesRegex(PRDContractError, "Document Experience binding"):
+            assemble_prd(submission, self.selection)
 
     def test_missing_structure_mode_uses_exact_template_default(self) -> None:
         submission = json.loads(

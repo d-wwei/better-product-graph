@@ -8,6 +8,10 @@ from typing import Any
 from uuid import uuid4
 
 from .documents import ImmutableArtifactError, archive_prd_candidate
+from .document_experience_profile import (
+    DocumentExperienceProfileError,
+    resolve_prd_document_experience,
+)
 from .delivery_contract import (
     DeliveryContractError,
     active_scope_projection_from_planning_result,
@@ -21,6 +25,7 @@ from .failpoints import begin_node_call, persist_node_dispatch
 from .node_registry import NodeRegistry
 from .prd_contract import PRDContractError, assemble_prd
 from .planning_contract import derive_prd_run_specs
+from .planning_context import discover_planning_context
 from .ready import PRDNotReady, ready_and_release
 from .product_memory import persist_decision_proposal
 from .state_controller import StateConflict, StateController, TransitionRejected
@@ -97,6 +102,10 @@ class HostRuntime:
             if state["current_node"] == "prd.generate":
                 envelope["prd_generation_context"] = self._prd_generation_context(
                     run_id, state, refs
+                )
+            elif state["current_node"] == "planning.context.prepare":
+                envelope["planning_context_discovery"] = discover_planning_context(
+                    self.controller.project_root
                 )
             persist_node_dispatch(self.controller, run_id, attempt_id, contract=envelope)
             begin_node_call(self.controller, run_id, attempt_id)
@@ -316,7 +325,7 @@ class HostRuntime:
         routes = {
             "INCIDENT_ASSESS": "incident.assess",
             "BUG_BASELINE_CHECK": "bug.baseline.check",
-            "DISCOVERY_START": "evidence.collect",
+            "DISCOVERY_START": "planning.context.prepare",
         }
         if destination == "INBOX_ONLY":
             raise RuntimeError("an activated Run cannot route back to signal-scoped INBOX_ONLY")
@@ -583,9 +592,27 @@ class HostRuntime:
             )
         spec = eligible[0]
 
+        policy_roots = (
+            self.controller.skill_root / "references" / "policies",
+            self.controller.skill_root / "policies",
+        )
+        policy_root = next(
+            (path for path in policy_roots if path.is_dir() and not path.is_symlink()),
+            None,
+        )
+        if policy_root is None:
+            raise TransitionRejected("PRD Document Experience policy root is missing")
+        try:
+            document_experience = resolve_prd_document_experience(policy_root)
+        except DocumentExperienceProfileError as error:
+            raise TransitionRejected(
+                f"PRD Document Experience binding is invalid: {error}"
+            ) from error
+
         metadata: dict[str, Any] = {
             "prd_id": spec["planned_prd_id"],
             "delivery_intent": spec["delivery_intent"],
+            "document_experience": document_experience,
             "decision_refs": [self._exact_metadata_ref(item) for item in decisions],
             "roadmap_snapshot_ref": self._exact_metadata_ref(roadmap),
             "product_plan_ref": self._exact_metadata_ref(product_plan),
@@ -864,6 +891,7 @@ class HostRuntime:
             "knowledge_snapshot_ref",
             "evidence_refs",
             "active_scope_ref",
+            "document_experience",
         )
         if any(metadata.get(field) != source_metadata.get(field) for field in stable_fields):
             raise TransitionRejected("PRD Optimize cannot rewrite exact upstream authority")

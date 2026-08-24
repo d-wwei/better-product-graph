@@ -1221,6 +1221,18 @@ class InstalledPublicReauditTests(unittest.TestCase):
         self.assertEqual(context["candidate_defaults"]["version"], "v0.1")
         self.assertEqual(authority["delivery_intent"], "COMMIT")
         self.assertEqual(
+            authority["document_experience"]["schema_version"],
+            "prd-document-experience-binding.v1",
+        )
+        self.assertEqual(
+            authority["document_experience"]["profile_ref"]["id"],
+            "prd-plain-language-zh-CN",
+        )
+        self.assertEqual(
+            authority["document_experience"]["profile_ref"]["version"],
+            "0.2.0",
+        )
+        self.assertEqual(
             {item["role"].split(":", 1)[0] for item in authority["spec_traceability"]["refs"]},
             {"decision", "roadmap", "product_plan", "slice", "knowledge", "evidence"},
         )
@@ -1252,6 +1264,24 @@ class InstalledPublicReauditTests(unittest.TestCase):
         )
         self.assertNotEqual(rejected.returncode, 0)
         self.assertIn("differs from exact dispatch authority", rejected.stderr)
+        self.assertEqual(self._run_inventory(run_id), before)
+
+        substituted_profile = json.loads(json.dumps(submission))
+        substituted_profile["semantic_output"]["metadata"]["document_experience"][
+            "profile_ref"
+        ]["version"] = "latest"
+        rejected_profile = self._run(
+            "--operation", "submit", "--run-id", run_id,
+            "--payload-file", str(
+                self._payload("substituted-writing-profile-prd.json", substituted_profile)
+            ),
+            "--requested-node", "review.parallel",
+        )
+        self.assertNotEqual(rejected_profile.returncode, 0)
+        self.assertIn(
+            "metadata document_experience differs from exact dispatch authority",
+            rejected_profile.stderr,
+        )
         self.assertEqual(self._run_inventory(run_id), before)
 
         generated = self._ok(

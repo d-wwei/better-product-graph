@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.7 — 2026-08-24 — Main testing snapshot — Planning context, Document Experience v0.2, and exact delivery navigation
+
+- Insert a safe, Run-scoped `planning.context.prepare` step before Evidence collection for new Discovery runs; discover bounded project material first, bind only exact accepted refs, and keep shared knowledge/Refresh outside this release.
+- Release Document Experience Profile and Guide v0.2 as the installed default while preserving v0.1 bytes as the previous released profile.
+- Replace the single-word conclusion check with structural summary/recommendation detection, and add advisory readability plus PRD/Engineering SPEC boundary review.
+- Project exact requirement relationships into structured lifecycle events, `RELEASE_MANIFEST.json`, and local Handoff packets without modifying frozen PRD bytes.
+- Render a non-authoritative human lifecycle page that separates document Release, review concerns, engineering implementation, tests/Evals, local handoff, and remote delivery.
+- Release Roadmap v0.17 and retain the old Project Bootstrap as historical evidence rather than the current implementation target.
+
 ## 0.2.6 — Unreleased — Unique build identity, current Roadmap, and localized PRD names
 
 - Restore one-to-one release identity after two development artifacts were both labeled `0.2.5`; all new builds, isolated installs, and later repository syncs use `0.2.6` and bind one exact clean commit and artifact hash.

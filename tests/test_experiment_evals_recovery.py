@@ -49,9 +49,25 @@ class ExperimentEvalsRecoveryTests(unittest.TestCase):
             registry = read_json(
                 REPO_ROOT / "src" / "core" / "graph" / "node-contracts.json"
             )
+            legacy_manifest = read_json(graph)
+            legacy_nodes = {item["id"] for item in legacy_manifest["nodes"]}
+            registry["nodes"] = {
+                node_id: contract
+                for node_id, contract in registry["nodes"].items()
+                if node_id in legacy_nodes
+            }
+            legacy_routes = {
+                node_id: sorted(
+                    edge["to"]
+                    for edge in legacy_manifest["edges"]
+                    if edge["from"] == node_id
+                )
+                for node_id in legacy_nodes
+            }
+            for node_id, contract in registry["nodes"].items():
+                contract["routes"] = legacy_routes[node_id]
+                contract.pop("compatible_route_sets", None)
             ready_contract = registry["nodes"]["prd.ready.gate"]
-            ready_contract["routes"] = ["handoff.prepare"]
-            ready_contract.pop("compatible_route_sets", None)
             atomic_write_json(legacy_root / "node-contracts.json", registry)
             graph = legacy_root / "manifest.json"
         controller, _, attempt_id = prepare_review_finalize(
@@ -108,7 +124,7 @@ class ExperimentEvalsRecoveryTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "EVALS_FULFILLMENT_REQUIRED")
         self.assertEqual(migrated["next_allowed_nodes"], ["review.parallel"])
-        self.assertEqual(migrated["graph_manifest"]["version"], "0.1.0-alpha.2")
+        self.assertEqual(migrated["graph_manifest"]["version"], "0.1.0-alpha.3")
         self.assertEqual(migrated["current_candidate_ref"], legacy_state["current_candidate_ref"])
         self.assertEqual(migrated["ready_receipts"], [])
         self.assertIsNone(migrated["release_ref"])

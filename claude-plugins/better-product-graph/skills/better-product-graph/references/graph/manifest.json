@@ -1,11 +1,16 @@
 {
   "graph_id": "better-product-graph",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "compatible_predecessors": [
     {
       "version": "0.1.0-alpha.1",
       "hash": "sha256:f3debef5fe47747685327beb9a560068bb3351df4b734f9246692c1da9fe555e",
       "migration": "required-evals-ready-repair.v1"
+    },
+    {
+      "version": "0.1.0-alpha.2",
+      "hash": "sha256:b79b5446349996a2bcc7a128b60364cb4d1d1732224886f52a330bc25cea7dff",
+      "migration": "planning-context-preparation.v1"
     }
   ],
   "state_controller": "deterministic-local-v0alpha",
@@ -14,6 +19,7 @@
     {"id": "signal.prepare", "type": "skill"},
     {"id": "signal.classify", "type": "skill"},
     {"id": "route.select", "type": "state_controller"},
+    {"id": "planning.context.prepare", "type": "skill"},
     {"id": "incident.assess", "type": "skill"},
     {"id": "bug.baseline.check", "type": "skill"},
     {"id": "evidence.collect", "type": "skill"},
@@ -41,7 +47,8 @@
     {"from": "signal.classify", "to": "route.select"},
     {"from": "route.select", "to": "incident.assess"},
     {"from": "route.select", "to": "bug.baseline.check"},
-    {"from": "route.select", "to": "evidence.collect"},
+    {"from": "route.select", "to": "planning.context.prepare"},
+    {"from": "planning.context.prepare", "to": "evidence.collect"},
     {"from": "incident.assess", "to": "handoff.prepare"},
     {"from": "bug.baseline.check", "to": "handoff.prepare"},
     {"from": "bug.baseline.check", "to": "evidence.collect"},

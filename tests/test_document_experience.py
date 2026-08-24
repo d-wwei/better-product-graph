@@ -40,6 +40,17 @@ class DocumentExperienceTests(unittest.TestCase):
         self.assertEqual(result.status, "PASS")
         self.assertNotIn("changelog_visible", result.issues)
 
+    def test_prd_reading_summary_does_not_require_the_literal_word_conclusion(self) -> None:
+        markdown = prd_markdown().replace(
+            "结论：本次只交付失败可见与安全重试闭环。",
+            "## 阅读摘要\n\n我们建议本次只交付失败可见与安全重试闭环。",
+        )
+
+        result = validate_document_experience(markdown, "prd")
+
+        self.assertEqual(result.status, "PASS")
+        self.assertNotIn("conclusion_first", result.issues)
+
     def test_local_handoff_cannot_claim_remote_received_or_approved(self) -> None:
         bad = "# Handoff v1\n结论：已发送并已批准。\n下一步：无。\n证据：local。未知：无。Authority：无。\n"
         result = validate_document_experience(bad, "handoff")

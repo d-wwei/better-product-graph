@@ -15,6 +15,7 @@ from .discovery_contract import (
 )
 from .incidents import validate_incident_assessment
 from .planning_contract import validate_plan
+from .planning_context import PlanningContextError, validate_planning_context_submission
 from .review_contract import (
     validate_review_aggregate_semantic,
     validate_review_submission,
@@ -66,6 +67,11 @@ def validate_node_output(node_id: str, result: dict[str, Any]) -> None:
         _require_fields(output, ("prepared_signal",), node_id)
     elif node_id == "signal.classify":
         validate_agent_route(result)
+    elif node_id == "planning.context.prepare":
+        try:
+            validate_planning_context_submission(result)
+        except PlanningContextError as error:
+            raise NodeValidationError(str(error)) from error
     elif node_id == "incident.assess":
         validate_incident_assessment(result)
     elif node_id == "bug.baseline.check":

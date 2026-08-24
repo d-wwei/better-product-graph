@@ -1,5 +1,15 @@
 # Better Product Graph 通用 PRD 模板 Changelog
 
+## v0.3.0 Draft — Invalidated — 2026-08-24
+
+- 状态：`INVALIDATED / NOT_REGISTERED`；未改变 `general@0.2.0 / RELEASED_DEFAULT`、default 或 general fallback。
+- 撤回原因：错误地把 ELI5 表达规则与 PRD 模板版本耦合。模板应只管理栏目和产品语义承载；表达规范应作为独立 Document Experience Policy/Profile 版本化。
+- `PRD_TEMPLATE_v0.3.md` 现在只保留撤回说明；原实验归档为 `experiments/PRD_TEMPLATE_v0.3_expression-coupled_INVALIDATED.md`。
+- `OUTPUT_CONTRACT_v0.3.json` 仅作为未注册历史草案保留，不用于生成或校验新 PRD。
+- 替代关系：结构继续使用 `PRD_TEMPLATE_v0.2.md`；表达规则迁移到 `policies/document-experience/PRD_WRITING_GUIDE_v0.1.md` 和 `PRD_WRITING_PROFILE_v0.1.json`。
+- Skill / Host Agent 应读取并绑定确切 Template、Policy 和 Profile；不能把写作规范复制进每个模板，也不能只依赖 Agent 记忆。
+- 本次撤回不修改、取代或迁移任何既有正式 PRD，也不声称可读性已通过真实用户验证。
+
 ## v0.2.0 Released Default — 2026-08-21
 
 - 状态：`RELEASED_DEFAULT`；默认选择为 `general@0.2.0`。

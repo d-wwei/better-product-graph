@@ -8,6 +8,12 @@ Bind `goal_fidelity_refs.profile_ref`, `rubric_ref`, and `packet_contract_ref` t
 
 Do not add a new confirmation or consent checkpoint when exact commitments already authorize an automatic operation and no exact higher-order policy in the bound inputs requires another checkpoint. Separate authorization for the operation from undisclosed extra side effects: review the Candidate for hidden file changes, unsafe failure leftovers, or scope drift, but do not convert an already authorized automatic action into a new mandatory human approval.
 
+## READABILITY_AND_PRODUCT_BOUNDARY
+
+把人类阅读体验和产品边界作为正式审查面，但 Reviewer 仍然只有 `ADVISORY_ONLY` 建议权。先读取 dispatch 绑定的 Document Experience Profile 与 Writing Guide，再判断 Candidate 是否做到：先建立全局框架，再逐层展开；让标题、摘要、正文和验收口径使用一致的语言；控制单段信息密度；只在确实能降低理解成本时使用图表；让第一次接触项目的产品经理能够看懂目标、范围、关键流程、取舍、未知和下一步。
+
+PRD 应说明产品问题、用户结果、范围、业务规则、边界条件和可观察验收。对象拆分、内部 Schema、存储布局、线程模型、类与函数设计等通常属于下游 Engineering SPEC，不应为了显得完整而塞进 PRD；只有当某项技术约束会改变外部行为、安全、隐私、兼容性、性能承诺或产品取舍时，才把它提升为产品要求。发现问题时，使用正常 Finding 合同给出 exact basis、影响和建议，不得新增 Gate、阻塞权或强制确认点。
+
 If the independent review finds no material issue, do not invent one. Use the
 complete zero-Finding semantic shape below, replacing every representative ref
 with its exact dispatched path/hash/version. A combined LIGHT attempt still

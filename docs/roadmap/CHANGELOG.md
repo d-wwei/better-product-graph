@@ -2,14 +2,19 @@
 
 ## 当前版本
 
+- Version: `v0.17`
+- File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md`
+- SHA-256: `ad4c049767e52ed26234c409cdbaeaf67a2589e66b88b6a42b0baf3e373c4feb`
+- Date: 2026-08-24
+- Status: released current-state roadmap
+- Supersedes: `v0.16`
+
+## 冻结版本
+
 - Version: `v0.16`
 - File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md`
 - SHA-256: `ee80e16f3740ff1e206e7fcdaae1fe259657a767cdb1b8880162e8a7a6ef2c09`
-- Date: 2026-08-24
-- Status: released current-state roadmap
-- Supersedes: `v0.15`
-
-## 冻结版本
+- Status: frozen / superseded current-state roadmap
 
 - Version: `v0.15`
 - File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md`
@@ -106,13 +111,14 @@
 | v0.14 | 2026-08-21 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md` | v0.13 | 将 `0.2.0` 定义为首个公开 Developer Alpha，增加 Apache-2.0、双 Host Marketplace 发行物、双语 README、用户安装文档、最小 CI 与 GitHub Issues 反馈入口；Bootstrap 明确顺延到下一个 Alpha，不作为本版发布前置条件 |
 | v0.15 | 2026-08-24 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md` | v0.14 | 将 Bootstrap 收敛为可跳过的 Agent-first 项目理解加速：先基于证据判断、再由产品经理审核，只在高影响缺口时提问；先做单项目/单 Signal 最小实验，并把模板、Connector、Knowledge、多用户、迁移、教学、身份、Git 与 Operational Readiness 移到独立 Settings/Future 路线 |
 | v0.16 | 2026-08-24 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md` | v0.15 | 修正 Bootstrap PRD 已完成 Ready、不可变本地 Release 与 Handoff、而真实功能和实验仍为 NOT_RUN 的状态层级；冻结 0.2.6 唯一发行身份及“跟随用户语言、默认中文、目录/文件/H1 完全一致”的 PRD 命名合同 |
+| v0.17 | 2026-08-24 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md` | v0.16 | 将当前前向实现目标从旧 Project Bootstrap 修正为 Run 内规划上下文准备；冻结 Document Experience v0.2、PRD/Engineering SPEC 边界、需求取代关系导航和文档/实现/测试/交接分层状态视图 |
 
 ## Next Version Rule
 
 本文交付后冻结。后续修改必须创建新文件，例如：
 
 ```text
-BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md
+BETTER_PRODUCT_GRAPH_ROADMAP_v0.18.md
 ```
 
-不得原位修改已经冻结的 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.2.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.3.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.4.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.5.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.6.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.7.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.8.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.9.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.10.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.11.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md` 或 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md`；后续新版本必须记录 supersedes 关系并保留历史文件。
+不得原位修改已经冻结的 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.2.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.3.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.4.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.5.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.6.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.7.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.8.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.9.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.10.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.11.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md` 或 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md`；后续新版本必须记录 supersedes 关系并保留历史文件。

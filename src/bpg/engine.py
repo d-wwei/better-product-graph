@@ -10,6 +10,11 @@ from .bugs import BugContractError, persist_bug_packet
 from .connectors import LocalHandoffConnector, NullConnector
 from .git_preflight import GitPreflight, preflight_project
 from .intents import HostIntent, parse_host_entry
+from .product_navigation import (
+    release_manifest_ref,
+    requirement_relationships,
+    write_human_lifecycle_view,
+)
 from .resume import inspect_resume
 from .signals import record_signal_occurrence
 from .state_controller import StateController, TransitionRejected
@@ -224,6 +229,16 @@ class HostEngine:
             }
         connector = LocalHandoffConnector(self.project_root)
         packet_id = f"handoff-{run_id}"
+        metadata_files = list(artifact_path.glob("*.metadata.json"))
+        if len(metadata_files) != 1 or metadata_files[0].is_symlink():
+            return {
+                "status": "NOT_READY",
+                "run_id": run_id,
+                "reason": "RELEASED_METADATA_MISMATCH",
+            }
+        metadata = read_json(metadata_files[0])
+        relationships = requirement_relationships(metadata)
+        manifest_ref = release_manifest_ref(self.project_root, artifact_path.name)
         receipt = connector.dispatch(
             {
                 "id": packet_id,
@@ -232,6 +247,8 @@ class HostEngine:
                 "status": state["status"],
                 "current_node": state["current_node"],
                 "release_ref": release_ref,
+                "release_manifest_ref": manifest_ref,
+                "requirement_relationships": relationships,
                 "remote_delivery": "NOT_CONFIGURED",
             }
         )
@@ -240,6 +257,19 @@ class HostEngine:
             receipt["receipt"],
             expected_state_version=state["state_version"],
         )
+        review = read_json(companions[0])
+        lifecycle_view_ref = write_human_lifecycle_view(
+            self.project_root,
+            run_id=run_id,
+            released_path=artifact_path,
+            release_ref={
+                **release_ref,
+                "engineering_implemented": ready.get("engineering_implemented", "NOT_CLAIMED"),
+            },
+            metadata=metadata,
+            review=review,
+            delivery_status=receipt["status"],
+        )
         return {
             "status": "COMPLETED",
             "delivery_status": receipt["status"],
@@ -247,6 +277,8 @@ class HostEngine:
             "run_id": run_id,
             "release_ref": release_ref,
             "handoff_ref": completed["handoff_ref"],
+            "release_manifest_ref": manifest_ref,
+            "human_lifecycle_view_ref": lifecycle_view_ref,
             "state": completed,
         }
 

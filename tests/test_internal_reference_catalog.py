@@ -19,7 +19,7 @@ GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
 
 class InternalReferenceCatalogTests(unittest.TestCase):
     def test_source_extraction_manifest_rehashes_all_twenty_declared_cognitive_bases(self) -> None:
-        upstream = Path("/Users/example/Documents/AI/cognitive-foundations")
+        upstream = Path("/Users/example/Documents/AI/认知基座")
         if not upstream.is_dir():
             self.skipTest("local upstream cognitive-base source is not available")
         manifest = read_json(

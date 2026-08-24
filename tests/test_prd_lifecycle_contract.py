@@ -9,7 +9,7 @@ from src.bpg.engine import HostEngine
 from src.bpg.prd_contract import assemble_prd
 from src.bpg.ready import ready_and_release
 from src.bpg.state_controller import StateController
-from src.bpg.storage import sha256_bytes, sha256_file, verify_event_chain
+from src.bpg.storage import read_json, sha256_bytes, sha256_file, verify_event_chain
 from src.bpg.templates import TemplateRegistry
 from tests.test_prd_contract import REPO_ROOT, TEMPLATES, prd_submission
 from tests.test_reviews_ready import complete_ready_input, materialize_ready_evidence
@@ -22,8 +22,25 @@ class PRDLifecycleContractTests(unittest.TestCase):
     def test_exact_stem_self_contained_companion_and_structured_changelog(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory).resolve()
+            submission = prd_submission()
+            submission["semantic_output"]["metadata"]["requirement_relationships"] = {
+                "schema_version": "requirement-relationships.v1",
+                "supersedes_forward_delivery_target": [
+                    {
+                        "prd_id": "PRD-LEGACY-001",
+                        "version": "v1.0",
+                        "document_ref": {
+                            "path": "artifacts/prds/released/PRD-LEGACY-001/PRD-LEGACY-001.md",
+                            "hash": "sha256:legacy",
+                            "version": "v1.0",
+                        },
+                        "preserve_historical_status": True,
+                    }
+                ],
+                "invalidates": ["旧流程必须一次性交付全部能力"],
+            }
             assembled = assemble_prd(
-                prd_submission(), TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
+                submission, TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
             )
             candidate_hash = sha256_bytes(assembled.markdown.encode())
             companion = {
@@ -88,6 +105,25 @@ class PRDLifecycleContractTests(unittest.TestCase):
             self.assertEqual(release["review_ref"]["hash"], archived.review_hash)
             self.assertEqual(release["ready_ref"]["hash"], sha256_file(released.path / "READY_ASSERTION.json"))
             self.assertEqual(release["asset_refs"][0]["hash"], sha256_file(released.path / "assets" / "state.png"))
+            self.assertEqual(
+                release["requirement_relationships"],
+                assembled.metadata["requirement_relationships"],
+            )
+
+            release_manifest = read_json(
+                project / "artifacts" / "prds" / "RELEASE_MANIFEST.json"
+            )
+            self.assertEqual(release_manifest["schema_version"], "prd-release-manifest.v1")
+            current = release_manifest["forward_implementation_targets"]
+            self.assertEqual(len(current), 1)
+            self.assertEqual(current[0]["prd_id"], "PRD-CHECKOUT-001")
+            self.assertEqual(current[0]["document_ref"]["hash"], released.document_hash)
+            self.assertEqual(
+                current[0]["requirement_relationships"]["supersedes_forward_delivery_target"][0]["prd_id"],
+                "PRD-LEGACY-001",
+            )
+            self.assertEqual(release_manifest["authority"], "DERIVED_NAVIGATION_ONLY")
+            self.assertNotIn("latest", release_manifest)
 
             run_id = request["run_id"]
             released_state = controller.load_state(run_id)
@@ -99,6 +135,23 @@ class PRDLifecycleContractTests(unittest.TestCase):
             self.assertEqual(handoff["status"], "COMPLETED")
             self.assertEqual(handoff["delivery_status"], "WRITTEN_LOCAL")
             self.assertFalse(handoff["sent_remote"])
+            handoff_packet = read_json(project / handoff["handoff_ref"]["path"])
+            self.assertEqual(
+                handoff_packet["requirement_relationships"],
+                assembled.metadata["requirement_relationships"],
+            )
+            self.assertEqual(
+                handoff_packet["release_manifest_ref"]["hash"],
+                sha256_file(project / handoff_packet["release_manifest_ref"]["path"]),
+            )
+            lifecycle_view = project / handoff["human_lifecycle_view_ref"]["path"]
+            lifecycle_text = lifecycle_view.read_text(encoding="utf-8")
+            self.assertIn("需求文档：RELEASED", lifecycle_text)
+            self.assertIn("代码实现：NOT_CLAIMED", lifecycle_text)
+            self.assertIn("测试 / Evals：NOT_RUN", lifecycle_text)
+            self.assertIn("本地交接：WRITTEN_LOCAL", lifecycle_text)
+            self.assertIn("远程发送：NOT_CONFIGURED", lifecycle_text)
+            self.assertNotIn("功能已完成", lifecycle_text)
             completed_state = controller.load_state(run_id)
             self.assertEqual(completed_state["status"], "COMPLETED")
             self.assertEqual(completed_state["current_node"], "handoff.dispatch")

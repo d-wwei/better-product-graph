@@ -1,15 +1,15 @@
 {
   "plugin_name": "better-product-graph",
-  "plugin_version": "0.2.6",
+  "plugin_version": "0.2.7",
   "architecture_baseline": {
     "path": "docs/architecture/PRD_GRAPH_v1.4.md",
     "version": "V1.4",
     "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
   },
   "roadmap_baseline": {
-    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md",
-    "version": "v0.16",
-    "sha256": "ee80e16f3740ff1e206e7fcdaae1fe259657a767cdb1b8880162e8a7a6ef2c09"
+    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md",
+    "version": "v0.17",
+    "sha256": "ad4c049767e52ed26234c409cdbaeaf67a2589e66b88b6a42b0baf3e373c4feb"
   },
   "shared_exact_files": [
     {
@@ -26,6 +26,12 @@
   "template_source_provenance": [
     "templates/prd/general/PRD_TEMPLATE_v0.2.md",
     "templates/prd/general/OUTPUT_CONTRACT_v0.2.json"
+  ],
+  "document_experience_source_provenance": [
+    "policies/document-experience/PRD_WRITING_PROFILE_v0.1.json",
+    "policies/document-experience/PRD_WRITING_GUIDE_v0.1.md",
+    "policies/document-experience/PRD_WRITING_PROFILE_v0.2.json",
+    "policies/document-experience/PRD_WRITING_GUIDE_v0.2.md"
   ],
   "host": {
     "host_id": "codex",
@@ -107,7 +113,8 @@
       "source": "src/core/policies",
       "target": "skills/better-product-graph/references/policies",
       "allowed_names": [
-        "*.json"
+        "*.json",
+        "*.md"
       ],
       "required": true,
       "fingerprint": true

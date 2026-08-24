@@ -46,13 +46,13 @@ class DistributionContractTests(unittest.TestCase):
         )
         self.assertFalse(any(path.is_symlink() for path in self.output.rglob("*")))
         self.assertEqual(manifest["plugin"]["name"], "better-product-graph")
-        self.assertEqual(manifest["plugin"]["version"], "0.2.6")
+        self.assertEqual(manifest["plugin"]["version"], "0.2.7")
         installed_manifest = json.loads(
             (self.output / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(installed_manifest["version"], "0.2.6")
+        self.assertEqual(installed_manifest["version"], "0.2.7")
         self.assertEqual(manifest["architecture_baseline"]["version"], "V1.4")
-        self.assertEqual(manifest["roadmap_baseline"]["version"], "v0.16")
+        self.assertEqual(manifest["roadmap_baseline"]["version"], "v0.17")
         self.assertTrue((self.output / "LICENSE").is_file())
         self.assertTrue((self.output / "NOTICE").is_file())
         self.assertEqual(
@@ -62,9 +62,59 @@ class DistributionContractTests(unittest.TestCase):
             manifest["template_promotion"]["authenticated_host_agent_status"],
             "NOT_ASSERTED_BY_TEMPLATE_SYNC",
         )
+        self.assertEqual(
+            manifest["document_experience_promotion"]["stage"],
+            "RELEASED_DEFAULT",
+        )
+        self.assertEqual(
+            manifest["document_experience_promotion"]["profile_id"],
+            "prd-plain-language-zh-CN",
+        )
+        installed_policies = (
+            self.output
+            / "skills"
+            / "better-product-graph"
+            / "references"
+            / "policies"
+        )
+        self.assertTrue((installed_policies / "prd-writing-profile-v0.1.json").is_file())
+        self.assertTrue((installed_policies / "prd-writing-guide-v0.1.md").is_file())
+        self.assertTrue((installed_policies / "prd-writing-profile-v0.2.json").is_file())
+        self.assertTrue((installed_policies / "prd-writing-guide-v0.2.md").is_file())
         self.assertTrue(manifest["execution_contract_fingerprint"].startswith("sha256:"))
         self.assertTrue(manifest["artifact_hash"].startswith("sha256:"))
         self.assertTrue(verify_installed_identity(self.output)["valid"])
+
+    def test_prd_writing_rules_are_self_contained_without_plain_talk(self) -> None:
+        build_plugin(REPO_ROOT, self.output)
+        skill_root = self.output / "skills" / "better-product-graph"
+        policy_root = skill_root / "references" / "policies"
+        profile = json.loads(
+            (policy_root / "prd-writing-profile-v0.2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        guide = (policy_root / "prd-writing-guide-v0.2.md").read_text(
+            encoding="utf-8"
+        )
+        generate_instruction = (
+            skill_root / "references" / "atomic-skills" / "prd-generate" / "INSTRUCTIONS.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(
+            discoverable_skills(self.output),
+            [Path("skills/better-product-graph/SKILL.md")],
+        )
+        self.assertEqual(
+            profile["writing_guide_ref"]["path"],
+            "references/policies/prd-writing-guide-v0.2.md",
+        )
+        self.assertIn("## 2. 十三条写作规则", guide)
+        self.assertIn("先建立全局框架，再逐层展开", guide)
+        self.assertIn("Engineering SPEC", guide)
+        self.assertIn("metadata_authority.document_experience", generate_instruction)
+        self.assertNotIn("plain-talk", generate_instruction)
+        self.assertFalse((self.output / "skills" / "plain-talk").exists())
 
     def test_build_inventory_is_sorted_and_excludes_build_manifest_from_artifact_hash(self) -> None:
         build_plugin(REPO_ROOT, self.output)

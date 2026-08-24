@@ -1,0 +1,86 @@
+{
+  "schema_version": "document-experience-profile.v1",
+  "profile_id": "prd-plain-language-zh-CN",
+  "profile_version": "0.2.0",
+  "status": "RELEASED",
+  "artifact_type": "PRD",
+  "audience": "SMART_NON_SPECIALIST_PRODUCT_MANAGER",
+  "language": "zh-CN",
+  "template_independent": true,
+  "base_policy_ref": {
+    "path": "references/policies/document-experience.json",
+    "schema_version": "document-experience.v1",
+    "hash": "sha256:60b11a0da0a6e0db7d591e7da5a0e89f25493680dafb2aa8e52897ff012c44b4"
+  },
+  "writing_guide_ref": {
+    "path": "references/policies/prd-writing-guide-v0.2.md",
+    "version": "0.2.0",
+    "hash": "sha256:6ff72f9e26c448bdd8c3153e054e71a682b587bcd2102a4bfee9c0caa566b21f"
+  },
+  "required_expression_rules": [
+    "CONCRETE_EVENT_BEFORE_ABSTRACTION",
+    "CONCLUSION_BEFORE_EXPLANATION",
+    "GLOBAL_FRAME_BEFORE_LOCAL_DETAIL",
+    "ONE_MAIN_POINT_PER_PARAGRAPH",
+    "ONE_NEW_CONCEPT_AT_A_TIME",
+    "PLAIN_LANGUAGE_BEFORE_FIRST_TECHNICAL_TERM",
+    "CHINESE_PROSE_WITH_EXACT_MACHINE_TERMS_PRESERVED",
+    "EXAMPLES_MAP_BACK_TO_REAL_MECHANISM",
+    "MEANINGFUL_VISUAL_FOR_NON_TRIVIAL_RELATIONSHIPS",
+    "EVIDENCE_JUDGMENT_ASSUMPTION_UNKNOWN_SEPARATED",
+    "SIMPLIFICATION_MUST_PRESERVE_BOUNDARIES",
+    "OMIT_NOT_APPLICABLE_BODY_KEEP_CHECKLIST_DISPOSITION",
+    "PRODUCT_REQUIREMENT_BEFORE_ENGINEERING_SOLUTION"
+  ],
+  "conditional_content_policy": {
+    "body": "OMIT_HEADING_TABLE_AND_PLACEHOLDER_WHEN_TRULY_NOT_APPLICABLE",
+    "checklist": "KEEP_ITEM_WITH_NOT_APPLICABLE_AND_CONCRETE_REASON",
+    "unknown_or_not_done": "KEEP_VISIBLE_WITH_REAL_STATUS_OWNER_IMPACT_OR_NEXT_ACTION",
+    "mandatory_semantics": "NEVER_OMIT",
+    "template_interaction": "PROFILE_MAY_OMIT_CONDITIONAL_PRESENTATION_ONLY_WHEN_OUTPUT_CONTRACT_ALLOWS"
+  },
+  "visual_policy": {
+    "required_when": [
+      "NON_TRIVIAL_FLOW",
+      "BRANCHING",
+      "SEQUENCE",
+      "STATE_TRANSITION",
+      "DATA_FLOW",
+      "MODULE_RELATIONSHIP",
+      "RESPONSIBILITY_BOUNDARY"
+    ],
+    "requirements": [
+      "QUESTION_ANSWERED_VISIBLE",
+      "SCOPE_VISIBLE",
+      "TEXT_ALTERNATIVE_PRESENT",
+      "NO_DECORATIVE_VISUAL",
+      "NO_NODE_BY_NODE_TEXT_DUPLICATION"
+    ]
+  },
+  "information_density_policy": {
+    "word_count_gate": "FORBIDDEN",
+    "requires_global_frame": true,
+    "requires_navigation_path": true,
+    "duplicate_authority": "ONE_CANONICAL_SOURCE_WITH_REFERENCES"
+  },
+  "prd_spec_boundary": {
+    "prd_owns": [
+      "PRODUCT_PROBLEM",
+      "USER_OUTCOME",
+      "SCOPE",
+      "PRODUCT_RULES",
+      "OBSERVABLE_ACCEPTANCE",
+      "EXTERNAL_BEHAVIOR_AND_SAFETY_BOUNDARIES"
+    ],
+    "engineering_spec_owns": [
+      "INTERNAL_SCHEMA",
+      "STORAGE_LAYOUT",
+      "CLASS_AND_OBJECT_SPLIT",
+      "INTERNAL_LINEARIZATION",
+      "IMPLEMENTATION_ALGORITHM"
+    ]
+  },
+  "binding_rule": "RESOLVE_SEPARATELY_FROM_TEMPLATE_AND_BIND_EXACT_PATH_VERSION_HASH",
+  "runtime_status": "ACTIVE",
+  "validation_status": "CONTRACT_VALIDATED_NOT_USER_TESTED"
+}

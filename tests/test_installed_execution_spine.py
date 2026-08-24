@@ -181,6 +181,8 @@ class InstalledExecutionSpineTests(unittest.TestCase):
 
     def test_installed_submit_progresses_multiple_nodes_and_executes_route_select(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
+        overview = self.project / "README.md"
+        overview.write_text("# 示例项目\n\n当前目标是减少结算失败。\n", encoding="utf-8")
         activated = self._invoke("new", "用户反复无法完成结算")
         run_id = activated["run_id"]
         prepare = activated["dispatch"]
@@ -249,7 +251,214 @@ class InstalledExecutionSpineTests(unittest.TestCase):
             "--requested-node", "route.select",
         )
         self.assertEqual(routed["state"]["last_completed_node"], "route.select")
-        self.assertEqual(routed["dispatch"]["node_id"], "evidence.collect")
+        self.assertEqual(routed["dispatch"]["node_id"], "planning.context.prepare")
+        discovery = routed["dispatch"]["planning_context_discovery"]
+        self.assertEqual(discovery["schema_version"], "planning-context-discovery.v1")
+        self.assertIn(
+            "README.md",
+            [item["ref"]["path"] for item in discovery["available_materials"]],
+        )
+        context_instruction = Path(
+            routed["host_execution_context"]["instruction_path"]
+        ).read_text(encoding="utf-8")
+        for field in (
+            '"project_identity"',
+            '"materials"',
+            '"high_impact_gaps"',
+            '"context_summary"',
+            '"review"',
+        ):
+            self.assertIn(field, context_instruction)
+
+        context_dispatch = routed["dispatch"]
+        overview_ref = {
+            "role": "planning_context_source",
+            "path": "README.md",
+            "hash": "sha256:" + hashlib.sha256(overview.read_bytes()).hexdigest(),
+            "version": 1,
+        }
+        context_result = {
+            "schema_version": "node-result.v1",
+            "node_id": "planning.context.prepare",
+            "attempt_id": context_dispatch["attempt_id"],
+            "producer": {"kind": "HOST_AGENT"},
+            "instruction_ref": context_dispatch["instruction_ref"],
+            "instruction_hash": context_dispatch["instruction_hash"],
+            "input_refs": context_dispatch["input_refs"],
+            "input_hashes": context_dispatch["input_hashes"],
+            "semantic_output": {
+                "schema_version": "planning-context-preparation.v1",
+                "status": "READY",
+                "project_identity": {
+                    "name": "示例项目",
+                    "root": ".",
+                    "confidence": "HIGH",
+                    "ambiguities": [],
+                },
+                "materials": [
+                    {
+                        "ref": overview_ref,
+                        "kind": "PROJECT_OVERVIEW",
+                        "decision": "INCLUDE",
+                        "reason": "说明项目当前目标",
+                    }
+                ],
+                "unavailable_sources": [],
+                "high_impact_gaps": [],
+                "context_summary": {
+                    "project_purpose": "减少结算失败",
+                    "current_direction": "先理解失败原因",
+                    "constraints": [],
+                    "unknowns": [],
+                },
+                "review": {
+                    "status": "CONFIRMED",
+                    "reviewed_by": {"kind": "OWNER", "id": "tester"},
+                },
+                "limitations": ["只对当前 Run 生效"],
+                "next_action": "evidence.collect",
+            },
+            "artifact_refs": [overview_ref],
+        }
+        prepared_context = self._invoke(
+            "--operation", "submit",
+            "--run-id", run_id,
+            "--payload-file", str(
+                self._write_payload("planning-context.json", context_result)
+            ),
+            "--requested-node", "evidence.collect",
+        )
+        self.assertEqual(prepared_context["dispatch"]["node_id"], "evidence.collect")
+        self.assertIn("README.md", prepared_context["dispatch"]["input_refs"])
+
+    def test_installed_planning_context_rejects_sensitive_material_without_run_writes(self) -> None:
+        build_plugin(REPO_ROOT, self.plugin)
+        secret = self.project / ".env"
+        secret.write_text("API_TOKEN=do-not-read\n", encoding="utf-8")
+        activated = self._invoke("new", "为项目规划一个产品改进")
+        run_id = activated["run_id"]
+
+        def submit(dispatch: dict, name: str, semantic_output: dict, artifact_refs: list[dict]) -> dict:
+            return self._invoke(
+                "--operation", "submit",
+                "--run-id", run_id,
+                "--payload-file", str(
+                    self._write_payload(
+                        name,
+                        {
+                            "schema_version": "node-result.v1",
+                            "node_id": dispatch["node_id"],
+                            "attempt_id": dispatch["attempt_id"],
+                            "producer": {"kind": "HOST_AGENT"},
+                            "instruction_ref": dispatch["instruction_ref"],
+                            "instruction_hash": dispatch["instruction_hash"],
+                            "input_refs": dispatch["input_refs"],
+                            "input_hashes": dispatch["input_hashes"],
+                            "semantic_output": semantic_output,
+                            "artifact_refs": artifact_refs,
+                        },
+                    )
+                ),
+                "--requested-node", (
+                    "signal.classify"
+                    if dispatch["node_id"] == "signal.prepare"
+                    else "route.select"
+                ),
+            )
+
+        prepared = submit(
+            activated["dispatch"],
+            "sensitive-prepare.json",
+            {"prepared_signal": "为项目规划一个产品改进"},
+            [],
+        )
+        routed = submit(
+            prepared["dispatch"],
+            "sensitive-classify.json",
+            {
+                "route_destination": "DISCOVERY_START",
+                "existing_links": [],
+                "parsed_claims": [],
+                "parsed_instructions": [],
+            },
+            [],
+        )
+        dispatch = routed["dispatch"]
+        self.assertEqual(dispatch["node_id"], "planning.context.prepare")
+        self.assertNotIn(
+            ".env",
+            [
+                item["ref"]["path"]
+                for item in dispatch["planning_context_discovery"]["available_materials"]
+            ],
+        )
+        self.assertIn(
+            "SKIPPED_SENSITIVE",
+            [
+                item["status"]
+                for item in dispatch["planning_context_discovery"]["skipped_materials"]
+            ],
+        )
+        secret_ref = {
+            "role": "planning_context_source",
+            "path": ".env",
+            "hash": "sha256:" + hashlib.sha256(secret.read_bytes()).hexdigest(),
+            "version": 1,
+        }
+        payload = {
+            "schema_version": "node-result.v1",
+            "node_id": dispatch["node_id"],
+            "attempt_id": dispatch["attempt_id"],
+            "producer": {"kind": "HOST_AGENT"},
+            "instruction_ref": dispatch["instruction_ref"],
+            "instruction_hash": dispatch["instruction_hash"],
+            "input_refs": dispatch["input_refs"],
+            "input_hashes": dispatch["input_hashes"],
+            "semantic_output": {
+                "schema_version": "planning-context-preparation.v1",
+                "status": "READY",
+                "project_identity": {
+                    "name": "secret-project",
+                    "root": ".",
+                    "confidence": "HIGH",
+                    "ambiguities": [],
+                },
+                "materials": [
+                    {
+                        "ref": secret_ref,
+                        "kind": "PROJECT_OVERVIEW",
+                        "decision": "INCLUDE",
+                        "reason": "不得接受",
+                    }
+                ],
+                "unavailable_sources": [],
+                "high_impact_gaps": [],
+                "context_summary": {
+                    "project_purpose": "unknown",
+                    "current_direction": "unknown",
+                    "constraints": [],
+                    "unknowns": ["安全来源缺失"],
+                },
+                "review": {
+                    "status": "CONFIRMED",
+                    "reviewed_by": {"kind": "OWNER", "id": "tester"},
+                },
+                "limitations": ["只对当前 Run 生效"],
+                "next_action": "evidence.collect",
+            },
+            "artifact_refs": [secret_ref],
+        }
+        run_root = self.project / ".better-product-graph" / "runs" / run_id
+        before = self._tree_inventory(run_root)
+        rejected = self._invoke_raw(
+            "--operation", "submit",
+            "--run-id", run_id,
+            "--payload-file", str(self._write_payload("sensitive-context.json", payload)),
+            "--requested-node", "evidence.collect",
+        )
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("sensitive", rejected.stderr.lower())
+        self.assertEqual(self._tree_inventory(run_root), before)
 
     def test_installed_signal_classify_rejects_invalid_contracts_without_run_writes(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)

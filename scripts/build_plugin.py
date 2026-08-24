@@ -18,6 +18,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.promote_prd_template import sync_prd_template_v02
+from scripts.promote_prd_writing_profile import sync_prd_writing_profile_v02
 
 
 class BuildError(RuntimeError):
@@ -400,6 +401,9 @@ def build_plugin(
     config, config_sources = _load_config(repo_root, host)
     host_block = config["host"]
     template_promotion = sync_prd_template_v02(repo_root, check=True)
+    document_experience_promotion = sync_prd_writing_profile_v02(
+        repo_root, check=True
+    )
     _verify_baseline(repo_root, config["architecture_baseline"])
     _verify_baseline(repo_root, config["roadmap_baseline"])
     _validate_public_source(repo_root, config)
@@ -413,6 +417,10 @@ def build_plugin(
         *(
             _source_path(repo_root, path)
             for path in config.get("template_source_provenance", [])
+        ),
+        *(
+            _source_path(repo_root, path)
+            for path in config.get("document_experience_source_provenance", [])
         ),
     ]
     for item in config.get("shared_exact_files", []):
@@ -478,6 +486,7 @@ def build_plugin(
         "architecture_baseline": config["architecture_baseline"],
         "roadmap_baseline": config["roadmap_baseline"],
         "template_promotion": template_promotion,
+        "document_experience_promotion": document_experience_promotion,
         "execution_contract_fingerprint": _source_fingerprint(repo_root, fingerprint_sources),
         "derived_transforms": derived_transforms,
         "inventory": inventory,

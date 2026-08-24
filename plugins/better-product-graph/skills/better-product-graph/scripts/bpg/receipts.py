@@ -9,6 +9,10 @@ from typing import Any
 from .contracts import PolicyViolation, validate_node_result_producer
 from .delivery_contract import DeliveryContractError, derive_active_scope_ref
 from .documents import hash_tree, validate_document_experience
+from .document_experience_profile import (
+    DocumentExperienceProfileError,
+    resolve_prd_document_experience,
+)
 from .node_validation import NodeValidationError, validate_node_output
 from .prd_contract import PRDContractError, assemble_prd
 from .storage import IntegrityError, read_json, sha256_file, verify_event_chain
@@ -256,11 +260,21 @@ def evaluate_receipt_subjects(
     elif kind == "document_experience":
         document = (root / subjects["candidate_document"]["path"]).read_text(encoding="utf-8")
         experience = validate_document_experience(document, "prd")
+        try:
+            expected_document_experience = resolve_prd_document_experience()
+        except DocumentExperienceProfileError as error:
+            raise ReceiptError(
+                f"document_experience runtime binding is invalid: {error}"
+            ) from error
         template = json_subject("template_profile")
         version = json_subject("version_record")
         changelog = (root / subjects["document_changelog"]["path"]).read_text(encoding="utf-8")
         if experience.status != "PASS":
             raise ReceiptError("document_experience Candidate failed: " + ", ".join(experience.issues))
+        if metadata.get("document_experience") != expected_document_experience:
+            raise ReceiptError(
+                "document_experience Candidate does not bind the exact released writing profile"
+            )
         if (
             template.get("schema_version") != "template-profile-evidence.v1"
             or template.get("profile_id") != template_selection.get("profile_id")
@@ -319,7 +333,12 @@ def evaluate_receipt_subjects(
             raise ReceiptError("document_experience version record is not exact")
         if candidate_ref.get("version") not in changelog or candidate_ref.get("artifact_path", "") not in changelog:
             raise ReceiptError("document_experience changelog does not bind Candidate version/path")
-        observed = {"document_experience": "PASS", "version_visible": candidate_ref["version"]}
+        observed = {
+            "document_experience": "PASS",
+            "version_visible": candidate_ref["version"],
+            "writing_profile_id": expected_document_experience["profile_ref"]["id"],
+            "writing_profile_version": expected_document_experience["profile_ref"]["version"],
+        }
     elif kind == "audit_integrity":
         audit = json_subject("audit_snapshot")
         events = verify_event_chain(root / ".better-product-graph" / "runs" / run_id / "events.jsonl")

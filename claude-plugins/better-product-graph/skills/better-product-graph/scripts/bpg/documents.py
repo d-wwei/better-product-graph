@@ -24,10 +24,23 @@ from .storage import (
     sha256_bytes,
     sha256_file,
 )
+from .product_navigation import requirement_relationships, update_release_manifest
 
 
 ASSET_REF = re.compile(r"\]\(\./assets/([^)]+)\)")
 EXTERNAL_SUCCESS = re.compile(r"(?<!未)(?:已发送|已接收|已批准|已通过外部审批)")
+SUMMARY_HEADING = re.compile(
+    r"^#{2,3}\s*(?:阅读摘要|执行摘要|摘要|概览|tl;dr|executive summary|summary)\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+LEADING_DECISION = re.compile(
+    r"(?:^|\n)\s*(?:[-*]\s*)?(?:\*\*)?(?:结论|当前判断|我们建议|recommendation)\b",
+    re.IGNORECASE,
+)
+NEXT_ACTION = re.compile(
+    r"(?:下一步|下一动作|建议动作|next\s+(?:step|action)|recommended\s+action)",
+    re.IGNORECASE,
+)
 
 
 class ImmutableArtifactError(RuntimeError):
@@ -82,9 +95,9 @@ def validate_document_experience(markdown: str, profile: str) -> DocumentExperie
     }:
         return DocumentExperienceResult("FAIL", ["unknown_profile"])
     first_lines = "\n".join(markdown.splitlines()[:20])
-    if "结论" not in first_lines:
+    if not (SUMMARY_HEADING.search(first_lines) or LEADING_DECISION.search(first_lines)):
         issues.append("conclusion_first")
-    if "下一步" not in first_lines:
+    if not NEXT_ACTION.search(first_lines):
         issues.append("next_action_visible")
     if not any(token in markdown for token in ("证据", "Evidence", "evidence")):
         issues.append("evidence_boundary")
@@ -281,6 +294,7 @@ def _structured_changelog_event(
             "output_contract": metadata["template_profile"]["output_contract"],
         },
         "policy_ref": _document_policy_ref(),
+        "document_experience_ref": metadata.get("document_experience"),
         "review_ref": lifecycle_refs.get("review_ref") or {
             "path": artifact.review_path.relative_to(root).as_posix(),
             "hash": artifact.review_hash,
@@ -289,6 +303,7 @@ def _structured_changelog_event(
         "ready_ref": ready_ref or {"status": "NOT_AVAILABLE_BEFORE_READY"},
         "asset_refs": _asset_refs(root, artifact.path),
         "supersedes": metadata.get("supersedes"),
+        "requirement_relationships": requirement_relationships(metadata),
     }
 
 
@@ -480,6 +495,7 @@ def release_prd_candidate(
             },
             lifecycle_refs=ready_assertion,
         )
+        update_release_manifest(root, released, metadata)
         return released
     parent.mkdir(parents=True, exist_ok=True)
     temporary = parent / f".{archived.path.name}.tmp-{uuid4().hex}"
@@ -525,4 +541,5 @@ def release_prd_candidate(
         },
         lifecycle_refs=ready_assertion,
     )
+    update_release_manifest(root, released, metadata)
     return released

@@ -10,6 +10,11 @@ from typing import Any
 
 from .contracts import PolicyViolation, validate_node_result_producer
 from .delivery_contract import DeliveryContractError, validate_candidate_delivery_contract
+from .document_experience_profile import (
+    DocumentExperienceProfileError,
+    resolve_prd_document_experience,
+)
+from .product_navigation import requirement_relationships
 from .templates import TemplateSelection, load_output_contract
 
 
@@ -477,6 +482,20 @@ def assemble_prd(
     if not isinstance(metadata, dict):
         issues.append("Agent PRD metadata is required")
         metadata = {}
+    try:
+        document_experience = resolve_prd_document_experience()
+    except DocumentExperienceProfileError as error:
+        raise PRDContractError(
+            f"Installed Document Experience binding is invalid: {error}"
+        ) from error
+    submitted_document_experience = metadata.get("document_experience")
+    if (
+        submitted_document_experience is not None
+        and submitted_document_experience != document_experience
+    ):
+        issues.append(
+            "metadata.document_experience differs from the exact Document Experience binding"
+        )
     for field in (
         "prd_id",
         "short_title",
@@ -579,6 +598,10 @@ def assemble_prd(
     if metadata.get("delivery_intent") == "EXPERIMENT":
         issues.extend(validate_experiment_contract(metadata.get("experiment_contract")))
     try:
+        requirement_relationships(metadata)
+    except ValueError as error:
+        issues.append(str(error))
+    try:
         validate_candidate_delivery_contract(metadata)
     except DeliveryContractError as error:
         issues.append(str(error))
@@ -586,6 +609,7 @@ def assemble_prd(
         raise PRDContractError("; ".join(issues))
     assembled_metadata = {
         **metadata,
+        "document_experience": document_experience,
         "structure_mode": structure_mode,
         "template_mapping": mapping,
         "template_profile": {
