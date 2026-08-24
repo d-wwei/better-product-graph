@@ -83,7 +83,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Better Product Graph installed Skill bootstrap")
     parser.add_argument("--self-check", action="store_true")
     parser.add_argument(
-        "--operation", choices=("entry", "dispatch", "submit", "owner-choice"), default="entry"
+        "--operation",
+        choices=("entry", "dispatch", "submit", "owner-choice", "fulfill-evals"),
+        default="entry",
     )
     parser.add_argument("--run-id")
     parser.add_argument("--payload-file")
@@ -109,10 +111,10 @@ def main() -> int:
     if args.operation == "entry" and not args.entry:
         parser.error("A stable Better Product Graph intent is required through the Host Skill")
     if args.operation != "entry" and not args.run_id:
-        parser.error("--run-id is required for installed dispatch, submit, or owner-choice")
-    if args.operation in {"submit", "owner-choice"} and not args.payload_file:
-        parser.error("--payload-file is required for installed submit or owner-choice")
-    from bpg.runner import dispatch, handle_entry, owner_choice, submit
+        parser.error("--run-id is required for installed non-entry operations")
+    if args.operation in {"submit", "owner-choice", "fulfill-evals"} and not args.payload_file:
+        parser.error("--payload-file is required for installed mutation operations")
+    from bpg.runner import dispatch, fulfill_evals, handle_entry, owner_choice, submit
 
     graph = skill_root / "references" / "graph" / "manifest.json"
     if args.operation == "entry":
@@ -131,8 +133,10 @@ def main() -> int:
                 Path.cwd(), graph, args.run_id, payload,
                 requested_node=args.requested_node, skill_root=skill_root,
             )
-        else:
+        elif args.operation == "owner-choice":
             result = owner_choice(Path.cwd(), graph, args.run_id, payload, skill_root=skill_root)
+        else:
+            result = fulfill_evals(Path.cwd(), graph, args.run_id, payload, skill_root=skill_root)
     result = with_host_execution_context(
         result,
         project_root=Path.cwd(),

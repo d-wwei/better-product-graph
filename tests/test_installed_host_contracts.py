@@ -111,6 +111,8 @@ class InstalledHostContractTests(unittest.TestCase):
 
         self.assertIn("--operation submit", skill)
         self.assertIn("--payload-file", skill)
+        self.assertIn("--operation fulfill-evals", skill)
+        self.assertIn("evals-fulfillment-submission.v1", skill)
         self.assertEqual(envelope["schema_version"], "node-result.v1")
         self.assertEqual(envelope["producer"]["kind"], "HOST_AGENT")
         self.assertIn("semantic_output", envelope)
@@ -132,6 +134,11 @@ class InstalledHostContractTests(unittest.TestCase):
 
     def test_prd_instruction_exposes_one_assembly_ready_semantic_output(self) -> None:
         output = self._contract("prd-generate", "prd-generate-semantic-output-contract")
+        self.assertIn(
+            output.get("structure_mode"),
+            {"split", "compact", "legacy"},
+            "installed prd.generate instruction must expose the exact structure_mode enum",
+        )
         submission = {
             "node_id": "prd.generate",
             "attempt_id": "attempt-installed-contract",

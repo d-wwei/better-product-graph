@@ -1,6 +1,6 @@
 {
   "name": "better-product-graph",
-  "version": "0.2.2",
+  "version": "0.2.5",
   "description": "Turns product signals into evidence-bound decisions, plans, versioned PRDs, and local engineering handoffs through one governed Claude Code Skill.",
   "author": {
     "name": "eli and Better Product Graph contributors",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from src.bpg.templates import TemplateRegistry
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = REPO_ROOT / "src" / "core" / "templates"
+FIXTURES = REPO_ROOT / "tests" / "fixtures" / "prd-v0.2-golden"
 
 
 def prd_markdown() -> str:
@@ -183,6 +185,16 @@ class PRDContractTests(unittest.TestCase):
         self.assertEqual(assembled.metadata["template_profile"]["sha256"], self.selection.sha256)
         self.assertEqual(assembled.metadata["prd_id"], "PRD-CHECKOUT-001")
 
+    def test_missing_structure_mode_uses_exact_template_default(self) -> None:
+        submission = json.loads(
+            (FIXTURES / "multi-module-split.json").read_text(encoding="utf-8")
+        )
+        submission["semantic_output"].pop("structure_mode")
+
+        assembled = assemble_prd(submission, self.selection)
+
+        self.assertEqual(assembled.metadata["structure_mode"], "split")
+
     def test_program_cannot_generate_prd_or_fill_missing_agent_content(self) -> None:
         submission = prd_submission()
         submission["producer"] = {"kind": "DETERMINISTIC_PROGRAM", "component": "validator"}
@@ -255,6 +267,7 @@ class PRDContractTests(unittest.TestCase):
         submission["semantic_output"]["metadata"]["evals"] = {
             "applicability": "REQUIRED",
             "fulfillment": "REVIEWED",
+            "fulfillment_authority": "CONTROLLER_BOUND",
             "execution_status": "NOT_RUN",
             "pack_ref": {"path": "pack.json", "hash": "sha256:pack", "version": 1},
             "review_ref": {"path": "review.json", "hash": "sha256:review", "version": 1},

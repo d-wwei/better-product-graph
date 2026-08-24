@@ -127,6 +127,30 @@ class HostRuntime:
             raise TransitionRejected(f"mechanical node {state['current_node']} has no Controller executor")
         return self._plan_dispatch(run_id)
 
+    def fulfill_evals(
+        self, run_id: str, submission: dict[str, Any], *, failpoint=None
+    ) -> dict[str, Any]:
+        """Bind one exact independent Eval repair and dispatch formal joint re-review."""
+
+        state = self.controller.authoritative_read_barrier(run_id)
+        fulfilled = self.controller.fulfill_required_evals(
+            run_id,
+            submission,
+            expected_state_version=state["state_version"],
+            failpoint=failpoint,
+        )
+        dispatch = self.dispatch_current(run_id)
+        return {
+            "status": "EVALS_FULFILLED_REVIEW_REQUIRED",
+            "run_id": run_id,
+            "state": self.controller.load_state(run_id),
+            "execution_status": "NOT_RUN",
+            "ready_status": "NOT_READY",
+            "release_status": "NOT_RELEASED",
+            "receipt_ref": fulfilled["receipt_ref"],
+            "dispatch": dispatch,
+        }
+
     def _complete_review_finalize(self, run_id: str) -> dict[str, Any]:
         dispatch = self._plan_dispatch(run_id)
         state = self.controller.load_state(run_id)
@@ -138,6 +162,9 @@ class HostRuntime:
         return self.dispatch_current(run_id)
 
     def _complete_prd_ready(self, run_id: str) -> dict[str, Any]:
+        repair = self.engine._required_evals_repair_response(run_id)
+        if repair is not None:
+            return repair
         self.controller.prevalidate_ready_evals(run_id)
         dispatch = self._plan_dispatch(run_id)
         state = self.controller.load_state(run_id)
@@ -1270,7 +1297,12 @@ class HostRuntime:
                 )
             else:
                 dispatch = self.dispatch_current(run_id)
-            if dispatch.get("status") in {"COMPLETED", "ADVANCED", "NOT_READY"}:
+            if dispatch.get("status") in {
+                "COMPLETED",
+                "ADVANCED",
+                "NOT_READY",
+                "EVALS_FULFILLMENT_REQUIRED",
+            }:
                 return dispatch
             return {
                 "status": "ADVANCED",

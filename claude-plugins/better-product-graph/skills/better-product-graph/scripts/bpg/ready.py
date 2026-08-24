@@ -122,10 +122,14 @@ def calculate_prd_ready(request: dict[str, Any]) -> ReadyResult:
     if evals_valid and evals["applicability"] == "NOT_NEEDED":
         evals_valid = bool(evals.get("reason"))
     elif evals_valid and evals["applicability"] == "REQUIRED":
-        # A skills-only Host can prove Controller node origins, but cannot prove
-        # that a different actor actually performed an independent Eval review.
-        # Until a verifiable fulfillment receipt exists, REQUIRED must fail closed.
-        evals_valid = False
+        evals_valid = (
+            evals.get("fulfillment") == "REVIEWED"
+            and evals.get("fulfillment_authority") == "CONTROLLER_BOUND"
+            and evals.get("execution_status") == "NOT_RUN"
+            and isinstance(evals.get("pack_ref"), dict)
+            and isinstance(evals.get("review_ref"), dict)
+            and isinstance(evals.get("ground_truth_provenance"), dict)
+        )
         evals_repair_target = "WAIT_FOR_VERIFIABLE_EVAL_FULFILLMENT"
     if not evals_valid:
         unmet.append(_unmet("EVALS", evals, evals_repair_target, "evals.build"))
@@ -235,10 +239,15 @@ def ready_and_release(
         raise PRDNotReady("Ready/release requires one exact current Gate attempt")
     attempt_id = current_attempts[0]["attempt_id"]
     evals = request.get("evals", {})
-    if evals.get("applicability") == "REQUIRED":
+    if (
+        evals.get("applicability") == "REQUIRED"
+        and (
+            evals.get("fulfillment") != "REVIEWED"
+            or evals.get("fulfillment_authority") != "CONTROLLER_BOUND"
+        )
+    ):
         raise PRDNotReady(
-            "REQUIRED Evals cannot release in the current skills-only Host: verifiable independent "
-            "fulfillment authority is unavailable"
+            "REQUIRED Evals cannot release before exact Controller-bound fulfillment"
         )
     if evals.get("fulfillment") == "REVIEWED":
         try:

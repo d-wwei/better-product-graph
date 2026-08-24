@@ -1,6 +1,29 @@
 # Changelog
 
-## 0.2.2 — Unreleased — Public experiment contract and compatible resume
+## 0.2.5 — Unreleased — PRD contract completion and dependency-aware Problem Learning Pilot
+
+- Add a reversible Prompt-only dependency-aware method inside the existing `problem.learning.loop`, with LIGHT-first short-circuiting, a temporary Ready Frontier, source routing, one PM-facing MVU, and action-relative sufficiency.
+- Keep waiting and Evidence-driven recomputation honest and bounded: sequential work only inside one unsubmitted Host attempt, at most one recomputation, no claimed cross-submit WAIT / resume, and no claimed real fan-out.
+- Publish a machine-readable G1—G7 installed contract, including the complete `interview skip → exact Evidence → interview resume` oracle, while retaining the existing Node Result fields and explicitly not claiming Controller closed-world enforcement.
+- Preserve the frozen architecture: no new top-level Node, Artifact type, State schema, dedicated Grilling Agent, Owner checkpoint, or second source of truth.
+
+- Publish the exact `semantic_output.structure_mode` enum in the installed `prd.generate` instruction instead of forcing the Host to infer a hidden field from source code.
+- Honor the selected template output contract's declared `default_structure_mode` when a non-legacy submission omits the field, while retaining legacy heading detection.
+- Declare the 0.2.2 `prd.generate` instruction hash as a compatible predecessor so its unfinished dispatch can resume without rewriting durable Run state.
+
+## 0.2.4 — 2026-08-24 — Authoritative public Eval repair resume
+
+- Make public `resume` return the typed `EVALS_FULFILLMENT_REQUIRED` contract whenever the exact active Run is stopped at `prd.ready.gate` with pending REQUIRED Evals, including compatible legacy-graph recovery and repeated resume.
+- Expose the authoritative closed `{path,hash,version}` Candidate ref, `fulfill-evals` repair operation, `NOT_RUN` execution boundary, and `review.parallel` repair route at the runner top level so a Host can fulfill without guessing Controller internals.
+- Preserve the existing COMMIT and EXPERIMENT Ready authority, distinct builder/reviewer validation, zero Ready receipts, zero Release, and ordinary Review re-entry.
+
+## 0.2.3 — 2026-08-24 — Recoverable REQUIRED Eval fulfillment
+
+- Keep EXPERIMENT and COMMIT on the same Product Planning → PRD → Review → Ready → Handoff pipeline while returning an explicit `EVALS_FULFILLMENT_REQUIRED` repair condition before any false Ready or Release claim.
+- Bind an exact Agent-produced Eval Pack and fixtures plus a distinct independent testability review, preserve `execution_status=NOT_RUN`, and route the same Candidate back through ordinary joint Review before Ready is recalculated.
+- Compatibly upgrade exact 0.2.2-era Runs already stuck at `prd.ready.gate`, without rebuilding the Candidate or weakening the COMMIT Required-Evals gate.
+
+## 0.2.2 — 2026-08-24 — Public experiment contract and compatible resume
 
 - Publish the complete closed `experiment-contract.v1` field, type and enum contract plus a legal installed example in the public `prd.generate` instruction.
 - Return exact field-path errors for missing, mistyped, unknown or illegal experiment fields instead of the opaque `complete Agent-authored experiment_contract is required` message.

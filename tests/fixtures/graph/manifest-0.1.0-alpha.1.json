@@ -1,13 +1,6 @@
 {
   "graph_id": "better-product-graph",
-  "version": "0.1.0-alpha.2",
-  "compatible_predecessors": [
-    {
-      "version": "0.1.0-alpha.1",
-      "hash": "sha256:f3debef5fe47747685327beb9a560068bb3351df4b734f9246692c1da9fe555e",
-      "migration": "required-evals-ready-repair.v1"
-    }
-  ],
+  "version": "0.1.0-alpha.1",
   "state_controller": "deterministic-local-v0alpha",
   "nodes": [
     {"id": "signal.ingest", "type": "deterministic_validator"},
@@ -63,7 +56,6 @@
     {"from": "prd.optimize", "to": "review.parallel"},
     {"from": "prd.optimize", "to": "product.planning"},
     {"from": "review.finalize", "to": "prd.ready.gate"},
-    {"from": "prd.ready.gate", "to": "review.parallel"},
     {"from": "prd.ready.gate", "to": "handoff.prepare"},
     {"from": "handoff.prepare", "to": "handoff.dispatch"}
   ],

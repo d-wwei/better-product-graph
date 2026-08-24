@@ -66,11 +66,15 @@ values are representative only: copy every exact ref, origin, stable PRD ID,
 Slice ID, version, date, and scope hash from the current dispatch/Controller
 context. Keep `active_scope_ref`, `spec_traceability`, and
 `product_runtime_inputs` closed; do not add aliases or omit fields because the
-same fact appears in the Markdown.
+same fact appears in the Markdown. Set top-level `structure_mode` to exactly one
+of `split`, `compact`, or `legacy`. The current general template defaults to
+`split` when the field is omitted; state it explicitly whenever the Host chooses
+a structure so that the submitted shape remains visible and auditable.
 
 <!-- prd-generate-semantic-output-contract -->
 ```json
 {
+  "structure_mode": "legacy",
   "document_markdown": "# Bootstrap PRD\n\n版本：v0.1｜状态：CANDIDATE\n\n## 阅读摘要\n\n结论：交付一个安全、可恢复、可追溯的项目 Bootstrap 闭环。\n\n## 目标与成功边界\n\n目标是只读取允许的项目上下文并形成可审计结果；不得读取秘密或越出项目根目录。\n\n## 范围与交付切片\n\n本期只包含一个可独立验证和回滚的 Bootstrap 核心切片。\n\n## 验收标准\n\n- Given 一个隔离项目，When 运行 Bootstrap，Then 只读取允许文件并输出带来源的 Profile 与 Readiness。\n\n## 风险、未知与回滚\n\n未知包括代表性项目中的输出价值；出现秘密读取、路径越界或不可恢复状态时停止并回滚。\n\n## 版本与变更\n\nv0.1：首次形成候选；测试执行与远程交付均未在本步骤发生。\n",
   "template_mapping": {
     "summary": "阅读摘要",

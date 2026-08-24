@@ -66,7 +66,12 @@ def dispatch(
     checked = _preflight(project_root, resolved_skill_root)
     runtime = HostRuntime(project_root, graph_manifest, resolved_skill_root)
     envelope = runtime.dispatch_current(run_id)
-    if envelope.get("status") in {"COMPLETED", "ADVANCED", "NOT_READY"}:
+    if envelope.get("status") in {
+        "COMPLETED",
+        "ADVANCED",
+        "NOT_READY",
+        "EVALS_FULFILLMENT_REQUIRED",
+    }:
         return _with_preflight(checked, envelope)
     return _with_preflight(checked, {
         "status": "DISPATCHED",
@@ -109,5 +114,23 @@ def owner_choice(
         checked,
         HostRuntime(project_root, graph_manifest, resolved_skill_root).apply_owner_choice(
             run_id, command
+        ),
+    )
+
+
+def fulfill_evals(
+    project_root: Path,
+    graph_manifest: Path,
+    run_id: str,
+    submission: dict[str, Any],
+    *,
+    skill_root: Path | None = None,
+) -> dict[str, Any]:
+    resolved_skill_root = skill_root or graph_manifest.resolve().parent.parent
+    checked = _preflight(project_root, resolved_skill_root)
+    return _with_preflight(
+        checked,
+        HostRuntime(project_root, graph_manifest, resolved_skill_root).fulfill_evals(
+            run_id, submission
         ),
     )

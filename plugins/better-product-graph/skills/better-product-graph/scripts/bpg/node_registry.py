@@ -49,6 +49,20 @@ class NodeRegistry:
                 raise NodeRegistryError(
                     f"compatible instruction hashes are invalid for {node_id}"
                 )
+            compatible_route_sets = contract.get("compatible_route_sets", [])
+            if (
+                not isinstance(compatible_route_sets, list)
+                or any(
+                    not isinstance(routes, list)
+                    or not routes
+                    or len(routes) != len(set(routes))
+                    or any(not isinstance(route, str) or not route for route in routes)
+                    for routes in compatible_route_sets
+                )
+            ):
+                raise NodeRegistryError(
+                    f"compatible route sets are invalid for {node_id}"
+                )
             self.instruction_path(node_id)
 
     def instruction_path(self, node_id: str) -> Path:
@@ -108,3 +122,12 @@ class NodeRegistry:
         if dispatch_hash in compatible:
             return "DECLARED_COMPATIBLE_SUCCESSOR"
         return "INCOMPATIBLE"
+
+    def routes_compatible(self, node_id: str, routes: Any) -> bool:
+        """Accept the current routes or one exact predecessor set declared by the successor."""
+
+        if not isinstance(routes, list) or any(not isinstance(route, str) for route in routes):
+            return False
+        contract = self.contracts[node_id]
+        candidates = [contract.get("routes", []), *contract.get("compatible_route_sets", [])]
+        return any(sorted(routes) == sorted(candidate) for candidate in candidates)

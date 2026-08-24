@@ -394,8 +394,12 @@ def _validate_output_shape(
             structure_mode = "legacy"
         elif modes == ["legacy"]:
             structure_mode = "legacy"
+        else:
+            structure_mode = contract.get("default_structure_mode")
     if structure_mode not in modes:
-        issues.append("structure_mode is not allowed by the exact output contract")
+        issues.append(
+            "semantic_output.structure_mode must be one of: " + ", ".join(modes)
+        )
         return None
     headings = _h2_titles(markdown)
     duplicates = sorted({heading for heading in headings if headings.count(heading) > 1})
@@ -436,7 +440,12 @@ def _validate_output_shape(
     return structure_mode
 
 
-def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> AssembledPRD:
+def assemble_prd(
+    submission: dict[str, Any],
+    template: TemplateSelection,
+    *,
+    allow_controller_reviewed_evals: bool = False,
+) -> AssembledPRD:
     node_id = submission.get("node_id")
     if node_id not in {"prd.generate", "prd.optimize"}:
         raise PRDContractError("prd.generate or prd.optimize HOST_AGENT submission is required")
@@ -525,7 +534,11 @@ def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> Ass
         "REQUIRED",
     }:
         issues.append("Eval Applicability contract is required")
-    elif node_id == "prd.generate" and evals.get("fulfillment") == "REVIEWED":
+    elif (
+        node_id == "prd.generate"
+        and evals.get("fulfillment") == "REVIEWED"
+        and not allow_controller_reviewed_evals
+    ):
         issues.append(
             "prd.generate cannot self-claim REVIEWED Evals; verifiable fulfillment authority "
             "is unavailable in the current release, so REQUIRED Evals must remain "

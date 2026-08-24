@@ -18,11 +18,17 @@ from tests.test_prd_contract import REPO_ROOT, TEMPLATES, prd_submission
 GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
 
 
-def prepare_review_finalize(project: Path, run_id: str) -> tuple[StateController, object, str]:
-    controller = StateController(project, GRAPH)
+def prepare_review_finalize(
+    project: Path,
+    run_id: str,
+    *,
+    submission: dict | None = None,
+    graph: Path = GRAPH,
+) -> tuple[StateController, object, str]:
+    controller = StateController(project, graph, skill_root=REPO_ROOT / "src" / "core")
     controller.create_run(run_id, raw_signal="Candidate finalize recovery")
     assembled = assemble_prd(
-        prd_submission(), TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
+        submission or prd_submission(), TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
     )
     archived = archive_prd_candidate(project, assembled, assets={})
     candidate = {
@@ -53,7 +59,7 @@ def prepare_review_finalize(project: Path, run_id: str) -> tuple[StateController
         },
         state_updates={"current_candidate_ref": candidate, "candidate_version": 1},
     )
-    runtime = HostRuntime(project, GRAPH, REPO_ROOT / "src" / "core")
+    runtime = HostRuntime(project, graph, REPO_ROOT / "src" / "core")
     review_dispatch = runtime.dispatch_current(run_id)
     resources = {item["resource_id"]: item for item in review_dispatch["resource_refs"]}
 

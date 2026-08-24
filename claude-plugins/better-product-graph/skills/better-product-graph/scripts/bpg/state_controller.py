@@ -16,6 +16,10 @@ from .contracts import PolicyViolation, validate_node_result_producer
 from .bugs import validate_bug_assessment
 from .discovery_contract import build_problem_ready_output, validate_problem_ready
 from .evals_authority import EvalsAuthorityError, validate_reviewed_evals
+from .evals_fulfillment import (
+    EvalsFulfillmentError,
+    validate_evals_fulfillment_submission,
+)
 from .node_registry import NodeRegistry
 from .node_validation import NodeValidationError, validate_node_output
 from .product_memory import record_owner_decision
@@ -92,6 +96,9 @@ STATE_COMMIT_EVENT_VERSION_FIELDS = {
     "FANOUT_PLAN_REGISTERED": "state_version",
     "PRD_RELEASE_COMMITTED": "state_version",
     "HANDOFF_LOCAL_COMMITTED": "state_version",
+    "GRAPH_COMPATIBILITY_UPGRADED": "state_version",
+    "EVALS_FULFILLMENT_REQUIRED": "state_version",
+    "EVALS_FULFILLMENT_BOUND": "state_version",
     "NODE_TRANSITION_COMMITTED": "after_state_version",
     "PLAN_RECONCILE_REQUIRED": "after_state_version",
 }
@@ -710,6 +717,13 @@ class StateController:
                 expected_node, expected_status = "handoff.prepare", "RELEASED"
             elif event_type == "HANDOFF_LOCAL_COMMITTED":
                 expected_node, expected_status = "handoff.dispatch", "COMPLETED"
+            elif event_type == "GRAPH_COMPATIBILITY_UPGRADED":
+                expected_node = event.get("current_node", expected_node)
+                expected_status = event.get("status", expected_status)
+            elif event_type == "EVALS_FULFILLMENT_REQUIRED":
+                expected_node, expected_status = "prd.ready.gate", "ACTIVE"
+            elif event_type == "EVALS_FULFILLMENT_BOUND":
+                expected_node, expected_status = "review.parallel", "ACTIVE"
             elif event_type == "RUN_PAUSED":
                 expected_status = "PAUSED"
             elif event_type == "RUN_RESUMED":
@@ -825,8 +839,9 @@ class StateController:
                     or contract.get("instruction_ref") != current.get("instruction_ref")
                     or contract.get("producer_kind") != current.get("producer_kind")
                     or contract.get("validator") != current.get("validator")
-                    or sorted(contract.get("routes", []))
-                    != sorted(current.get("routes", []))
+                    or not self.registry.routes_compatible(
+                        node_id, contract.get("routes", [])
+                    )
                 )
             if base_contract_invalid or current_contract_invalid:
                 blockers.append(f"dispatch {attempt_id} contract drifted")
@@ -848,6 +863,75 @@ class StateController:
                     ):
                         blockers.append(f"result {attempt_id} receipt differs from exact result")
         return blockers
+
+    def _upgrade_compatible_graph_state(
+        self,
+        run_id: str,
+        state: dict[str, Any],
+        events: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Commit one exact allowlisted graph-pin upgrade without rewriting history."""
+
+        current = {
+            "version": self.graph.get("version"),
+            "hash": sha256_file(self.graph_path),
+        }
+        previous = state.get("graph_manifest", {})
+        if previous == current:
+            return state
+        allowed = self.graph.get("compatible_predecessors", [])
+        predecessor = next(
+            (
+                item
+                for item in allowed
+                if isinstance(item, dict)
+                and previous.get("version") == item.get("version")
+                and previous.get("hash") == item.get("hash")
+            ),
+            None,
+        )
+        if predecessor is None:
+            return state
+        blockers = self._full_state_commitment_blockers(state, events)
+        blockers.extend(self._event_authority_blockers(run_id, state, events))
+        if blockers:
+            raise TransitionRejected(
+                "compatible graph upgrade refused invalid predecessor state: "
+                + "; ".join(blockers)
+            )
+        next_state = json.loads(canonical_json_bytes(state))
+        next_state["state_version"] += 1
+        next_state["graph_manifest"] = current
+        if state.get("status") == "ACTIVE":
+            next_state["next_allowed_nodes"] = self.edges.get(state["current_node"], [])
+        for attempt in next_state.get("dispatch_attempts", []):
+            if (
+                attempt.get("node_id") == state.get("current_node")
+                and attempt.get("status") in {"DISPATCHED", "UNKNOWN_SIDE_EFFECT"}
+                and attempt.get("attempt_id") not in state.get("consumed_attempts", [])
+            ):
+                attempt["authorized_state_version"] = next_state["state_version"]
+                attempt["authority_hash"] = self._dispatch_authority_hash(next_state)
+        return self._commit_state_event(
+            run_id,
+            state,
+            next_state,
+            {
+                "event_type": "GRAPH_COMPATIBILITY_UPGRADED",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "state_version": next_state["state_version"],
+                "from_graph": previous,
+                "to_graph": current,
+                "migration": predecessor.get("migration"),
+                "current_node": next_state["current_node"],
+                "status": next_state["status"],
+            },
+            transaction_id=(
+                "graph-upgrade-"
+                + str(current["version"]).replace(".", "-")
+            ),
+        )
 
     @serialized_run_mutation
     def authoritative_read_barrier(self, run_id: str) -> dict[str, Any]:
@@ -880,6 +964,8 @@ class StateController:
                 raise TransitionRejected(
                     f"event authority audit integrity failed: {error}"
                 ) from error
+        state = self._upgrade_compatible_graph_state(run_id, state, events)
+        events = verify_event_chain(self._events_path(run_id))
         blockers = self._full_state_commitment_blockers(state, events)
         blockers.extend(self._event_authority_blockers(run_id, state, events))
         unknown_side_effect = any(
@@ -1825,12 +1911,19 @@ class StateController:
             raise TransitionRejected("Ready evidence requires self-contained Candidate metadata")
         metadata = read_json(metadata_paths[0])
         evals = metadata.get("evals", {})
-        if evals.get("applicability") == "REQUIRED":
+        if (
+            evals.get("applicability") == "REQUIRED"
+            and evals.get("fulfillment") != "REVIEWED"
+        ):
             raise TransitionRejected(
-                "REQUIRED Evals cannot enter Ready in the current skills-only Host: verifiable independent "
-                "fulfillment authority is unavailable; keep REVIEW_PENDING/NOT_RUN"
+                "REQUIRED Evals cannot enter Ready before exact independent fulfillment; "
+                "keep REVIEW_PENDING/NOT_RUN"
             )
         if evals.get("fulfillment") == "REVIEWED":
+            if evals.get("fulfillment_authority") != "CONTROLLER_BOUND":
+                raise TransitionRejected(
+                    "REVIEWED Evals lack exact Controller-bound fulfillment"
+                )
             try:
                 validate_reviewed_evals(
                     self.project_root,
@@ -2145,13 +2238,20 @@ class StateController:
             raise TransitionRejected("Ready Evals require self-contained Candidate metadata")
         metadata = read_json(metadata_paths[0])
         evals = metadata.get("evals", {})
-        if evals.get("applicability") == "REQUIRED":
+        if (
+            evals.get("applicability") == "REQUIRED"
+            and evals.get("fulfillment") != "REVIEWED"
+        ):
             raise TransitionRejected(
-                "REQUIRED Evals cannot enter Ready in the current skills-only Host: verifiable independent "
-                "fulfillment authority is unavailable; keep REVIEW_PENDING/NOT_RUN"
+                "REQUIRED Evals cannot enter Ready before exact independent fulfillment; "
+                "keep REVIEW_PENDING/NOT_RUN"
             )
         if evals.get("fulfillment") != "REVIEWED":
             return
+        if evals.get("fulfillment_authority") != "CONTROLLER_BOUND":
+            raise TransitionRejected(
+                "REVIEWED Evals lack exact Controller-bound fulfillment"
+            )
         input_hashes: dict[str, str] = {}
         for ref in state.get("artifact_refs", {}).values():
             if not isinstance(ref, dict):
@@ -2179,6 +2279,87 @@ class StateController:
             )
         except EvalsAuthorityError as error:
             raise TransitionRejected(f"REVIEWED Evals authority invalid: {error}") from error
+
+    def required_evals_repair_context(self, run_id: str) -> dict[str, Any] | None:
+        """Return exact pending Eval facts without claiming fulfillment or Ready."""
+
+        state = self.load_state(run_id)
+        if state.get("status") != "ACTIVE" or state.get("current_node") != "prd.ready.gate":
+            return None
+        archived = self._current_candidate_artifact(state)
+        metadata_paths = list(archived.path.glob("*.metadata.json"))
+        if len(metadata_paths) != 1:
+            raise TransitionRejected("Ready Evals require self-contained Candidate metadata")
+        metadata = read_json(metadata_paths[0])
+        evals = metadata.get("evals", {})
+        if evals.get("applicability") != "REQUIRED" or evals.get("fulfillment") == "REVIEWED":
+            return None
+        return {
+            "schema_version": "evals-fulfillment-context.v1",
+            "candidate_ref": {
+                "path": archived.document_path.relative_to(self.project_root).as_posix(),
+                "hash": archived.document_hash,
+                "version": archived.version,
+            },
+            "delivery_intent": metadata.get("delivery_intent"),
+            "experiment_contract": metadata.get("experiment_contract"),
+            "evals": evals,
+            "required_origin_separation": {
+                "pack_producer": "HOST_AGENT",
+                "reviewer_role": "INDEPENDENT_TESTABILITY_REVIEWER",
+                "reviewer_must_differ": True,
+            },
+        }
+
+    @serialized_run_mutation
+    def mark_required_evals_repair(
+        self, run_id: str, *, expected_state_version: int
+    ) -> dict[str, Any]:
+        """Persist an accurate Ready blocker and expose only the legal repair loop."""
+
+        state = self.load_state(run_id)
+        if expected_state_version != state["state_version"]:
+            raise StateConflict(
+                f"expected state version {expected_state_version}, current is {state['state_version']}"
+            )
+        context = self.required_evals_repair_context(run_id)
+        if context is None:
+            raise TransitionRejected("Run has no pending REQUIRED Evals repair")
+        blocker = {
+            "category": "EVALS",
+            "status": "NOT_READY",
+            "reason": "REQUIRED_EVALS_FULFILLMENT_PENDING",
+            "execution_status": "NOT_RUN",
+            "repair_operation": "fulfill-evals",
+            "candidate_ref": context["candidate_ref"],
+        }
+        if (
+            state.get("ready_blocker") == blocker
+            and state.get("next_allowed_nodes") == ["review.parallel"]
+        ):
+            return state
+        next_state = json.loads(canonical_json_bytes(state))
+        next_state["state_version"] += 1
+        next_state["ready_blocker"] = blocker
+        next_state["next_allowed_nodes"] = ["review.parallel"]
+        return self._commit_state_event(
+            run_id,
+            state,
+            next_state,
+            {
+                "event_type": "EVALS_FULFILLMENT_REQUIRED",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "state_version": next_state["state_version"],
+                "candidate_ref": context["candidate_ref"],
+                "delivery_intent": context["delivery_intent"],
+                "execution_status": "NOT_RUN",
+            },
+            transaction_id=(
+                "evals-fulfillment-required-"
+                + context["candidate_ref"]["hash"].removeprefix("sha256:")[:16]
+            ),
+        )
 
     def _review_aggregate_authority(
         self,
@@ -2501,6 +2682,8 @@ class StateController:
         run_id: str,
         archived: Any,
         companion: dict[str, Any],
+        *,
+        metadata: dict[str, Any] | None = None,
     ) -> tuple[Path, str, str]:
         from .documents import hash_tree
 
@@ -2510,11 +2693,20 @@ class StateController:
         )
         if stage.exists():
             review_path = stage / archived.review_path.name
+            metadata_paths = list(stage.glob("*.metadata.json"))
             if (
                 stage.is_symlink()
                 or not review_path.is_file()
                 or review_path.is_symlink()
                 or read_json(review_path) != companion
+                or (
+                    metadata is not None
+                    and (
+                        len(metadata_paths) != 1
+                        or metadata_paths[0].is_symlink()
+                        or read_json(metadata_paths[0]) != metadata
+                    )
+                )
                 or sha256_file(stage / archived.document_path.name) != archived.document_hash
             ):
                 raise StateConflict("review finalize stage identity conflict")
@@ -2524,11 +2716,234 @@ class StateController:
         try:
             shutil.copytree(archived.path, temporary)
             atomic_write_json(temporary / archived.review_path.name, companion)
+            if metadata is not None:
+                metadata_paths = list(temporary.glob("*.metadata.json"))
+                if len(metadata_paths) != 1 or metadata_paths[0].is_symlink():
+                    raise StateConflict("Candidate metadata is ambiguous")
+                atomic_write_json(metadata_paths[0], metadata)
             os.replace(temporary, stage)
         finally:
             if temporary.exists():
                 shutil.rmtree(temporary)
         return stage, hash_tree(stage), sha256_file(stage / archived.review_path.name)
+
+    @serialized_run_mutation
+    def fulfill_required_evals(
+        self,
+        run_id: str,
+        submission: dict[str, Any],
+        *,
+        expected_state_version: int,
+        failpoint: Callable[[str], None] | None = None,
+    ) -> dict[str, Any]:
+        """Bind independently reviewed Eval specifications, then require joint re-review."""
+
+        state = self.load_state(run_id)
+        if expected_state_version != state["state_version"]:
+            raise StateConflict(
+                f"expected state version {expected_state_version}, current is {state['state_version']}"
+            )
+        context = self.required_evals_repair_context(run_id)
+        if context is None:
+            raise TransitionRejected("Run has no pending REQUIRED Evals repair")
+        if state.get("ready_receipts") or state.get("release_ref") is not None:
+            raise TransitionRejected("Eval repair cannot mutate a Ready or Released Candidate")
+        try:
+            fulfillment = validate_evals_fulfillment_submission(
+                self.project_root,
+                self.skill_root,
+                submission,
+                expected_candidate_ref=context["candidate_ref"],
+                artifact_refs=state.get("artifact_refs", {}),
+            )
+        except EvalsFulfillmentError as error:
+            raise TransitionRejected(f"Eval fulfillment invalid: {error}") from error
+
+        archived = self._current_candidate_artifact(state)
+        metadata_paths = list(archived.path.glob("*.metadata.json"))
+        if len(metadata_paths) != 1 or metadata_paths[0].is_symlink():
+            raise TransitionRejected("Eval repair requires exact Candidate metadata")
+        metadata = read_json(metadata_paths[0])
+        updated_metadata = json.loads(canonical_json_bytes(metadata))
+        updated_metadata["evals"] = {
+            **fulfillment["evals"],
+            "fulfillment_authority": "CONTROLLER_BOUND",
+        }
+        companion = {
+            "schema_version": "prd-review-companion.v1",
+            "prd_id": archived.prd_id,
+            "version": archived.version,
+            "candidate_hash": archived.document_hash,
+            "status": "NOT_RUN",
+            "authority": "ADVISORY_ONLY",
+            "finding_count": 0,
+        }
+        stage, after_tree_hash, review_hash = self._prepare_candidate_finalize_stage(
+            run_id,
+            archived,
+            companion,
+            metadata=updated_metadata,
+        )
+
+        generation = int((state.get("current_candidate_ref") or {}).get("generation", 1))
+        history = (
+            self.run_path(run_id)
+            / "candidate-generations"
+            / f"generation-{generation}"
+            / archived.path.name
+        )
+        receipt = {
+            "schema_version": "evals-fulfillment-receipt.v1",
+            "status": "BOUND_FOR_REREVIEW",
+            "run_id": run_id,
+            "candidate_ref": context["candidate_ref"],
+            "build_attempt_id": fulfillment["build_attempt_id"],
+            "review_attempt_id": fulfillment["review_attempt_id"],
+            "build_identity": fulfillment["build_identity"],
+            "review_identity": fulfillment["review_identity"],
+            "pack_ref": fulfillment["pack_ref"],
+            "fixtures_ref": fulfillment["fixtures_ref"],
+            "review_ref": fulfillment["review_ref"],
+            "execution_status": "NOT_RUN",
+        }
+        receipt_path = self.run_path(run_id) / "evals-fulfillment" / "receipt.json"
+        if receipt_path.exists() and read_json(receipt_path) != receipt:
+            raise StateConflict("Eval fulfillment receipt identity conflict")
+        if not receipt_path.exists():
+            atomic_write_json(receipt_path, receipt)
+
+        next_state = json.loads(canonical_json_bytes(state))
+        next_state["state_version"] += 1
+        next_state["status"] = "ACTIVE"
+        next_state["current_node"] = "review.parallel"
+        next_state["next_allowed_nodes"] = self.edges.get("review.parallel", [])
+        next_state.pop("ready_blocker", None)
+        next_state["current_candidate_ref"] = {
+            **state["current_candidate_ref"],
+            "tree_hash": after_tree_hash,
+            "review_hash": review_hash,
+            "generation": generation + 1,
+        }
+        review_relative = archived.review_path.relative_to(self.project_root).as_posix()
+        next_state["artifact_refs"] = {
+            key: ref
+            for key, ref in next_state["artifact_refs"].items()
+            if not (
+                isinstance(ref, dict)
+                and ref.get("path") == review_relative
+                and ref.get("hash") != review_hash
+            )
+        }
+        next_state["artifact_refs"]["prd-candidate"] = {
+            **next_state["current_candidate_ref"]
+        }
+        next_state["artifact_refs"]["evals:candidate-binding"] = {
+            "role": "prd_candidate",
+            **context["candidate_ref"],
+            "origin_node_id": "evals.build",
+            "origin_attempt_id": fulfillment["build_attempt_id"],
+        }
+        for key, role, ref, node_id, attempt_id in (
+            (
+                "evals:pack",
+                "eval_pack",
+                fulfillment["pack_ref"],
+                "evals.build",
+                fulfillment["build_attempt_id"],
+            ),
+            (
+                "evals:fixtures",
+                "eval_fixtures",
+                fulfillment["fixtures_ref"],
+                "evals.build",
+                fulfillment["build_attempt_id"],
+            ),
+            (
+                "evals:review",
+                "eval_pack_review",
+                fulfillment["review_ref"],
+                "evals.review",
+                fulfillment["review_attempt_id"],
+            ),
+        ):
+            next_state["artifact_refs"][key] = {
+                "role": role,
+                **ref,
+                "origin_node_id": node_id,
+                "origin_attempt_id": attempt_id,
+            }
+        receipt_ref = {
+            "role": "evals_fulfillment_receipt",
+            "controller_owned": True,
+            "path": receipt_path.relative_to(self.project_root).as_posix(),
+            "hash": sha256_file(receipt_path),
+            "version": 1,
+            "build_attempt_id": fulfillment["build_attempt_id"],
+            "review_attempt_id": fulfillment["review_attempt_id"],
+            "candidate_ref": context["candidate_ref"],
+            "pack_ref": fulfillment["pack_ref"],
+            "fixtures_ref": fulfillment["fixtures_ref"],
+            "review_ref": fulfillment["review_ref"],
+        }
+        next_state["artifact_refs"]["evals:fulfillment-receipt"] = receipt_ref
+
+        transaction_id = (
+            "evals-fulfillment-"
+            + context["candidate_ref"]["hash"].removeprefix("sha256:")[:16]
+        )
+        event = self._state_commit_event(
+            {
+                "event_id": f"state-transaction:{run_id}:{transaction_id}",
+                "event_type": "EVALS_FULFILLMENT_BOUND",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "state_version": next_state["state_version"],
+                "candidate_ref": context["candidate_ref"],
+                "receipt_ref": receipt_ref,
+                "execution_status": "NOT_RUN",
+                "candidate_generation": generation + 1,
+                "before_tree_hash": archived.tree_hash,
+                "after_tree_hash": after_tree_hash,
+            },
+            state,
+            next_state,
+        )
+        journal = {
+            "schema_version": "state-transaction.v1",
+            "transaction_id": transaction_id,
+            "run_id": run_id,
+            "status": "PREPARED",
+            "before_state_hash": self._state_hash(state),
+            "after_state_hash": self._state_hash(next_state),
+            "after_state": next_state,
+            "event": event,
+            "candidate_publish": {
+                "stage_path": str(stage),
+                "target_path": str(archived.path),
+                "history_path": str(history),
+                "before_tree_hash": archived.tree_hash,
+                "after_tree_hash": after_tree_hash,
+            },
+        }
+        journal_path = self._transaction_path(run_id, transaction_id)
+        if journal_path.exists() and read_json(journal_path) != journal:
+            raise StateConflict("Eval fulfillment transaction identity conflict")
+        if not journal_path.exists():
+            atomic_write_json(journal_path, journal)
+        self._validate_candidate_finalize_transaction(journal)
+        if failpoint is not None:
+            failpoint("after_evals_fulfillment_staged")
+        append_event(self._events_path(run_id), event)
+        if failpoint is not None:
+            failpoint("after_evals_fulfillment_event")
+        atomic_write_json(self._state_path(run_id), next_state)
+        if failpoint is not None:
+            failpoint("after_evals_fulfillment_state")
+        self._publish_candidate_finalize_transaction(journal)
+        if failpoint is not None:
+            failpoint("after_evals_fulfillment_publish")
+        atomic_write_json(journal_path, {**journal, "status": "COMMITTED"})
+        return {"state": next_state, "receipt_ref": receipt_ref}
 
     def _validate_candidate_finalize_transaction(
         self, journal: dict[str, Any]

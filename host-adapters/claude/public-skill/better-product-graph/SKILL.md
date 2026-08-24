@@ -94,6 +94,37 @@ Product Decision, first submit the Agent proposal without an Owner choice or
 requested route; after the Controller returns `OWNER_CHOICE_REQUIRED`, use the
 separate installed `--operation owner-choice` contract.
 
+When `prd.ready.gate` returns `EVALS_FULFILLMENT_REQUIRED`, do not claim Ready,
+Release, Handoff, or executed tests. Create the exact Eval Pack and fixtures as
+the Host Agent, obtain an independent testability review from a different
+Agent/subagent identity, then use the internal repair operation below. This is
+not a user-facing intent and does not create an Experiment fast lane: it binds
+`REVIEWED` specification evidence with `execution_status=NOT_RUN`, resets the
+same Candidate's advisory companion to `NOT_RUN`, and routes the Candidate back
+through the ordinary `review.parallel` path.
+
+```text
+python3 <installed-skill-root>/scripts/bpg_runner.py \
+  --operation fulfill-evals \
+  --run-id <exact-run-id> \
+  --payload-file <project-relative-evals-fulfillment-submission.json>
+```
+
+The payload must contain exactly `schema_version` =
+`evals-fulfillment-submission.v1`, the returned exact `candidate_ref`, distinct
+closed `{kind,id}` objects named `build_attempt` and `review_attempt`, and exact
+path/hash/version refs named `eval_pack_ref`, `fixtures_ref`, and `review_ref`.
+The Eval Pack and review must satisfy the installed Eval schemas, bind the same
+Candidate/fixtures/Pack, preserve contract-derived Ground Truth provenance, and
+state all runtime/test/reader execution as `NOT_RUN`.
+
+At this blocker, public `resume` returns the same authoritative repair contract
+at top level: `status=EVALS_FULFILLMENT_REQUIRED`, the closed
+`candidate_ref`, `repair_operation=fulfill-evals`,
+`execution_status=NOT_RUN`, and `next_nodes=[review.parallel]`. Use that returned
+Candidate ref directly; the broader `state.current_candidate_ref` is status
+context and is not the fulfillment submission shape.
+
 ## Interaction control
 
 `new` and `resume` accept the explicit flag `--interaction=no-pm-interview` (the older suffix form `interaction=no-pm-interview` remains accepted). Put it outside the quoted Signal text, for example: `$better-product-graph new --interaction=no-pm-interview 用户无法判断结算是否成功`. During a Run, `$better-product-graph interview skip [run_id]` immediately stops unanswered and future PM interview questions for that Run while preserving Unknowns and alternate-source requests. `$better-product-graph interview resume [run_id]` restores guided interviewing from the highest-value unresolved PM-only Unknown. Neither action skips Product Decision, external authorization, evidence contracts, or Ready checks. `NON_INTERACTIVE` is unsupported.

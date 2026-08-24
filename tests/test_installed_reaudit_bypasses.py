@@ -1558,6 +1558,138 @@ class InstalledPublicReauditTests(unittest.TestCase):
         self.assertEqual(completed["state"]["current_node"], "handoff.dispatch")
         self.assertNotIn("dispatch", completed)
 
+    def _complete_happy_installed_review_cycle(
+        self,
+        run_id: str,
+        review_dispatch: dict,
+        candidate_ref: dict,
+        decision_ref: dict,
+        *,
+        suffix: str,
+    ) -> dict:
+        resources = {
+            item["resource_id"]: item for item in review_dispatch["resource_refs"]
+        }
+
+        def exact(resource_id: str) -> dict:
+            return {
+                key: resources[resource_id][key]
+                for key in ("path", "hash", "version")
+            }
+
+        candidate_identity = {
+            key: candidate_ref[key] for key in ("path", "hash", "version")
+        }
+        review_result = {
+            "schema_version": "node-result.v1",
+            "node_id": "review.parallel",
+            "attempt_id": review_dispatch["attempt_id"],
+            "producer": {"kind": "HOST_AGENT"},
+            "instruction_ref": review_dispatch["instruction_ref"],
+            "instruction_hash": review_dispatch["instruction_hash"],
+            "input_refs": review_dispatch["input_refs"],
+            "input_hashes": review_dispatch["input_hashes"],
+            "resource_refs": review_dispatch["resource_refs"],
+            "semantic_output": {
+                "candidate_ref": candidate_identity,
+                "reviewer_role": "combined-advisory-review",
+                "reviewer_profile": "product-goal-fidelity-v0.1",
+                "roles_covered": [
+                    "product",
+                    "engineering_feasibility",
+                    "testability",
+                ],
+                "authority": "ADVISORY_ONLY",
+                "goal_fidelity_refs": {
+                    "profile_ref": exact("goal-fidelity-profile"),
+                    "rubric_ref": exact("goal-fidelity-rubric"),
+                    "packet_contract_ref": exact("goal-fidelity-packet-contract"),
+                    "commitment_refs": [decision_ref],
+                },
+                "goal_fidelity_packet": {
+                    "goal": "Preserve exact product commitments",
+                    "candidate_ref": candidate_identity,
+                    "commitment_refs": [decision_ref],
+                },
+                "findings": [],
+            },
+            "artifact_refs": [],
+        }
+        aggregate_dispatch = self._ok(
+            "--operation",
+            "submit",
+            "--run-id",
+            run_id,
+            "--payload-file",
+            str(self._payload(f"review-{suffix}.json", review_result)),
+            "--requested-node",
+            "review.aggregate",
+        )["dispatch"]
+        aggregate = {
+            "schema_version": "review-aggregate.v1",
+            "authority": "ADVISORY_ONLY",
+            "candidate_ref": candidate_identity,
+            "attempts": [
+                {
+                    "attempt_id": review_dispatch["attempt_id"],
+                    "status": "COMPLETED",
+                    "roles_covered": [
+                        "product",
+                        "engineering_feasibility",
+                        "testability",
+                    ],
+                }
+            ],
+            "findings": [],
+            "disagreements": [],
+        }
+        dispositions = {
+            "schema_version": "review-dispositions.v1",
+            "candidate_hash": candidate_ref["hash"],
+            "candidate_version": candidate_ref["version"],
+            "dispositions": [],
+        }
+        aggregate_path = self.project / f"review-aggregate-{suffix}.json"
+        dispositions_path = self.project / f"review-dispositions-{suffix}.json"
+        atomic_write_json(aggregate_path, aggregate)
+        atomic_write_json(dispositions_path, dispositions)
+        aggregate_result = {
+            "schema_version": "node-result.v1",
+            "node_id": "review.aggregate",
+            "attempt_id": aggregate_dispatch["attempt_id"],
+            "producer": {"kind": "HOST_AGENT"},
+            "instruction_ref": aggregate_dispatch["instruction_ref"],
+            "instruction_hash": aggregate_dispatch["instruction_hash"],
+            "input_refs": aggregate_dispatch["input_refs"],
+            "input_hashes": aggregate_dispatch["input_hashes"],
+            "resource_refs": aggregate_dispatch["resource_refs"],
+            "semantic_output": {**aggregate, "dispositions": []},
+            "artifact_refs": [
+                {
+                    "role": "review_aggregate",
+                    "path": aggregate_path.relative_to(self.project).as_posix(),
+                    "hash": sha256_file(aggregate_path),
+                    "version": 1,
+                },
+                {
+                    "role": "review_dispositions",
+                    "path": dispositions_path.relative_to(self.project).as_posix(),
+                    "hash": sha256_file(dispositions_path),
+                    "version": 1,
+                },
+            ],
+        }
+        return self._ok(
+            "--operation",
+            "submit",
+            "--run-id",
+            run_id,
+            "--payload-file",
+            str(self._payload(f"aggregate-{suffix}.json", aggregate_result)),
+            "--requested-node",
+            "review.finalize",
+        )
+
     def _run_installed_review_finalize_lifecycle(
         self,
         *,
@@ -1565,6 +1697,7 @@ class InstalledPublicReauditTests(unittest.TestCase):
         forged_reviewed_evals: bool = False,
         self_reviewed_typed_evals: bool = False,
         recommended_evals: bool = False,
+        required_evals_repair: bool = False,
         metadata_declared_roles: bool = False,
         candidate_version: str = "v0.1",
         duplicate_decision_ref: bool = False,
@@ -1852,6 +1985,13 @@ class InstalledPublicReauditTests(unittest.TestCase):
                 "execution_status": "NOT_RUN",
                 "reason": "useful downstream specification, not a release condition",
             }
+        if required_evals_repair:
+            metadata["delivery_intent"] = "EXPERIMENT"
+            metadata["evals"] = {
+                "applicability": "REQUIRED",
+                "fulfillment": "REVIEW_PENDING",
+                "execution_status": "NOT_RUN",
+            }
         submission["input_refs"] = [item["path"] for item in upstream_refs]
         submission["input_hashes"] = {item["path"]: item["hash"] for item in upstream_refs}
         state = StateController(self.project, GRAPH).load_state(run_id)
@@ -2070,6 +2210,146 @@ class InstalledPublicReauditTests(unittest.TestCase):
         review_path = self.project / candidate_ref["review_path"]
         self.assertEqual(read_json(review_path)["status"], "NOT_RUN")
         original_tree_hash = candidate_ref["tree_hash"]
+
+        if required_evals_repair:
+            decision_ref = {
+                key: by_kind["decision"][key] for key in ("path", "hash", "version")
+            }
+            pending = self._complete_happy_installed_review_cycle(
+                run_id,
+                review_dispatch,
+                candidate_ref,
+                decision_ref,
+                suffix="before-evals",
+            )
+            self.assertEqual(pending["status"], "EVALS_FULFILLMENT_REQUIRED")
+            resumed = self._ok("resume", run_id)
+            self.assertEqual(resumed["status"], "EVALS_FULFILLMENT_REQUIRED")
+            self.assertEqual(resumed["repair_operation"], "fulfill-evals")
+            self.assertEqual(resumed["execution_status"], "NOT_RUN")
+            self.assertEqual(resumed["next_nodes"], ["review.parallel"])
+            candidate_identity = resumed["candidate_ref"]
+            self.assertEqual(candidate_identity, pending["candidate_ref"])
+            self.assertEqual(
+                set(candidate_identity), {"path", "hash", "version"}
+            )
+            fixtures_path = self.project / "required-evals" / "fixtures.json"
+            atomic_write_json(
+                fixtures_path,
+                {"schema_version": "eval-fixtures.v1", "cases": ["continue", "stop"]},
+            )
+            fixtures_ref = {
+                "path": fixtures_path.relative_to(self.project).as_posix(),
+                "hash": sha256_file(fixtures_path),
+                "version": 1,
+            }
+            pack_path = self.project / "required-evals" / "eval-pack.json"
+            pack = {
+                "schema_version": "better-product-graph.eval-pack.v1",
+                "status": "SPECIFICATION_REVIEW_PENDING",
+                "candidate_ref": candidate_identity,
+                "applicability": "REQUIRED",
+                "execution_status": "NOT_RUN",
+                "ground_truth_provenance": {
+                    "type": "CONTRACT_DERIVED_EXPECTATIONS",
+                    "statement": "Expected outcomes derive from the exact Decision contract.",
+                    "exact_refs": [decision_ref],
+                },
+                "producer": {"kind": "HOST_AGENT", "id": "eval-pack-builder"},
+                "evaluator_contract": {
+                    "contract_id": "required-evals-lifecycle",
+                    "fixtures_ref": fixtures_ref,
+                },
+                "cases": [
+                    {"case_id": "continue", "expected_outcome": "CONTINUE"},
+                    {"case_id": "stop", "expected_outcome": "STOP"},
+                ],
+            }
+            atomic_write_json(pack_path, pack)
+            pack_ref = {
+                "path": pack_path.relative_to(self.project).as_posix(),
+                "hash": sha256_file(pack_path),
+                "version": 1,
+            }
+            eval_review_path = self.project / "required-evals" / "eval-review.json"
+            atomic_write_json(
+                eval_review_path,
+                {
+                    "schema_version": "better-product-graph.eval-pack-review.v1",
+                    "status": "REVIEWED",
+                    "execution_status": "NOT_RUN",
+                    "reviewer_role": "INDEPENDENT_TESTABILITY_REVIEWER",
+                    "reviewer_authority": "ADVISORY_ONLY",
+                    "reviewer": {"kind": "SUBAGENT", "id": "eval-reviewer"},
+                    "reviewed_at": "2026-08-24T12:00:00+00:00",
+                    "subjects": {
+                        "prd_draft_ref": candidate_identity,
+                        "fixtures_ref": fixtures_ref,
+                        "eval_pack_ref": pack_ref,
+                    },
+                    "finding_closure": [],
+                    "new_high_findings": 0,
+                    "evidence_boundary": {
+                        "runtime_execution": "NOT_RUN",
+                        "test_execution": "NOT_RUN",
+                        "independent_reader_validation": "NOT_RUN",
+                    },
+                },
+            )
+            eval_review_ref = {
+                "path": eval_review_path.relative_to(self.project).as_posix(),
+                "hash": sha256_file(eval_review_path),
+                "version": 1,
+            }
+            fulfillment = self._ok(
+                "--operation",
+                "fulfill-evals",
+                "--run-id",
+                run_id,
+                "--payload-file",
+                str(
+                    self._payload(
+                        "required-evals-fulfillment.json",
+                        {
+                            "schema_version": "evals-fulfillment-submission.v1",
+                            "candidate_ref": candidate_identity,
+                            "build_attempt": {
+                                "kind": "HOST_AGENT",
+                                "id": "eval-pack-builder",
+                            },
+                            "review_attempt": {
+                                "kind": "SUBAGENT",
+                                "id": "eval-reviewer",
+                            },
+                            "eval_pack_ref": pack_ref,
+                            "fixtures_ref": fixtures_ref,
+                            "review_ref": eval_review_ref,
+                        },
+                    )
+                ),
+            )
+            completed = self._complete_happy_installed_review_cycle(
+                run_id,
+                fulfillment["dispatch"],
+                fulfillment["state"]["current_candidate_ref"],
+                decision_ref,
+                suffix="after-evals",
+            )
+            state = completed["state"]
+            metadata_path = next(
+                (self.project / state["current_candidate_ref"]["artifact_path"]).glob(
+                    "*.metadata.json"
+                )
+            )
+            evals = read_json(metadata_path)["evals"]
+            self.assertEqual(completed["status"], "COMPLETED")
+            self.assertEqual(state["current_node"], "handoff.dispatch")
+            self.assertEqual(evals["fulfillment"], "REVIEWED")
+            self.assertEqual(evals["execution_status"], "NOT_RUN")
+            self.assertIsNotNone(state["release_ref"])
+            ready_assertion = read_json(self.project / state["release_ref"]["path"])
+            self.assertEqual(ready_assertion["tests_executed"], "NOT_CLAIMED")
+            return completed, run_id, archived_path, review_path
 
         resources = {item["resource_id"]: item for item in review_dispatch["resource_refs"]}
 
@@ -2414,6 +2694,19 @@ class InstalledPublicReauditTests(unittest.TestCase):
 
         self.assertEqual(completed["status"], "COMPLETED")
         self.assertEqual(completed["state"]["current_node"], "handoff.dispatch")
+        self.assertTrue(
+            (self.project / "artifacts" / "prds" / "released" / archived_path.name).is_dir()
+        )
+
+    def test_required_evals_repair_reaches_original_ready_release_and_handoff(self) -> None:
+        completed, _run_id, archived_path, _review_path = (
+            self._run_installed_review_finalize_lifecycle(
+                required_evals_repair=True,
+                candidate_version="v0.203",
+            )
+        )
+
+        self.assertEqual(completed["status"], "COMPLETED")
         self.assertTrue(
             (self.project / "artifacts" / "prds" / "released" / archived_path.name).is_dir()
         )

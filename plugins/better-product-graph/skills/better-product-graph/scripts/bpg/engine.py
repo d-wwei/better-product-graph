@@ -260,6 +260,30 @@ class HostEngine:
             "reason": preflight.reason,
         }
 
+    def _required_evals_repair_response(self, run_id: str) -> dict[str, Any] | None:
+        repair = self.controller.required_evals_repair_context(run_id)
+        if repair is None:
+            return None
+        state = self.controller.load_state(run_id)
+        state = self.controller.mark_required_evals_repair(
+            run_id, expected_state_version=state["state_version"]
+        )
+        return {
+            "status": "EVALS_FULFILLMENT_REQUIRED",
+            "run_id": run_id,
+            "state": state,
+            "candidate_ref": repair["candidate_ref"],
+            "delivery_intent": repair["delivery_intent"],
+            "experiment_contract": repair["experiment_contract"],
+            "evals": repair["evals"],
+            "execution_status": "NOT_RUN",
+            "ready_status": "NOT_READY",
+            "release_status": "NOT_RELEASED",
+            "repair_operation": "fulfill-evals",
+            "next_nodes": ["review.parallel"],
+            "required_origin_separation": repair["required_origin_separation"],
+        }
+
     def handle(self, entry: str) -> dict[str, Any]:
         parsed = parse_host_entry(entry)
         if parsed.activation == "REJECT_INTERNAL_BYPASS":
@@ -332,12 +356,13 @@ class HostEngine:
                 state = self.controller.set_interview_policy(
                     parsed.run_id or "", "skip", expected_state_version=state["state_version"]
                 )
-            return finish({
-                "status": "RESUMED",
-                "state": self.controller.set_run_activity(
-                    parsed.run_id or "", "resume", expected_state_version=state["state_version"]
-                ),
-            })
+            state = self.controller.set_run_activity(
+                parsed.run_id or "", "resume", expected_state_version=state["state_version"]
+            )
+            repair = self._required_evals_repair_response(parsed.run_id or "")
+            if repair is not None:
+                return finish(repair)
+            return finish({"status": "RESUMED", "state": state})
         if parsed.core_intent == "handoff.prepare":
             return finish(self._prepare_handoff(parsed.run_id or ""))
         if parsed.core_intent == "connector.status":

@@ -99,18 +99,45 @@ def _require_role(
             f"{label} must have exactly one bound artifact role in {sorted(roles)}"
         )
     if origin_nodes is not None:
+        def receipt_authorizes(item: dict[str, Any]) -> bool:
+            role_fields = {
+                "eval_pack": ("build_attempt_id", "pack_ref"),
+                "eval_fixtures": ("build_attempt_id", "fixtures_ref"),
+                "eval_pack_review": ("review_attempt_id", "review_ref"),
+                "prd_candidate": ("build_attempt_id", "candidate_ref"),
+            }
+            fields = role_fields.get(item.get("role"))
+            if fields is None:
+                return False
+            attempt_field, ref_field = fields
+            return any(
+                receipt.get("role") == "evals_fulfillment_receipt"
+                and receipt.get("controller_owned") is True
+                and "origin_node_id" not in receipt
+                and "origin_attempt_id" not in receipt
+                and receipt.get(attempt_field) == item.get("origin_attempt_id")
+                and _same_ref(receipt.get(ref_field), item)
+                for receipt in artifacts
+                if isinstance(receipt, dict)
+            )
+
         typed = [
             item
             for item in matches
             if item.get("origin_node_id") in origin_nodes
             and isinstance(item.get("origin_attempt_id"), str)
             and bool(item["origin_attempt_id"])
-            and item["origin_attempt_id"] in committed_attempt_ids
-            and any(
-                node_result.get("role") == "node_result"
-                and node_result.get("node_id") == item["origin_node_id"]
-                and node_result.get("attempt_id") == item["origin_attempt_id"]
-                for node_result in artifacts
+            and (
+                (
+                    item["origin_attempt_id"] in committed_attempt_ids
+                    and any(
+                        node_result.get("role") == "node_result"
+                        and node_result.get("node_id") == item["origin_node_id"]
+                        and node_result.get("attempt_id") == item["origin_attempt_id"]
+                        for node_result in artifacts
+                    )
+                )
+                or receipt_authorizes(item)
             )
         ]
         if not typed:
@@ -167,7 +194,7 @@ def _validate_candidate_binding(
         CANDIDATE_ROLES,
         artifacts,
         label,
-        origin_nodes=frozenset({"prd.generate"}),
+        origin_nodes=frozenset({"prd.generate", "evals.build"}),
         committed_attempt_ids=committed_attempt_ids,
     )
     _resolve_exact_file(project_root, candidate_ref, dispatched_input_hashes, label)
@@ -256,12 +283,54 @@ def validate_reviewed_evals(
     artifacts = _artifact_values(artifact_refs)
     pack_ref = evals.get("pack_ref")
     review_ref = evals.get("review_ref")
+    fulfillment_receipt: dict[str, Any] | None = None
+    fulfillment_payload: dict[str, Any] | None = None
+    if evals.get("fulfillment_authority") == "CONTROLLER_BOUND":
+        receipts = [
+            item
+            for item in artifacts
+            if item.get("role") == "evals_fulfillment_receipt"
+            and item.get("controller_owned") is True
+            and "origin_node_id" not in item
+            and "origin_attempt_id" not in item
+            and _same_ref(item.get("candidate_ref"), expected_candidate_ref)
+            and _same_ref(item.get("pack_ref"), pack_ref)
+            and _same_ref(item.get("review_ref"), review_ref)
+        ]
+        if len(receipts) != 1:
+            raise EvalsAuthorityError(
+                "Controller-bound Evals require one exact fulfillment receipt"
+            )
+        fulfillment_receipt = receipts[0]
+        receipt_path = _resolve_exact_file(
+            project_root,
+            fulfillment_receipt,
+            dispatched_input_hashes,
+            "Eval fulfillment receipt",
+        )
+        fulfillment_payload = read_json(receipt_path)
+        if (
+            fulfillment_payload.get("schema_version")
+            != "evals-fulfillment-receipt.v1"
+            or fulfillment_payload.get("status") != "BOUND_FOR_REREVIEW"
+            or fulfillment_payload.get("execution_status") != "NOT_RUN"
+            or not _same_ref(
+                fulfillment_payload.get("candidate_ref"), expected_candidate_ref
+            )
+            or not _same_ref(fulfillment_payload.get("pack_ref"), pack_ref)
+            or not _same_ref(fulfillment_payload.get("review_ref"), review_ref)
+            or fulfillment_payload.get("build_attempt_id")
+            != fulfillment_receipt.get("build_attempt_id")
+            or fulfillment_payload.get("review_attempt_id")
+            != fulfillment_receipt.get("review_attempt_id")
+        ):
+            raise EvalsAuthorityError("Eval fulfillment receipt payload is invalid")
     _require_role(
         pack_ref,
         PACK_ROLES,
         artifacts,
         "Eval Pack",
-        origin_nodes=frozenset({"prd.generate"}),
+        origin_nodes=frozenset({"prd.generate", "evals.build"}),
         committed_attempt_ids=committed_attempt_ids,
     )
     _require_role(
@@ -269,7 +338,7 @@ def validate_reviewed_evals(
         REVIEW_ROLES,
         artifacts,
         "Eval Pack review",
-        origin_nodes=frozenset({"review.parallel"}),
+        origin_nodes=frozenset({"review.parallel", "evals.review"}),
         committed_attempt_ids=committed_attempt_ids,
     )
     pack_path = _resolve_exact_file(
@@ -354,6 +423,10 @@ def validate_reviewed_evals(
     )
     evaluator_contract = pack.get("evaluator_contract", {})
     fixtures_ref = evaluator_contract.get("fixtures_ref")
+    if fulfillment_payload is not None and not _same_ref(
+        fulfillment_payload.get("fixtures_ref"), fixtures_ref
+    ):
+        raise EvalsAuthorityError("Eval fulfillment receipt fixtures differ from Pack")
     if not _same_ref(subjects.get("fixtures_ref"), fixtures_ref):
         raise EvalsAuthorityError("Eval Pack review fixtures differ from Pack fixtures")
     _require_role(
@@ -361,7 +434,7 @@ def validate_reviewed_evals(
         FIXTURE_ROLES,
         artifacts,
         "Eval fixtures",
-        origin_nodes=frozenset({"prd.generate"}),
+        origin_nodes=frozenset({"prd.generate", "evals.build"}),
         committed_attempt_ids=committed_attempt_ids,
     )
     _resolve_exact_file(
