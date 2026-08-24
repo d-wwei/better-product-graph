@@ -13,7 +13,7 @@ from src.bpg.delivery_contract import derive_active_scope_ref, derive_spec_trace
 from src.bpg.documents import archive_prd_candidate
 from src.bpg.failpoints import InjectedCrash, crash_at
 from src.bpg.host_runtime import HostRuntime
-from src.bpg.prd_contract import assemble_prd
+from src.bpg.prd_contract import assemble_prd, prd_stem
 from src.bpg.state_controller import StateController
 from src.bpg.storage import (
     atomic_write_json,
@@ -156,12 +156,21 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         submission = prd_submission()
         metadata = submission["semantic_output"]["metadata"]
         metadata["prd_id"] = f"PRD-OPT-{label.upper()}"
-        metadata["short_title"] = f"checkout-{label}"
+        metadata["short_title"] = f"结算恢复-{label}"
         if candidate_version != metadata["version"]:
             submission["semantic_output"]["document_markdown"] = submission[
                 "semantic_output"
             ]["document_markdown"].replace(metadata["version"], candidate_version)
             metadata["version"] = candidate_version
+        current_stem = prd_stem(
+            metadata["prd_id"],
+            metadata["short_title"],
+            metadata["version"],
+            metadata["date"],
+        )
+        lines = submission["semantic_output"]["document_markdown"].splitlines()
+        lines[0] = f"# {current_stem}"
+        submission["semantic_output"]["document_markdown"] = "\n".join(lines) + "\n"
         metadata["decision_refs"] = [refs["decision"]]
         metadata["roadmap_snapshot_ref"] = refs["roadmap"]
         metadata["product_plan_ref"] = refs["product_plan"]
@@ -625,6 +634,14 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
                 "rereview_scope": ["验收标准", "目标与成功边界"],
             },
         }
+        revised_lines = revised_markdown.splitlines()
+        revised_lines[0] = "# " + prd_stem(
+            revised_metadata["prd_id"],
+            revised_metadata["short_title"],
+            revised_metadata["version"],
+            revised_metadata["date"],
+        )
+        revised_markdown = "\n".join(revised_lines) + "\n"
         optimize_result = {
             "schema_version": "node-result.v1",
             "node_id": "prd.optimize",
@@ -722,6 +739,36 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         self.assertEqual(repeated["state"]["state_version"], advanced["state"]["state_version"])
         self.assertEqual(repeated["state"]["current_candidate_ref"], current)
         self.assertEqual(repeated["dispatch"]["attempt_id"], advanced["dispatch"]["attempt_id"])
+
+    def test_installed_optimize_can_localize_the_new_version_without_renaming_source(self) -> None:
+        case = self._prepare_case("localized-title")
+        result = case["optimize_result"]
+        metadata = result["semantic_output"]["metadata"]
+        source_path = case["archived"].document_path
+        source_bytes = source_path.read_bytes()
+
+        metadata["short_title"] = "结算失败后的安全恢复"
+        metadata["document_language"] = "zh-CN"
+        lines = result["semantic_output"]["document_markdown"].splitlines()
+        localized_stem = prd_stem(
+            metadata["prd_id"],
+            metadata["short_title"],
+            metadata["version"],
+            metadata["date"],
+        )
+        lines[0] = f"# {localized_stem}"
+        result["semantic_output"]["document_markdown"] = "\n".join(lines) + "\n"
+
+        advanced = self._invoke(
+            "--operation", "submit", "--run-id", case["run_id"],
+            "--payload-file", str(self._input_payload("localized-optimize.json", result)),
+            "--requested-node", "review.parallel",
+        )
+
+        self.assertEqual(advanced["status"], "ADVANCED")
+        self.assertEqual(source_path.read_bytes(), source_bytes)
+        current = advanced["state"]["current_candidate_ref"]
+        self.assertIn(localized_stem, current["path"])
 
     def test_installed_optimize_recomputes_scope_and_rejects_forged_hash_without_side_effects(self) -> None:
         case = self._prepare_case("forged-scope")
@@ -919,6 +966,20 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         metadata["spec_traceability"] = derive_spec_traceability(
             trace_pairs, state["artifact_refs"]
         )
+        reconciled_markdown = case["source_markdown"].replace(
+            "版本：v0.1", "版本：v99"
+        ).replace(
+            "v0.1 首次形成候选",
+            "v99 records the exact Product Planning reconciliation",
+        )
+        reconciled_lines = reconciled_markdown.splitlines()
+        reconciled_lines[0] = "# " + prd_stem(
+            metadata["prd_id"],
+            metadata["short_title"],
+            metadata["version"],
+            metadata["date"],
+        )
+        reconciled_markdown = "\n".join(reconciled_lines) + "\n"
         generated = {
             "schema_version": "node-result.v1",
             **{
@@ -930,12 +991,7 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             },
             "producer": {"kind": "HOST_AGENT"},
             "semantic_output": {
-                "document_markdown": case["source_markdown"].replace(
-                    "版本：v0.1", "版本：v99"
-                ).replace(
-                    "v0.1 首次形成候选",
-                    "v99 records the exact Product Planning reconciliation",
-                ),
+                "document_markdown": reconciled_markdown,
                 "template_mapping": source_metadata["template_mapping"],
                 "metadata": metadata,
             },

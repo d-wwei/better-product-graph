@@ -91,6 +91,7 @@ STATE_COMMIT_EVENT_VERSION_FIELDS = {
     "NODE_CALL_OUTCOME_UNKNOWN": "state_version",
     "CANDIDATE_BOUND": "state_version",
     "READY_EVIDENCE_BOUND": "state_version",
+    "READY_RETRY_REAUTHORIZED": "state_version",
     "REVIEW_FINALIZE_COMMITTED": "state_version",
     "CONTROLLER_RECEIPT_ISSUED": "state_version",
     "FANOUT_PLAN_REGISTERED": "state_version",
@@ -1049,6 +1050,251 @@ class StateController:
             raise TransitionRejected("event authority barrier: " + "; ".join(blockers))
         return state
 
+    def _validated_partial_ready_retry_attempt(
+        self,
+        run_id: str,
+        state: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Resolve one exact partially completed Ready attempt without widening authority."""
+
+        if (
+            state.get("status") != "ACTIVE"
+            or state.get("current_node") != "prd.ready.gate"
+            or state.get("release_ref") is not None
+        ):
+            return None
+        ready_receipts = state.get("ready_receipts", [])
+        if not ready_receipts:
+            return None
+        required_kinds = {
+            "audit_integrity",
+            "document_experience",
+            "mechanical_contracts",
+            "review_finalize",
+        }
+        if (
+            not isinstance(ready_receipts, list)
+            or any(not isinstance(item, dict) for item in ready_receipts)
+        ):
+            raise TransitionRejected("Ready retry receipts are malformed")
+        receipts = {item.get("kind"): item for item in ready_receipts}
+        if (
+            len(receipts) != len(ready_receipts)
+            or not set(receipts).issubset(required_kinds)
+        ):
+            raise TransitionRejected("Ready retry receipts are ambiguous")
+        attempt_ids = {item.get("attempt_id") for item in ready_receipts}
+        if len(attempt_ids) != 1 or not isinstance(next(iter(attempt_ids)), str):
+            raise TransitionRejected("Ready retry receipts do not bind one exact attempt")
+        attempt_id = next(iter(attempt_ids))
+        candidates = [
+            item
+            for item in state.get("dispatch_attempts", [])
+            if item.get("attempt_id") == attempt_id
+            and item.get("node_id") == "prd.ready.gate"
+            and item.get("status") == "DISPATCHED"
+            and attempt_id not in state.get("consumed_attempts", [])
+        ]
+        if len(candidates) != 1:
+            raise TransitionRejected("Ready retry receipts lack one durable Gate attempt")
+        candidate_ref = state.get("current_candidate_ref")
+        if not isinstance(candidate_ref, dict):
+            raise TransitionRejected("Ready retry lacks the exact current Candidate")
+        from .receipts import verify_controller_receipt
+
+        for kind, ref in receipts.items():
+            if (
+                ref.get("run_id") != run_id
+                or ref.get("node_id") != "prd.ready.gate"
+                or ref.get("attempt_id") != attempt_id
+                or ref.get("candidate_hash") != candidate_ref.get("hash")
+                or ref.get("candidate_version") != candidate_ref.get("version")
+            ):
+                raise TransitionRejected("Ready retry receipt identity differs from the Run")
+            try:
+                receipt = read_json(
+                    resolve_file_ref(self.project_root, ref, f"{kind} Gate receipt")
+                )
+                verify_controller_receipt(
+                    self.project_root,
+                    ref,
+                    kind,
+                    receipt.get("subject_refs", []),
+                    expected_run_id=run_id,
+                    expected_node_id="prd.ready.gate",
+                    expected_attempt_id=attempt_id,
+                    expected_candidate_ref=candidate_ref,
+                )
+            except ReceiptError as error:
+                raise TransitionRejected(
+                    f"Ready retry receipt is invalid: {error}"
+                ) from error
+
+        result_path = self._result_path(run_id, attempt_id)
+        result_receipt_path = result_path.with_name("result-receipt.json")
+        result_authority_exists = (
+            result_path.exists()
+            or result_path.is_symlink()
+            or result_receipt_path.exists()
+            or result_receipt_path.is_symlink()
+        )
+        if result_authority_exists:
+            expected_result = {
+                "schema_version": "node-result.v1",
+                "node_id": "prd.ready.gate",
+                "attempt_id": attempt_id,
+                "producer": {
+                    "kind": "DETERMINISTIC_PROGRAM",
+                    "component": "state-controller",
+                },
+                "mechanical_output": {
+                    "status": "PASS",
+                    "validator": "prd_ready_gate",
+                    "controller_receipts": receipts,
+                    "rules_version": READY_RULES_VERSION,
+                },
+                "artifact_refs": [],
+            }
+            if (
+                set(receipts) != required_kinds
+                or not result_path.is_file()
+                or result_path.is_symlink()
+                or not result_receipt_path.is_file()
+                or result_receipt_path.is_symlink()
+                or read_json(result_path) != expected_result
+                or read_json(result_receipt_path)
+                != self._result_receipt_payload(expected_result, result_path)
+            ):
+                raise TransitionRejected(
+                    "Ready retry result authority differs from the exact partial attempt"
+                )
+        return candidates[0]
+
+    def _redundant_resume_suffix_is_exact(
+        self,
+        run_id: str,
+        state: dict[str, Any],
+        attempt: dict[str, Any],
+        events: list[dict[str, Any]],
+    ) -> bool:
+        authorized_version = attempt.get("authorized_state_version")
+        current_version = state.get("state_version")
+        if (
+            isinstance(authorized_version, bool)
+            or not isinstance(authorized_version, int)
+            or not isinstance(current_version, int)
+            or authorized_version >= current_version
+        ):
+            return False
+        baseline = json.loads(canonical_json_bytes(state))
+        baseline["state_version"] = authorized_version
+        if attempt.get("authority_hash") != self._dispatch_authority_hash(baseline):
+            return False
+        suffix: list[tuple[int, dict[str, Any]]] = []
+        for event in events:
+            event_type = event.get("event_type")
+            version_field = STATE_COMMIT_EVENT_VERSION_FIELDS.get(event_type)
+            if version_field is None:
+                continue
+            version = event.get(version_field)
+            if isinstance(version, int) and version > authorized_version:
+                suffix.append((version, event))
+        if [version for version, _event in suffix] != list(
+            range(authorized_version + 1, current_version + 1)
+        ):
+            return False
+        for version, event in suffix:
+            before = json.loads(canonical_json_bytes(state))
+            before["state_version"] = version - 1
+            after = json.loads(canonical_json_bytes(state))
+            after["state_version"] = version
+            transaction_id = f"activity-{version}-resume"
+            journal_path = self._transaction_path(run_id, transaction_id)
+            if (
+                event.get("event_type") != "RUN_RESUMED"
+                or event.get("actor") != "state-controller"
+                or event.get("run_id") != run_id
+                or event.get("before_state_hash") != self._state_hash(before)
+                or event.get("after_state_hash") != self._state_hash(after)
+                or not journal_path.is_file()
+                or journal_path.is_symlink()
+            ):
+                return False
+            journal_event = {
+                "event_id": f"state-transaction:{run_id}:{transaction_id}",
+                "event_type": "RUN_RESUMED",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "state_version": version,
+                "before_state_hash": self._state_hash(before),
+                "after_state_hash": self._state_hash(after),
+            }
+            journal = read_json(journal_path)
+            expected_journal = {
+                "schema_version": "state-transaction.v1",
+                "transaction_id": transaction_id,
+                "run_id": run_id,
+                "status": "COMMITTED",
+                "before_state_hash": self._state_hash(before),
+                "after_state_hash": self._state_hash(after),
+                "after_state": after,
+                "event": journal_event,
+            }
+            if (
+                journal != expected_journal
+                or any(event.get(key) != value for key, value in journal_event.items())
+            ):
+                return False
+        return bool(suffix)
+
+    @serialized_run_mutation
+    def recover_redundant_ready_resume(
+        self,
+        run_id: str,
+        *,
+        expected_state_version: int,
+    ) -> dict[str, Any]:
+        """Reauthorize only an exact legacy Ready retry orphaned by no-op resume."""
+
+        state = self.load_state(run_id)
+        if expected_state_version != state["state_version"]:
+            raise StateConflict(
+                f"expected state version {expected_state_version}, current is {state['state_version']}"
+            )
+        attempt = self._validated_partial_ready_retry_attempt(run_id, state)
+        if attempt is None:
+            return state
+        if (
+            attempt.get("authorized_state_version") == state["state_version"]
+            and attempt.get("authority_hash") == self._dispatch_authority_hash(state)
+        ):
+            return state
+        events = verify_event_chain(self._events_path(run_id))
+        if not self._redundant_resume_suffix_is_exact(run_id, state, attempt, events):
+            raise TransitionRejected(
+                "Ready retry authority changed by more than a redundant ACTIVE resume"
+            )
+        next_state = json.loads(canonical_json_bytes(state))
+        next_state["state_version"] += 1
+        for item in next_state["dispatch_attempts"]:
+            if item.get("attempt_id") == attempt["attempt_id"]:
+                item["authorized_state_version"] = next_state["state_version"]
+                item["authority_hash"] = self._dispatch_authority_hash(next_state)
+        return self._commit_state_event(
+            run_id,
+            state,
+            next_state,
+            {
+                "event_type": "READY_RETRY_REAUTHORIZED",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "state_version": next_state["state_version"],
+                "attempt_id": attempt["attempt_id"],
+                "recovered_from_state_version": state["state_version"],
+            },
+            transaction_id=f"ready-retry-reauthorize-{attempt['attempt_id']}",
+        )
+
     @serialized_run_mutation
     def set_run_activity(
         self,
@@ -1072,6 +1318,8 @@ class StateController:
             raise TransitionRejected(
                 f"resume requires PAUSED or reconciled ACTIVE Run, got {state['status']}"
             )
+        if action == "resume" and state["status"] == "ACTIVE" and state.get("pause") is None:
+            return state
         next_state = json.loads(canonical_json_bytes(state))
         next_state["state_version"] += 1
         next_state["status"] = "PAUSED" if action == "pause" else "ACTIVE"
@@ -1688,6 +1936,26 @@ class StateController:
             "mechanical_output": output,
             "artifact_refs": [],
         }
+        if node_id == "prd.ready.gate":
+            result_path = self._result_path(run_id, attempt_id)
+            if result_path.exists() or result_path.is_symlink():
+                receipt_path = result_path.with_name("result-receipt.json")
+                if not result_path.is_file() or result_path.is_symlink():
+                    raise StateConflict(
+                        "persisted Ready result differs from exact Controller retry"
+                    )
+                existing = read_json(result_path)
+                if (
+                    existing != result
+                    or not receipt_path.is_file()
+                    or receipt_path.is_symlink()
+                    or read_json(receipt_path)
+                    != self._result_receipt_payload(existing, result_path)
+                ):
+                    raise StateConflict(
+                        "persisted Ready result differs from exact Controller retry"
+                    )
+                return result_path
         return self._persist_result(
             run_id,
             result,
@@ -2071,6 +2339,34 @@ class StateController:
                 "event_head_hash": events[-1]["event_hash"],
             },
         )
+        audit_path, current_audit = evidence_payloads["audit_snapshot"]
+        if audit_path.exists():
+            if not audit_path.is_file() or audit_path.is_symlink():
+                raise StateConflict("Ready evidence identity conflict: audit_snapshot")
+            existing_audit = read_json(audit_path)
+            fixed_fields = {
+                key: value
+                for key, value in current_audit.items()
+                if key not in {"event_count", "event_head_hash"}
+            }
+            event_count = (
+                existing_audit.get("event_count")
+                if isinstance(existing_audit, dict)
+                else None
+            )
+            if (
+                not isinstance(existing_audit, dict)
+                or set(existing_audit) != set(current_audit)
+                or any(existing_audit.get(key) != value for key, value in fixed_fields.items())
+                or isinstance(event_count, bool)
+                or not isinstance(event_count, int)
+                or event_count <= 0
+                or event_count > len(events)
+                or existing_audit.get("event_head_hash")
+                != events[event_count - 1]["event_hash"]
+            ):
+                raise StateConflict("Ready evidence identity conflict: audit_snapshot")
+            evidence_payloads["audit_snapshot"] = (audit_path, existing_audit)
         evidence_refs: dict[str, dict[str, Any]] = {}
         for role, (path, payload) in evidence_payloads.items():
             if path.exists():
@@ -2223,6 +2519,7 @@ class StateController:
             },
             "mechanical_validation_ref": evidence_refs["mechanical_validation"],
             "delivery_intent": metadata["delivery_intent"],
+            "experiment_contract": metadata.get("experiment_contract"),
         }
         return archived, request, subjects
 

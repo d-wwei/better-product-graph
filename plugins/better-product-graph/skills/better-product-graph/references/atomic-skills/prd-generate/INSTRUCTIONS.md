@@ -4,6 +4,24 @@ Run only through the public Skill and Controller after an exact activated+eligib
 
 The Host Agent must author the full PRD product content. Begin with the independently deliverable user outcome and next action; preserve evidence, assumptions, Unknowns, authority and scope boundaries. Bind exact version/hash refs; never use `latest/current`, raw `TBD`, unfilled `{{...}}`, empty tables, or make up facts to fill a template. Include observable acceptance, dependencies, abnormal/recovery paths, risk/rollback, version/change visibility, and conditional Eval applicability/fulfillment without claiming tests ran. For the default general template, keep a visible Markdown heading named `## 附录 C：文档变更日志` and a concrete version row; a human-readable heading is the contract, so do not insert an internal filename merely to satisfy validation. In the current skills-only Host, REQUIRED Evals must remain `REVIEW_PENDING`/`NOT_RUN`: the Host cannot prove independent fulfillment, so neither `prd.generate` nor `prd.optimize` may claim `REVIEWED`.
 
+Choose the PRD's human title in the user's working language: use an explicit
+language preference when present, otherwise use the language the user is using
+in the current interaction, and fall back to `zh-CN` only when neither is
+available. Record that choice in `metadata.document_language`. The
+`metadata.short_title` is a short human-readable title in that language, not a
+hidden English slug. Keep the stable PRD ID, version, and date machine-readable.
+The immutable directory stem, Markdown filename stem, and the document's only
+H1 must be exactly the same string:
+
+```text
+<prd_id>_<localized short_title>_<version>_<date>
+```
+
+For example: `BPG-PRD-BOOTSTRAP-001_项目上下文快速理解_v0.1_2026-08-24`.
+Derived DOCX/PDF exports, when requested, reuse that exact stem. Never rename an
+already archived or released PRD in place; a naming or title change creates the
+next immutable Candidate version.
+
 Metadata must keep specification provenance and future product runtime inputs separate:
 
 - `active_scope_ref` is the closed `active-scope-ref.v1` projection supplied by `prd_generation_context.metadata_authority`. It binds the exact Markdown `plan_ref`, stable `slice_id`, `active-scope-projection.v1`, and Controller-recomputed `scope_hash`; copy it exactly and never add a Candidate version.
@@ -75,7 +93,7 @@ a structure so that the submitted shape remains visible and auditable.
 ```json
 {
   "structure_mode": "legacy",
-  "document_markdown": "# Bootstrap PRD\n\n版本：v0.1｜状态：CANDIDATE\n\n## 阅读摘要\n\n结论：交付一个安全、可恢复、可追溯的项目 Bootstrap 闭环。\n\n## 目标与成功边界\n\n目标是只读取允许的项目上下文并形成可审计结果；不得读取秘密或越出项目根目录。\n\n## 范围与交付切片\n\n本期只包含一个可独立验证和回滚的 Bootstrap 核心切片。\n\n## 验收标准\n\n- Given 一个隔离项目，When 运行 Bootstrap，Then 只读取允许文件并输出带来源的 Profile 与 Readiness。\n\n## 风险、未知与回滚\n\n未知包括代表性项目中的输出价值；出现秘密读取、路径越界或不可恢复状态时停止并回滚。\n\n## 版本与变更\n\nv0.1：首次形成候选；测试执行与远程交付均未在本步骤发生。\n",
+  "document_markdown": "# BPG-PRD-BOOTSTRAP-001_项目上下文快速理解_v0.1_2026-08-24\n\n版本：v0.1｜状态：CANDIDATE\n\n## 阅读摘要\n\n结论：交付一个安全、可恢复、可追溯的项目 Bootstrap 闭环。\n\n## 目标与成功边界\n\n目标是只读取允许的项目上下文并形成可审计结果；不得读取秘密或越出项目根目录。\n\n## 范围与交付切片\n\n本期只包含一个可独立验证和回滚的 Bootstrap 核心切片。\n\n## 验收标准\n\n- Given 一个隔离项目，When 运行 Bootstrap，Then 只读取允许文件并输出带来源的 Profile 与 Readiness。\n\n## 风险、未知与回滚\n\n未知包括代表性项目中的输出价值；出现秘密读取、路径越界或不可恢复状态时停止并回滚。\n\n## 版本与变更\n\nv0.1：首次形成候选；测试执行与远程交付均未在本步骤发生。\n",
   "template_mapping": {
     "summary": "阅读摘要",
     "goal": "目标与成功边界",
@@ -86,9 +104,10 @@ a structure so that the submitted shape remains visible and auditable.
   },
   "metadata": {
     "prd_id": "BPG-PRD-BOOTSTRAP-001",
-    "short_title": "bootstrap-core",
+    "short_title": "项目上下文快速理解",
+    "document_language": "zh-CN",
     "version": "v0.1",
-    "date": "2026-08-21",
+    "date": "2026-08-24",
     "status": "CANDIDATE",
     "delivery_intent": "EXPERIMENT",
     "decision_refs": [

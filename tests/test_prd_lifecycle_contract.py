@@ -42,7 +42,7 @@ class PRDLifecycleContractTests(unittest.TestCase):
                 review_companion=companion,
             )
 
-            stem = "PRD-CHECKOUT-001_checkout-recovery_v0.1_2026-08-20"
+            stem = "PRD-CHECKOUT-001_结算恢复体验_v0.1_2026-08-20"
             self.assertEqual(archived.path.name, stem)
             self.assertTrue((archived.path / f"{stem}.md").is_file())
             archived_review = archived.path / f"{stem}.review.json"

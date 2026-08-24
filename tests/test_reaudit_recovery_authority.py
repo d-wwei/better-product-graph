@@ -119,6 +119,43 @@ class PublicResumeAuthorityTests(unittest.TestCase):
 
         self.assertEqual(attempt.get("authorized_state_version"), state["state_version"])
 
+    def test_active_resume_is_idempotent_but_paused_resume_does_not_revive_old_dispatch(self) -> None:
+        runtime = HostRuntime(
+            self.project,
+            GRAPH,
+            REPO_ROOT / "src" / "core",
+        )
+        activated = runtime.handle_entry(
+            "$better-product-graph new ordinary resume authority"
+        )
+        run_id = activated["run_id"]
+        active = runtime.controller.load_state(run_id)
+        active_events = verify_event_chain(runtime.controller._events_path(run_id))
+
+        redundant = runtime.handle_entry(f"$better-product-graph resume {run_id}")
+
+        self.assertEqual(redundant["status"], "RESUMED")
+        self.assertEqual(redundant["state"], active)
+        self.assertEqual(
+            verify_event_chain(runtime.controller._events_path(run_id)),
+            active_events,
+        )
+
+        paused = runtime.handle_entry(f"$better-product-graph pause {run_id}")
+        resumed = runtime.handle_entry(f"$better-product-graph resume {run_id}")
+        original_attempt = next(
+            item
+            for item in resumed["state"]["dispatch_attempts"]
+            if item["attempt_id"] == activated["dispatch"]["attempt_id"]
+        )
+
+        self.assertEqual(paused["state"]["status"], "PAUSED")
+        self.assertEqual(resumed["state"]["status"], "ACTIVE")
+        self.assertNotEqual(
+            original_attempt["authorized_state_version"],
+            resumed["state"]["state_version"],
+        )
+
     def _runtime_across_instruction_upgrade(
         self,
         *,

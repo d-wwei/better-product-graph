@@ -326,7 +326,7 @@ def archive_prd_candidate(
     final_issues = validate_final_markdown(
         assembled.markdown,
         assembled.metadata,
-        require_stem_identity=assembled.metadata.get("structure_mode") != "legacy",
+        require_stem_identity=True,
     )
     if final_issues:
         raise ImmutableArtifactError("Final PRD Markdown invalid: " + ", ".join(final_issues))

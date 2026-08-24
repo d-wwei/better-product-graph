@@ -127,7 +127,7 @@ $better-product-graph new <产品想法、用户反馈或 Issue>
 - Claude Code 的 `0.2.0` 真实 Host 试跑为 6/7：关键可写、权限、恢复和 Handoff 路径通过；只读 Help 没有 runner 调用证据，因此严格结果仍是 `PARTIAL`。
 - 自然语言 Auto-selection 与真实 Product Golden Agent judgment 仍是 `NOT_RUN`，不会被机械测试冒充。
 
-更多边界见 [Roadmap v0.14](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md) 与 [产品 PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md)。
+更多边界见 [Roadmap v0.16](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md) 与 [产品 PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md)。
 
 ### 反馈与贡献
 
@@ -258,7 +258,7 @@ Both Hosts expose the same eleven intents: `new`, `capture`, `inbox`, `status`, 
 - The real Claude Code `0.2.0` trial scored 6/7: the tested writable, permission, recovery, and Handoff paths passed; read-only Help did not produce runner evidence, so the strict result remains `PARTIAL`.
 - Natural-language auto-selection and real Product Golden Agent judgment remain `NOT_RUN`; mechanical tests do not substitute for them.
 
-See [Roadmap v0.14](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md) and the [product PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md) for the exact scope.
+See [Roadmap v0.16](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md) and the [product PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md) for the exact scope.
 
 ### Feedback and contributions
 

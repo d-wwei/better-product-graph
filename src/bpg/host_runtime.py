@@ -41,6 +41,11 @@ class HostRuntime:
                 raise TransitionRejected(
                     f"Run must be ACTIVE to dispatch, got {state['status']}"
                 )
+            if state["current_node"] == "prd.ready.gate":
+                state = self.controller.recover_redundant_ready_resume(
+                    run_id,
+                    expected_state_version=state["state_version"],
+                )
             current = [
                 item
                 for item in state.get("dispatch_attempts", [])
@@ -845,7 +850,6 @@ class HostRuntime:
             raise TransitionRejected("PRD Optimize Candidate declaration conflicts with next version")
         if (
             metadata.get("prd_id") != source_metadata.get("prd_id")
-            or metadata.get("short_title") != source_metadata.get("short_title")
             or metadata.get("status") != "CANDIDATE"
             or metadata.get("delivery_intent") != source_metadata.get("delivery_intent")
             or metadata.get("version") != context["next_version"]

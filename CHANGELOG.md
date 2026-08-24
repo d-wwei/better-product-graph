@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.2.5 — Unreleased — PRD contract completion and dependency-aware Problem Learning Pilot
+## 0.2.6 — Unreleased — Unique build identity, current Roadmap, and localized PRD names
+
+- Restore one-to-one release identity after two development artifacts were both labeled `0.2.5`; all new builds, isolated installs, and later repository syncs use `0.2.6` and bind one exact clean commit and artifact hash.
+- Make new PRD titles follow the user's explicit or current working language, with `zh-CN` as the fallback, instead of defaulting to an English slug.
+- Enforce one exact localized stem across the self-contained PRD directory, Markdown filename, and unique H1; reject unsafe path characters, invalid language tags, and identity drift before archive writes.
+- Preserve already archived/released document names as immutable history; a title or naming change creates a new Candidate version rather than renaming old bytes.
+- Release Roadmap v0.16, correcting the Bootstrap state to “PRD Ready / local Release / local Handoff complete” while keeping engineering implementation, actual Bootstrap experiment, executed tests, and external approval explicitly `NOT_RUN` or `NOT_CLAIMED`.
+
+## 0.2.5 — 2026-08-24 — Superseded development identities
+
+> Do not redistribute or rebuild under `0.2.5`: a public development lineage and a later local runtime-fix lineage used the same version with different commit and artifact hashes. `0.2.6` is the first converged successor identity.
 
 - Add a reversible Prompt-only dependency-aware method inside the existing `problem.learning.loop`, with LIGHT-first short-circuiting, a temporary Ready Frontier, source routing, one PM-facing MVU, and action-relative sufficiency.
 - Keep waiting and Evidence-driven recomputation honest and bounded: sequential work only inside one unsubmitted Host attempt, at most one recomputation, no claimed cross-submit WAIT / resume, and no claimed real fan-out.
@@ -10,6 +20,11 @@
 - Publish the exact `semantic_output.structure_mode` enum in the installed `prd.generate` instruction instead of forcing the Host to infer a hidden field from source code.
 - Honor the selected template output contract's declared `default_structure_mode` when a non-legacy submission omits the field, while retaining legacy heading detection.
 - Declare the 0.2.2 `prd.generate` instruction hash as a compatible predecessor so its unfinished dispatch can resume without rewriting durable Run state.
+
+- Reconstruct the Ready request from the exact current Candidate metadata, preserving a legal `experiment-contract.v1` through Required Evals fulfillment and joint re-review without weakening the shared Ready validator.
+- Treat the immutable Ready audit snapshot as a verified event-chain prefix checkpoint so a retry after partial Controller receipt issuance can reuse the same Gate attempt instead of conflicting with later receipt events.
+- Make redundant public `resume` on an already ACTIVE Run idempotent, and recover the original Ready attempt only when exact Controller transaction journals prove the legacy suffix was composed solely of ACTIVE-to-ACTIVE no-op resumes.
+- Keep malformed Experiment contracts fail-closed, preserve `execution_status=NOT_RUN`, and retain the ordinary Review → Ready → immutable Release → local Handoff lifecycle with no Experiment fast lane.
 
 ## 0.2.4 — 2026-08-24 — Authoritative public Eval repair resume
 

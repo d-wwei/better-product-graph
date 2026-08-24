@@ -2,14 +2,24 @@
 
 ## 当前版本
 
+- Version: `v0.16`
+- File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md`
+- SHA-256: `ee80e16f3740ff1e206e7fcdaae1fe259657a767cdb1b8880162e8a7a6ef2c09`
+- Date: 2026-08-24
+- Status: released current-state roadmap
+- Supersedes: `v0.15`
+
+## 冻结版本
+
+- Version: `v0.15`
+- File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md`
+- SHA-256: `3014a4eb8a4dde4865c2dfcf37b544948f336350dccdc6b6f6ba45de7c56c756`
+- Status: frozen / superseded current-state roadmap
+
 - Version: `v0.14`
 - File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md`
 - SHA-256: `82db4ff724513054db96bbb37489e05489d6fde151a02ccfdf7df76f4d12e4dc`
-- Date: 2026-08-21
-- Status: released current-state roadmap
-- Supersedes: `v0.13`
-
-## 冻结版本
+- Status: frozen / superseded current-state roadmap
 
 - Version: `v0.13`
 - File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md`
@@ -94,13 +104,15 @@
 | v0.12 | 2026-08-20 | frozen V1.4 distribution/eval alignment baseline / implementation pending | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md` | v0.11 | 保持 Wave 1→6 顺序不变，将唯一公开 Skill/allowlist/installed identity、crash/fan-out/Host conformance、Product/Plugin Suite、legacy v0.2 migration、end-state eval 与产品研究 P01—P17 对齐到 Wave 1—4 验收；不新增业务 Node/Gate/Runtime |
 | v0.13 | 2026-08-21 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md` | v0.12 | 把 Roadmap 从 implementation-pending 叙述更新为 Codex 本地 Product Loop 已完成真实 Host 验收；收敛模板 v0.2、Claude Adapter 和当前交付 Gate，并将 Bootstrap、多项目试点、Evals Generator、Knowledge Graph、Connectors、自进化与多 Agent 重新排序为 R1—R6；吸收历史候选但不新增业务 Node |
 | v0.14 | 2026-08-21 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md` | v0.13 | 将 `0.2.0` 定义为首个公开 Developer Alpha，增加 Apache-2.0、双 Host Marketplace 发行物、双语 README、用户安装文档、最小 CI 与 GitHub Issues 反馈入口；Bootstrap 明确顺延到下一个 Alpha，不作为本版发布前置条件 |
+| v0.15 | 2026-08-24 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md` | v0.14 | 将 Bootstrap 收敛为可跳过的 Agent-first 项目理解加速：先基于证据判断、再由产品经理审核，只在高影响缺口时提问；先做单项目/单 Signal 最小实验，并把模板、Connector、Knowledge、多用户、迁移、教学、身份、Git 与 Operational Readiness 移到独立 Settings/Future 路线 |
+| v0.16 | 2026-08-24 | released current-state roadmap | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md` | v0.15 | 修正 Bootstrap PRD 已完成 Ready、不可变本地 Release 与 Handoff、而真实功能和实验仍为 NOT_RUN 的状态层级；冻结 0.2.6 唯一发行身份及“跟随用户语言、默认中文、目录/文件/H1 完全一致”的 PRD 命名合同 |
 
 ## Next Version Rule
 
 本文交付后冻结。后续修改必须创建新文件，例如：
 
 ```text
-BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md
+BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md
 ```
 
-不得原位修改已经冻结的 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.2.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.3.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.4.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.5.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.6.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.7.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.8.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.9.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.10.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.11.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md` 或 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md`；后续新版本必须记录 supersedes 关系并保留历史文件。
+不得原位修改已经冻结的 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.2.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.3.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.4.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.5.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.6.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.7.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.8.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.9.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.10.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.11.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md` 或 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md`；后续新版本必须记录 supersedes 关系并保留历史文件。

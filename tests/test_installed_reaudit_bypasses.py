@@ -26,7 +26,12 @@ from src.bpg.storage import (
     verify_event_chain,
 )
 from src.bpg.templates import TemplateRegistry
-from tests.test_prd_contract import REPO_ROOT, TEMPLATES, prd_submission
+from tests.test_prd_contract import (
+    REPO_ROOT,
+    TEMPLATES,
+    complete_experiment_contract,
+    prd_submission,
+)
 from tests.test_planning_contract import complete_plan
 from tests.test_reviews_ready import (
     complete_ready_input,
@@ -1721,11 +1726,16 @@ class InstalledPublicReauditTests(unittest.TestCase):
             decision_dispatch = self._ok(
                 "--operation", "dispatch", "--run-id", run_id
             )["dispatch"]
+            decision_outcome = (
+                "EXPERIMENT" if required_evals_repair else "COMMIT"
+            )
             draft = {
-                "recommendation": "COMMIT",
+                "recommendation": decision_outcome,
                 "reasons": ["目标明确", "证据边界可接受"],
                 "mvu": "用户是否持续遇到该阻碍",
-                "nearest_alternative": "EXPERIMENT",
+                "nearest_alternative": (
+                    "COMMIT" if required_evals_repair else "EXPERIMENT"
+                ),
                 "flip_condition": "关键风险无法控制",
                 "next_action": "等待 Owner 独立选择",
                 "epistemic_confidence": "MEDIUM",
@@ -1737,7 +1747,9 @@ class InstalledPublicReauditTests(unittest.TestCase):
                     "rollback": "restore prior local version",
                 },
                 "non_waivable_policy_violations": [],
-                "outcome_details": {"COMMIT": {"target": "进入 Planning"}},
+                "outcome_details": {
+                    decision_outcome: {"target": "进入 Planning"}
+                },
             }
             decision_result = {
                 "schema_version": "node-result.v1",
@@ -1763,9 +1775,11 @@ class InstalledPublicReauditTests(unittest.TestCase):
                 "proposal_hash": proposed["proposal"]["proposal_ref"]["hash"],
                 "actor": {"kind": "OWNER", "id": "eli"},
                 "expected_state_version": proposed["state"]["state_version"],
-                "choice": "COMMIT",
-                "commit_timing": "NOW",
-                "outcome_details": {"COMMIT": {"target": "进入 Planning"}},
+                "choice": decision_outcome,
+                "commit_timing": None if required_evals_repair else "NOW",
+                "outcome_details": {
+                    decision_outcome: {"target": "进入 Planning"}
+                },
             }
             chosen = self._ok(
                 "--operation", "owner-choice", "--run-id", run_id,
@@ -1859,6 +1873,10 @@ class InstalledPublicReauditTests(unittest.TestCase):
                 artifact_refs = []
                 if kind == "slice":
                     semantic_output = complete_plan()
+                    if required_evals_repair:
+                        semantic_output["slices"][0]["delivery_intent"] = (
+                            "EXPERIMENT"
+                        )
                     semantic_output["decision_ref"] = {
                         key: upstream_refs[0][key] for key in ("path", "hash", "version")
                     }
@@ -1987,6 +2005,7 @@ class InstalledPublicReauditTests(unittest.TestCase):
             }
         if required_evals_repair:
             metadata["delivery_intent"] = "EXPERIMENT"
+            metadata["experiment_contract"] = complete_experiment_contract()
             metadata["evals"] = {
                 "applicability": "REQUIRED",
                 "fulfillment": "REVIEW_PENDING",

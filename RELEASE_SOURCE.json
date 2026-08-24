@@ -1,14 +1,15 @@
 {
   "schema_version": "better-product-graph.release-source.v1",
-  "generated_at": "2026-08-21",
+  "generated_at": "2026-08-24",
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
   "source_branch": "main",
-  "source_commit": "980110a413440d9874099ab5c36cf4a2ac457cac",
-  "release_evidence_commit": "980110a413440d9874099ab5c36cf4a2ac457cac",
-  "plugin_version": "0.2.0",
+  "source_commit": "e66aa3734422ff60ae1d359d4b8460507a1bd12e",
+  "release_evidence_commit": "e66aa3734422ff60ae1d359d4b8460507a1bd12e",
+  "plugin_version": "0.2.6",
   "release_channel": "Developer Alpha",
-  "intended_tag": "v0.2.0",
+  "publication_status": "NOT_PUBLISHED_AS_GITHUB_RELEASE",
+  "intended_tag": null,
   "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
   "release_sanitizations": [
     "Replaced developer-specific absolute paths in three negative or optional-local test fixtures with /Users/example equivalents; test semantics are unchanged."
@@ -25,9 +26,19 @@
       "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
     },
     "roadmap": {
-      "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md",
-      "version": "v0.14",
-      "sha256": "82db4ff724513054db96bbb37489e05489d6fde151a02ccfdf7df76f4d12e4dc"
+      "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md",
+      "version": "v0.16",
+      "sha256": "ee80e16f3740ff1e206e7fcdaae1fe259657a767cdb1b8880162e8a7a6ef2c09"
+    },
+    "bootstrap_prd": {
+      "path": "docs/released/prd/BPG-PRD-BOOTSTRAP-CONTEXT-MVU-001_bootstrap-context-mvu_v0.1_2026-08-24/BPG-PRD-BOOTSTRAP-CONTEXT-MVU-001_bootstrap-context-mvu_v0.1_2026-08-24.md",
+      "version": "v0.1",
+      "sha256": "fcd1a6d43b1c2f5f388cbb70de67fb4a44547921550630ef92fad00996bc02c3"
+    },
+    "dependency_aware_learning_prd": {
+      "path": "docs/released/prd/BPG-PRD-LEARNING-FRONTIER-001_dependency-aware-learning-pilot_v0.3_2026-08-24/BPG-PRD-LEARNING-FRONTIER-001_dependency-aware-learning-pilot_v0.3_2026-08-24.md",
+      "version": "v0.3",
+      "sha256": "85bf189de12b15e1e6ba99894111ff3bc3ed8f31afd14f8b1b80520bc3b3f18f"
     },
     "default_prd_template": {
       "path": "templates/prd/general/PRD_TEMPLATE_v0.2.md",
@@ -37,36 +48,32 @@
   },
   "release_artifacts": {
     "codex_marketplace_zip": {
-      "name": "better-product-graph-codex-0.2.0.zip",
-      "sha256": "e4b29fdc61f85958cea41175d2492e3b6b894c75548c2cd7ed09577b6132027d",
-      "bytes": 240436,
-      "plugin_artifact_hash": "sha256:13013b79fc7e5d4d8e9c2571547b1db4458f16b791002c117397231b66884467"
+      "name": "better-product-graph-0.2.6-codex.zip",
+      "sha256": "7362fd6a1b0fbbd7d21dca035f5b8763e988848238a1b82ee7118bf675c01ee9",
+      "bytes": 246878,
+      "plugin_artifact_hash": "sha256:58e023a5a0b189ace59e716da4eaf8de8c91c799aedc0e69e8d4cbb97802211a"
     },
     "claude_marketplace_zip": {
-      "name": "better-product-graph-claude-0.2.0.zip",
-      "sha256": "8d89c39b948e73dc86efbd680f602fdfb479cd83df355048a95bf445e21fb909",
-      "bytes": 241109,
-      "plugin_artifact_hash": "sha256:5beb71ad1f23b91370ee580795d0637bf106461b08d43bdba35b0afb027740a1"
+      "name": "better-product-graph-0.2.6-claude.zip",
+      "sha256": "63609b900a83fcb95d3589c9caf31f22fba91aaa4cd55b98f5574cb85de7594f",
+      "bytes": 246131,
+      "plugin_artifact_hash": "sha256:25896ccd01b3dae7e4fd3a7ac30a26894d8a77a38799cb1c0326885eab1caf9f"
     },
-    "core_tree_fingerprint": "sha256:db4b1d9dad41c0c7c09a89c6bd00942036b0090dae770c5b6b543d255bacb31b"
+    "core_tree_fingerprint": "sha256:62077f362c456c640a8f1bb046b323ba63bd2393401e50234280df97449b09c8"
   },
   "release_evidence": {
-    "source_tests": "394/394 PASS",
-    "public_snapshot_tests": "381/381 PASS; 1 optional local-upstream check skipped",
-    "repair_verifier": "53/53 findings, 167 exact executions, failed=[]",
+    "source_tests": "420/420 PASS",
+    "public_snapshot_tests": "407/407 PASS; 1 optional local-upstream check skipped",
+    "repair_verifier": "PASS; failed=[]",
     "deterministic_marketplace_packages": "PASS for Codex and Claude Code",
     "codex_marketplace_local_install": "PASS",
     "claude_marketplace_local_install": "PASS",
     "plugin_creator_validator": "PASS",
     "claude_strict_validator": "PASS",
     "authenticated_host_exact_release_commit": "NOT_RUN",
-    "claude_authenticated_host_prior_core_evidence": "PARTIAL_6_OF_7",
-    "auto_selection": "NOT_RUN",
     "product_golden_agent_judgment": "NOT_RUN"
   },
-  "deferred": [
-    "Bootstrap is planned for the next Developer Alpha and is not part of v0.2.0."
-  ],
+  "deferred": [],
   "excluded_from_release_history": [
     "local Graph runtime state",
     "Better Work execution records",

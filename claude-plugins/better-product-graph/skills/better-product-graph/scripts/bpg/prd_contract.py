@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, replace
 from datetime import date
 from typing import Any
@@ -33,9 +34,9 @@ EXPERIMENT_FIELDS = (
     "harm_guardrails",
     "typed_result_return",
 )
-SAFE_SHORT_TITLE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION = re.compile(r"^v\d+\.\d+(?:\.\d+)?$")
-SAFE_STEM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$")
+DOCUMENT_LANGUAGE = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
+UNSAFE_FILENAME_CHARACTER = re.compile(r'[<>:"/\\|?*]')
 TABLE_DELIMITER_CELL = re.compile(r"^:?-{3,}:?$")
 FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 H1 = re.compile(r"^ {0,3}# (.+?)\s*$")
@@ -187,7 +188,17 @@ def prd_stem(prd_id: str, short_title: str, version: str, document_date: str) ->
 
     visible_version = version.removeprefix("v")
     stem = f"{prd_id}_{short_title}_v{visible_version}_{document_date}"
-    if SAFE_STEM.fullmatch(stem) is None:
+    if (
+        not short_title
+        or short_title != short_title.strip()
+        or short_title in {".", ".."}
+        or short_title.startswith(".")
+        or short_title.endswith(".")
+        or unicodedata.normalize("NFC", short_title) != short_title
+        or UNSAFE_FILENAME_CHARACTER.search(stem) is not None
+        or any(unicodedata.category(character).startswith("C") for character in stem)
+        or len(stem.encode("utf-8")) > 240
+    ):
         raise PRDContractError("PRD identity does not form a safe immutable filename stem")
     return stem
 
@@ -466,11 +477,32 @@ def assemble_prd(
     if not isinstance(metadata, dict):
         issues.append("Agent PRD metadata is required")
         metadata = {}
-    for field in ("prd_id", "short_title", "version", "date", "status", "delivery_intent"):
+    for field in (
+        "prd_id",
+        "short_title",
+        "document_language",
+        "version",
+        "date",
+        "status",
+        "delivery_intent",
+    ):
         if not isinstance(metadata.get(field), str) or not metadata[field].strip():
             issues.append(f"metadata.{field} is required")
-    if isinstance(metadata.get("short_title"), str) and SAFE_SHORT_TITLE.fullmatch(metadata["short_title"]) is None:
-        issues.append("metadata.short_title must be a path-safe lowercase slug")
+    if isinstance(metadata.get("short_title"), str):
+        try:
+            prd_stem(
+                str(metadata.get("prd_id", "")),
+                metadata["short_title"],
+                str(metadata.get("version", "")),
+                str(metadata.get("date", "")),
+            )
+        except PRDContractError as error:
+            issues.append(str(error))
+    if (
+        isinstance(metadata.get("document_language"), str)
+        and DOCUMENT_LANGUAGE.fullmatch(metadata["document_language"]) is None
+    ):
+        issues.append("metadata.document_language must be a BCP-47 language tag")
     if isinstance(metadata.get("version"), str) and VERSION.fullmatch(metadata["version"]) is None:
         issues.append("metadata.version must be a visible v-prefixed semantic version")
     if isinstance(metadata.get("date"), str):
@@ -490,7 +522,7 @@ def assemble_prd(
         validate_final_markdown(
             markdown,
             metadata,
-            require_stem_identity=structure_mode != "legacy",
+            require_stem_identity=True,
         )
     )
     if metadata.get("status") != "CANDIDATE":

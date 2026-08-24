@@ -4,11 +4,13 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 from src.bpg.documents import archive_prd_candidate, hash_tree
 from src.bpg.delivery_contract import derive_active_scope_ref
 from src.bpg.failpoints import InjectedCrash, begin_node_call, crash_at, persist_node_dispatch, recover_run
 from src.bpg.handoff import prepare_local_handoff
+from src.bpg.host_runtime import HostRuntime
 from src.bpg.prd_contract import assemble_prd
 from src.bpg.product_memory import persist_decision_proposal
 from src.bpg.receipts import READY_RULES_VERSION
@@ -25,7 +27,12 @@ from src.bpg.storage import (
 from src.bpg.templates import TemplateRegistry
 from tests.controller_fixtures import position_run_internal
 from tests.test_planning_contract import complete_plan
-from tests.test_prd_contract import REPO_ROOT, TEMPLATES, prd_submission
+from tests.test_prd_contract import (
+    REPO_ROOT,
+    TEMPLATES,
+    complete_experiment_contract,
+    prd_submission,
+)
 
 
 GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
@@ -249,6 +256,7 @@ def materialize_ready_evidence(
     archived,
     *,
     upstream_shape: str = "graph_native",
+    issue_receipts: bool = True,
 ) -> tuple[dict, object]:
     if upstream_shape not in {
         "graph_native",
@@ -609,54 +617,55 @@ def materialize_ready_evidence(
             expected_state_version=state["state_version"],
         )
 
-    request["controller_receipts"] = {
-        "audit_integrity": issue(
-            "audit-integrity",
-            "audit_integrity",
-            [{"role": "audit_snapshot", **request["presentation"]["audit_snapshot_ref"]}],
-        ),
-        "review_finalize": issue(
-            "review-finalize",
-            "review_finalize",
-            [
-                candidate_document_ref,
-                companion_ref,
-                {"role": "review_aggregate", **request["review"]["aggregate_ref"]},
-                {"role": "review_dispositions", **request["review"]["dispositions_ref"]},
-            ],
-        ),
-        "document_experience": issue(
-            "document-experience",
-            "document_experience",
-            [
-                candidate_document_ref,
-                {"role": "template_profile", **request["presentation"]["template_profile_ref"]},
-                {"role": "version_record", **request["presentation"]["version_record_ref"]},
-                {"role": "document_changelog", **request["presentation"]["changelog_ref"]},
-            ],
-        ),
-        "mechanical_contracts": issue(
-            "mechanical-contracts",
-            "mechanical_contracts",
-            [
-                candidate_document_ref,
-                *[
-                    {
-                        "role": (
-                            f"upstream_{kind}"
-                            if len(items) == 1
-                            else f"upstream_{kind}:{index}"
-                        ),
-                        **item,
-                    }
-                    for kind, items in upstream.items()
-                    for index, item in enumerate(items)
+    if issue_receipts:
+        request["controller_receipts"] = {
+            "audit_integrity": issue(
+                "audit-integrity",
+                "audit_integrity",
+                [{"role": "audit_snapshot", **request["presentation"]["audit_snapshot_ref"]}],
+            ),
+            "review_finalize": issue(
+                "review-finalize",
+                "review_finalize",
+                [
+                    candidate_document_ref,
+                    companion_ref,
+                    {"role": "review_aggregate", **request["review"]["aggregate_ref"]},
+                    {"role": "review_dispositions", **request["review"]["dispositions_ref"]},
                 ],
-                {"role": "mechanical_validation", **request["mechanical_validation_ref"]},
-            ],
-        ),
-    }
-    controller.execute_mechanical_result(run_id, attempt_id)
+            ),
+            "document_experience": issue(
+                "document-experience",
+                "document_experience",
+                [
+                    candidate_document_ref,
+                    {"role": "template_profile", **request["presentation"]["template_profile_ref"]},
+                    {"role": "version_record", **request["presentation"]["version_record_ref"]},
+                    {"role": "document_changelog", **request["presentation"]["changelog_ref"]},
+                ],
+            ),
+            "mechanical_contracts": issue(
+                "mechanical-contracts",
+                "mechanical_contracts",
+                [
+                    candidate_document_ref,
+                    *[
+                        {
+                            "role": (
+                                f"upstream_{kind}"
+                                if len(items) == 1
+                                else f"upstream_{kind}:{index}"
+                            ),
+                            **item,
+                        }
+                        for kind, items in upstream.items()
+                        for index, item in enumerate(items)
+                    ],
+                    {"role": "mechanical_validation", **request["mechanical_validation_ref"]},
+                ],
+            ),
+        }
+        controller.execute_mechanical_result(run_id, attempt_id)
     request["run_id"] = run_id
     return request, archived
 
@@ -753,6 +762,183 @@ class ReviewsReadyTests(unittest.TestCase):
         result = calculate_prd_ready(request)
         self.assertEqual(result.status, "NOT_READY")
         self.assertEqual(result.unmet[0]["category"], "EXPERIMENT_CONTRACT")
+
+    def test_ready_evidence_retry_reuses_audit_checkpoint_and_preserves_exact_experiment_contract(self) -> None:
+        submission = prd_submission()
+        contract = complete_experiment_contract()
+        submission["semantic_output"]["document_markdown"] = submission[
+            "semantic_output"
+        ]["document_markdown"].replace("v0.1", "v0.2")
+        submission["semantic_output"]["metadata"]["version"] = "v0.2"
+        submission["semantic_output"]["metadata"]["delivery_intent"] = "EXPERIMENT"
+        submission["semantic_output"]["metadata"]["experiment_contract"] = contract
+        assembled = assemble_prd(
+            submission, TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
+        )
+        archived = archive_prd_candidate(
+            self.project,
+            assembled,
+            assets={},
+            review_companion=finalized_review_companion(assembled),
+        )
+        candidate_ref = {
+            "path": str(archived.path),
+            "hash": archived.document_hash,
+            "tree_hash": archived.tree_hash,
+            "version": archived.version,
+        }
+        _request, archived = materialize_ready_evidence(
+            self.project,
+            complete_ready_input(candidate_ref),
+            archived,
+            issue_receipts=False,
+        )
+        controller = StateController(self.project, GRAPH)
+        runtime = HostRuntime(self.project, GRAPH, REPO_ROOT / "src" / "core")
+        with patch(
+            "src.bpg.host_runtime.ready_and_release",
+            side_effect=PRDNotReady("injected post-receipt Ready failure"),
+        ):
+            with self.assertRaisesRegex(
+                TransitionRejected, "injected post-receipt Ready failure"
+            ):
+                runtime.dispatch_current("run-ready-receipts")
+        partial_state = controller.load_state("run-ready-receipts")
+        self.assertEqual(len(partial_state["ready_receipts"]), 4)
+        self.assertIsNone(partial_state["release_ref"])
+        ready_result_path = (
+            self.project
+            / ".better-product-graph"
+            / "runs"
+            / "run-ready-receipts"
+            / "attempts"
+            / "attempt-prd-ready-receipts"
+            / "node-result.json"
+        )
+        first_ready_result_hash = sha256_file(ready_result_path)
+        ready_receipt_path = ready_result_path.with_name("result-receipt.json")
+        for label, path in (
+            ("result", ready_result_path),
+            ("receipt", ready_receipt_path),
+        ):
+            with self.subTest(symlinked_ready_authority=label):
+                backup = path.with_name(path.name + ".regular-backup")
+                path.replace(backup)
+                path.symlink_to(backup)
+                with self.assertRaisesRegex(
+                    StateConflict,
+                    "persisted Ready result differs from exact Controller retry",
+                ):
+                    controller.execute_mechanical_result(
+                        "run-ready-receipts",
+                        "attempt-prd-ready-receipts",
+                    )
+                path.unlink()
+                backup.replace(path)
+        first_snapshot = read_json(
+            self.project
+            / ".better-product-graph"
+            / "runs"
+            / "run-ready-receipts"
+            / "ready-evidence"
+            / "audit-snapshot.json"
+        )
+        tampered_snapshot = dict(first_snapshot)
+        tampered_snapshot["event_head_hash"] = "sha256:" + "0" * 64
+        snapshot_path = (
+            self.project
+            / ".better-product-graph"
+            / "runs"
+            / "run-ready-receipts"
+            / "ready-evidence"
+            / "audit-snapshot.json"
+        )
+        atomic_write_json(snapshot_path, tampered_snapshot)
+        state = controller.load_state("run-ready-receipts")
+        with self.assertRaisesRegex(
+            StateConflict, "Ready evidence identity conflict: audit_snapshot"
+        ):
+            controller.prepare_ready_gate_evidence(
+                "run-ready-receipts",
+                "attempt-prd-ready-receipts",
+                expected_state_version=state["state_version"],
+            )
+        atomic_write_json(snapshot_path, first_snapshot)
+
+        before_resume = controller.load_state("run-ready-receipts")
+        before_resume_event_count = len(
+            verify_event_chain(controller._events_path("run-ready-receipts"))
+        )
+        resumed = runtime.handle_entry(
+            "$better-product-graph resume run-ready-receipts"
+        )
+        self.assertEqual(resumed["status"], "RESUMED")
+        self.assertEqual(resumed["state"], before_resume)
+        self.assertEqual(
+            len(verify_event_chain(controller._events_path("run-ready-receipts"))),
+            before_resume_event_count,
+        )
+
+        # Reproduce the exact 0.2.4 state already persisted by a redundant
+        # ACTIVE -> ACTIVE public resume before that operation became idempotent.
+        legacy_resumed = read_json(
+            controller._state_path("run-ready-receipts")
+        )
+        legacy_resumed["state_version"] += 1
+        legacy_resume_version = legacy_resumed["state_version"]
+        controller._commit_state_event(
+            "run-ready-receipts",
+            before_resume,
+            legacy_resumed,
+            {
+                "event_type": "RUN_RESUMED",
+                "actor": "state-controller",
+                "run_id": "run-ready-receipts",
+                "state_version": legacy_resumed["state_version"],
+            },
+            transaction_id=f"activity-{legacy_resume_version}-resume",
+        )
+        resume_journal = controller._transaction_path(
+            "run-ready-receipts",
+            f"activity-{legacy_resume_version}-resume",
+        )
+        journal_backup = resume_journal.with_suffix(".missing")
+        resume_journal.replace(journal_backup)
+        with self.assertRaisesRegex(
+            TransitionRejected,
+            "Ready retry authority changed by more than a redundant ACTIVE resume",
+        ):
+            runtime.dispatch_current("run-ready-receipts")
+        journal_backup.replace(resume_journal)
+        completed = runtime.dispatch_current("run-ready-receipts")
+        completed_state = controller.load_state("run-ready-receipts")
+
+        self.assertEqual(completed["status"], "COMPLETED")
+        self.assertEqual(completed_state["current_node"], "handoff.dispatch")
+        self.assertIsNotNone(completed_state["release_ref"])
+        self.assertEqual(len(completed_state["ready_receipts"]), 4)
+        self.assertEqual(
+            [
+                item["attempt_id"]
+                for item in completed_state["dispatch_attempts"]
+                if item["node_id"] == "prd.ready.gate"
+            ],
+            ["attempt-prd-ready-receipts"],
+        )
+        self.assertEqual(read_json(snapshot_path), first_snapshot)
+        self.assertEqual(sha256_file(ready_result_path), first_ready_result_hash)
+        released_metadata = read_json(
+            next(
+                (
+                    self.project
+                    / "artifacts"
+                    / "prds"
+                    / "released"
+                    / archived.path.name
+                ).glob("*.metadata.json")
+            )
+        )
+        self.assertEqual(released_metadata["experiment_contract"], contract)
 
     def test_declared_hash_without_matching_resolution_cannot_ready(self) -> None:
         request = complete_ready_input(self.candidate_ref)

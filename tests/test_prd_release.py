@@ -40,7 +40,7 @@ class PRDReleaseTests(unittest.TestCase):
             ready_assertion={"status": "READY", "candidate_hash": archived.document_hash},
         )
 
-        expected_stem = "PRD-CHECKOUT-001_checkout-recovery_v0.1_2026-08-20"
+        expected_stem = "PRD-CHECKOUT-001_结算恢复体验_v0.1_2026-08-20"
         self.assertEqual(archived.path.name, expected_stem)
         self.assertTrue((archived.path / f"{expected_stem}.md").is_file())
         self.assertTrue((archived.path / f"{expected_stem}.review.json").is_file())

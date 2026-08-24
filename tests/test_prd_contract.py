@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
-from src.bpg.prd_contract import PRDContractError, assemble_prd
+from src.bpg.prd_contract import PRDContractError, assemble_prd, prd_stem
 from src.bpg.templates import TemplateRegistry
 
 
@@ -14,7 +14,7 @@ FIXTURES = REPO_ROOT / "tests" / "fixtures" / "prd-v0.2-golden"
 
 
 def prd_markdown() -> str:
-    return """# 结算恢复体验 PRD
+    return """# PRD-CHECKOUT-001_结算恢复体验_v0.1_2026-08-20
 
 版本：v0.1｜状态：CANDIDATE
 
@@ -71,7 +71,8 @@ def prd_submission(markdown: str | None = None) -> dict:
             },
             "metadata": {
                 "prd_id": "PRD-CHECKOUT-001",
-                "short_title": "checkout-recovery",
+                "short_title": "结算恢复体验",
+                "document_language": "zh-CN",
                 "version": "v0.1",
                 "date": "2026-08-20",
                 "status": "CANDIDATE",
@@ -262,6 +263,57 @@ class PRDContractTests(unittest.TestCase):
         self.assertIn("short_title", str(captured.exception))
         self.assertIn("date", str(captured.exception))
 
+    def test_localized_prd_title_forms_the_exact_directory_filename_and_h1_stem(self) -> None:
+        submission = prd_submission()
+        metadata = submission["semantic_output"]["metadata"]
+        metadata["document_language"] = "zh-CN"
+        metadata["short_title"] = "结算恢复体验"
+        expected = "PRD-CHECKOUT-001_结算恢复体验_v0.1_2026-08-20"
+        submission["semantic_output"]["document_markdown"] = prd_markdown()
+
+        assembled = assemble_prd(submission, self.selection)
+
+        self.assertEqual(
+            prd_stem(
+                metadata["prd_id"],
+                metadata["short_title"],
+                metadata["version"],
+                metadata["date"],
+            ),
+            expected,
+        )
+        self.assertEqual(assembled.metadata["document_language"], "zh-CN")
+        self.assertEqual(assembled.markdown.splitlines()[0], f"# {expected}")
+
+    def test_legacy_structure_cannot_bypass_exact_h1_and_filename_identity(self) -> None:
+        submission = prd_submission()
+        submission["semantic_output"]["document_markdown"] = prd_markdown().replace(
+            "# PRD-CHECKOUT-001_结算恢复体验_v0.1_2026-08-20",
+            "# 结算恢复体验 PRD",
+            1,
+        )
+
+        with self.assertRaisesRegex(
+            PRDContractError,
+            "unique Markdown H1 identity must exactly equal archive filename stem",
+        ):
+            assemble_prd(submission, self.selection)
+
+    def test_localized_prd_identity_rejects_unsafe_paths_and_invalid_language_tags(self) -> None:
+        cases = (
+            ("path separator", "结算/恢复", "zh-CN", "safe immutable filename stem"),
+            ("control character", "结算\n恢复", "zh-CN", "safe immutable filename stem"),
+            ("invalid language", "结算恢复", "中文", "BCP-47 language tag"),
+        )
+        for label, short_title, language, expected in cases:
+            with self.subTest(label=label):
+                submission = prd_submission()
+                metadata = submission["semantic_output"]["metadata"]
+                metadata["short_title"] = short_title
+                metadata["document_language"] = language
+                with self.assertRaisesRegex(PRDContractError, expected):
+                    assemble_prd(submission, self.selection)
+
     def test_prd_generate_cannot_self_claim_required_evals_are_reviewed(self) -> None:
         submission = prd_submission()
         submission["semantic_output"]["metadata"]["evals"] = {
@@ -312,7 +364,7 @@ class PRDContractTests(unittest.TestCase):
                 {
                     "input_id": "machine_path",
                     "kind": "PROJECT_FILE",
-                    "resolver": "/Users/eli/Documents/spec.json",
+                    "resolver": "/Users/example/Documents/spec.json",
                     "binding_scope": "PROJECT",
                     "version_policy": "current",
                     "on_missing": "FAIL_CLOSED",

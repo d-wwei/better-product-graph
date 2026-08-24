@@ -139,6 +139,16 @@ class InstalledHostContractTests(unittest.TestCase):
             {"split", "compact", "legacy"},
             "installed prd.generate instruction must expose the exact structure_mode enum",
         )
+        self.assertEqual(output["metadata"]["document_language"], "zh-CN")
+        self.assertRegex(output["metadata"]["short_title"], r"[\u4e00-\u9fff]")
+        expected_stem = (
+            f'{output["metadata"]["prd_id"]}_{output["metadata"]["short_title"]}_'
+            f'{output["metadata"]["version"]}_{output["metadata"]["date"]}'
+        )
+        self.assertEqual(
+            output["document_markdown"].splitlines()[0],
+            f"# {expected_stem}",
+        )
         submission = {
             "node_id": "prd.generate",
             "attempt_id": "attempt-installed-contract",
