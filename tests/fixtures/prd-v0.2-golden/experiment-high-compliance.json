@@ -45,17 +45,28 @@
       "evidence_refs": [{"path": "evidence-v1.json", "hash": "sha256:evidence", "version": 1}],
       "evals": {"applicability": "REQUIRED", "fulfillment": "REVIEW_PENDING", "execution_status": "NOT_RUN"},
       "experiment_contract": {
+        "schema_version": "experiment-contract.v1",
         "key_unknown": "解释是否改善判断",
         "hypothesis": "受控解释提高正确理解",
         "audience_exposure": "仅已同意白名单",
         "specific_change": "展示一条过滤后的解释",
         "observable_measurement": "理解问卷与退出率",
-        "result_mapping": "继续、调整或停止",
+        "result_mapping": {
+          "CONTINUE": "理解改善且护栏未触发",
+          "ADJUST": "方向正确但需调整解释或曝光",
+          "STOP": "隐私、伤害或未同意曝光护栏触发",
+          "INCONCLUSIVE": "样本或数据质量不足"
+        },
         "monitoring": "隐私与伤害监控",
         "kill_rollback": "停止曝光并删除派生数据",
         "owner": "experiment-owner",
         "end_time": "2026-09-20",
-        "harm_guardrails": "零敏感属性与零未同意曝光"
+        "harm_guardrails": ["零敏感属性", "零未同意曝光"],
+        "typed_result_return": {
+          "schema_version": "experiment-result-binding.v1",
+          "ingress_node": "signal.ingest",
+          "outcome_enum": ["CONTINUE", "ADJUST", "STOP", "INCONCLUSIVE"]
+        }
       }
     }
   },

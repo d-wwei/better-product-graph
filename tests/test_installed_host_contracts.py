@@ -14,7 +14,7 @@ from src.bpg.discovery_contract import (
     validate_problem_quality_review,
 )
 from src.bpg.planning_contract import validate_plan
-from src.bpg.prd_contract import assemble_prd
+from src.bpg.prd_contract import PRDContractError, assemble_prd
 from src.bpg.review_contract import validate_review_submission
 from src.bpg.templates import TemplateRegistry
 
@@ -154,6 +154,43 @@ class InstalledHostContractTests(unittest.TestCase):
         assembled = assemble_prd(submission, selection)
         self.assertEqual(assembled.metadata["status"], "CANDIDATE")
         self.assertEqual(assembled.metadata["evals"]["applicability"], "RECOMMENDED")
+        self.assertEqual(assembled.metadata["delivery_intent"], "EXPERIMENT")
+        experiment = assembled.metadata["experiment_contract"]
+        self.assertEqual(experiment["schema_version"], "experiment-contract.v1")
+        self.assertEqual(
+            experiment["typed_result_return"]["outcome_enum"],
+            ["CONTINUE", "ADJUST", "STOP", "INCONCLUSIVE"],
+        )
+
+    def test_installed_prd_contract_returns_exact_experiment_field_errors(self) -> None:
+        output = self._contract("prd-generate", "prd-generate-semantic-output-contract")
+        output["metadata"]["experiment_contract"].pop("observable_measurement")
+        submission = {
+            "node_id": "prd.generate",
+            "attempt_id": "attempt-installed-experiment-error",
+            "producer": {"kind": "HOST_AGENT", "host": "codex"},
+            "instruction_ref": "references/atomic-skills/prd-generate/INSTRUCTIONS.md",
+            "instruction_hash": "sha256:instructions",
+            "input_refs": ["decision-v1.json", "plan-v1.md", "slice-v1.json"],
+            "input_hashes": {
+                "decision-v1.json": "sha256:decision",
+                "plan-v1.md": "sha256:plan",
+                "slice-v1.json": "sha256:slice",
+            },
+            "semantic_output": output,
+            "artifact_refs": [],
+        }
+        selection = TemplateRegistry(REPO_ROOT / "src" / "core" / "templates").resolve(
+            REPO_ROOT
+        )
+
+        with self.assertRaises(PRDContractError) as captured:
+            assemble_prd(submission, selection)
+
+        self.assertIn(
+            "experiment_contract.observable_measurement must be a non-empty string",
+            str(captured.exception),
+        )
 
     def test_parallel_review_instruction_exposes_honest_zero_finding_contract(self) -> None:
         output = self._contract("prd-review", "review-parallel-zero-finding-contract")

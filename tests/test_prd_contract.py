@@ -145,6 +145,33 @@ def prd_submission(markdown: str | None = None) -> dict:
     }
 
 
+def complete_experiment_contract() -> dict:
+    return {
+        "schema_version": "experiment-contract.v1",
+        "key_unknown": "受控提示是否减少结算失败后的重复提交",
+        "hypothesis": "向小范围用户解释状态并提供安全重试，会减少重复提交且不增加重复扣款",
+        "audience_exposure": "仅向已进入结算失败恢复页的 5% 白名单用户展示",
+        "specific_change": "展示结算状态解释和一个幂等重试入口",
+        "observable_measurement": "重复提交率下降，同时重复扣款保持为零",
+        "result_mapping": {
+            "CONTINUE": "主指标改善且所有伤害护栏未触发",
+            "ADJUST": "主指标方向正确但需要调整文案或曝光范围",
+            "STOP": "触发任一伤害护栏或重复扣款不为零",
+            "INCONCLUSIVE": "样本不足或数据质量无法支持判断",
+        },
+        "monitoring": "Owner 每日检查主指标、重复扣款与退出率",
+        "kill_rollback": "触发 STOP 条件后立即停止曝光并恢复旧入口",
+        "owner": "checkout-product-owner",
+        "end_time": "2026-09-20",
+        "harm_guardrails": ["重复扣款必须为零", "用户可以立即退出实验"],
+        "typed_result_return": {
+            "schema_version": "experiment-result-binding.v1",
+            "ingress_node": "signal.ingest",
+            "outcome_enum": ["CONTINUE", "ADJUST", "STOP", "INCONCLUSIVE"],
+        },
+    }
+
+
 class PRDContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.selection = TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
@@ -176,6 +203,43 @@ class PRDContractTests(unittest.TestCase):
         submission["semantic_output"]["metadata"]["delivery_intent"] = "EXPERIMENT"
         with self.assertRaisesRegex(PRDContractError, "experiment_contract"):
             assemble_prd(submission, self.selection)
+
+    def test_experiment_prd_reports_exact_missing_type_and_enum_fields(self) -> None:
+        cases = (
+            ("missing key", lambda value: value.pop("key_unknown"),
+             "experiment_contract.key_unknown must be a non-empty string"),
+            ("wrong guardrail type", lambda value: value.__setitem__("harm_guardrails", "none"),
+             "experiment_contract.harm_guardrails must be a non-empty array of non-empty strings"),
+            ("missing result outcome", lambda value: value["result_mapping"].pop("STOP"),
+             "experiment_contract.result_mapping must contain exactly CONTINUE, ADJUST, STOP, INCONCLUSIVE"),
+            ("wrong ingress enum", lambda value: value["typed_result_return"].__setitem__("ingress_node", "product.decision"),
+             "experiment_contract.typed_result_return.ingress_node must be 'signal.ingest'"),
+        )
+        for label, mutate, expected in cases:
+            with self.subTest(label=label):
+                submission = prd_submission()
+                metadata = submission["semantic_output"]["metadata"]
+                metadata["delivery_intent"] = "EXPERIMENT"
+                metadata["experiment_contract"] = complete_experiment_contract()
+                mutate(metadata["experiment_contract"])
+
+                with self.assertRaises(PRDContractError) as captured:
+                    assemble_prd(submission, self.selection)
+
+                self.assertIn(expected, str(captured.exception))
+
+    def test_complete_experiment_contract_is_accepted(self) -> None:
+        submission = prd_submission()
+        metadata = submission["semantic_output"]["metadata"]
+        metadata["delivery_intent"] = "EXPERIMENT"
+        metadata["experiment_contract"] = complete_experiment_contract()
+
+        assembled = assemble_prd(submission, self.selection)
+
+        self.assertEqual(
+            assembled.metadata["experiment_contract"]["schema_version"],
+            "experiment-contract.v1",
+        )
 
     def test_prd_identity_requires_agent_authored_short_title_and_iso_date(self) -> None:
         submission = prd_submission()
@@ -235,7 +299,7 @@ class PRDContractTests(unittest.TestCase):
                 {
                     "input_id": "machine_path",
                     "kind": "PROJECT_FILE",
-                    "resolver": "/Users/example/Documents/spec.json",
+                    "resolver": "/Users/eli/Documents/spec.json",
                     "binding_scope": "PROJECT",
                     "version_policy": "current",
                     "on_missing": "FAIL_CLOSED",

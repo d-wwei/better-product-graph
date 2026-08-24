@@ -12,7 +12,14 @@ from .delivery_contract import DeliveryContractError, validate_candidate_deliver
 from .templates import TemplateSelection, load_output_contract
 
 
+EXPERIMENT_RESULT_OUTCOMES = (
+    "CONTINUE",
+    "ADJUST",
+    "STOP",
+    "INCONCLUSIVE",
+)
 EXPERIMENT_FIELDS = (
+    "schema_version",
     "key_unknown",
     "hypothesis",
     "audience_exposure",
@@ -24,6 +31,7 @@ EXPERIMENT_FIELDS = (
     "owner",
     "end_time",
     "harm_guardrails",
+    "typed_result_return",
 )
 SAFE_SHORT_TITLE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION = re.compile(r"^v\d+\.\d+(?:\.\d+)?$")
@@ -36,6 +44,92 @@ H2 = re.compile(r"^ {0,3}## (.+?)\s*$")
 
 class PRDContractError(ValueError):
     """An Agent PRD submission is missing exact content or mechanical bindings."""
+
+
+def validate_experiment_contract(experiment: Any) -> list[str]:
+    """Return exact, public-field validation issues for experiment-contract.v1."""
+
+    label = "experiment_contract"
+    if not isinstance(experiment, dict):
+        return [f"{label} must be an object"]
+    issues: list[str] = []
+    expected_fields = set(EXPERIMENT_FIELDS)
+    unknown = sorted(set(experiment) - expected_fields)
+    if unknown:
+        issues.append(f"{label} has unknown fields: {', '.join(unknown)}")
+    if experiment.get("schema_version") != "experiment-contract.v1":
+        issues.append(f"{label}.schema_version must be 'experiment-contract.v1'")
+    for field in (
+        "key_unknown",
+        "hypothesis",
+        "audience_exposure",
+        "specific_change",
+        "observable_measurement",
+        "monitoring",
+        "kill_rollback",
+        "owner",
+    ):
+        value = experiment.get(field)
+        if not isinstance(value, str) or not value.strip():
+            issues.append(f"{label}.{field} must be a non-empty string")
+    end_time = experiment.get("end_time")
+    if not isinstance(end_time, str):
+        issues.append(f"{label}.end_time must be an ISO calendar date string")
+    else:
+        try:
+            if date.fromisoformat(end_time).isoformat() != end_time:
+                raise ValueError
+        except ValueError:
+            issues.append(f"{label}.end_time must be an ISO calendar date string")
+    guardrails = experiment.get("harm_guardrails")
+    if (
+        not isinstance(guardrails, list)
+        or not guardrails
+        or any(not isinstance(item, str) or not item.strip() for item in guardrails)
+    ):
+        issues.append(
+            f"{label}.harm_guardrails must be a non-empty array of non-empty strings"
+        )
+    mapping = experiment.get("result_mapping")
+    if not isinstance(mapping, dict) or set(mapping) != set(EXPERIMENT_RESULT_OUTCOMES):
+        issues.append(
+            f"{label}.result_mapping must contain exactly "
+            + ", ".join(EXPERIMENT_RESULT_OUTCOMES)
+        )
+    elif any(
+        not isinstance(mapping[outcome], str) or not mapping[outcome].strip()
+        for outcome in EXPERIMENT_RESULT_OUTCOMES
+    ):
+        issues.append(
+            f"{label}.result_mapping values must be non-empty strings for "
+            + ", ".join(EXPERIMENT_RESULT_OUTCOMES)
+        )
+    result_return = experiment.get("typed_result_return")
+    if not isinstance(result_return, dict):
+        issues.append(f"{label}.typed_result_return must be an object")
+    else:
+        expected_return_fields = {"schema_version", "ingress_node", "outcome_enum"}
+        unknown_return = sorted(set(result_return) - expected_return_fields)
+        if unknown_return:
+            issues.append(
+                f"{label}.typed_result_return has unknown fields: "
+                + ", ".join(unknown_return)
+            )
+        if result_return.get("schema_version") != "experiment-result-binding.v1":
+            issues.append(
+                f"{label}.typed_result_return.schema_version must be "
+                "'experiment-result-binding.v1'"
+            )
+        if result_return.get("ingress_node") != "signal.ingest":
+            issues.append(
+                f"{label}.typed_result_return.ingress_node must be 'signal.ingest'"
+            )
+        if result_return.get("outcome_enum") != list(EXPERIMENT_RESULT_OUTCOMES):
+            issues.append(
+                f"{label}.typed_result_return.outcome_enum must exactly equal "
+                + ", ".join(EXPERIMENT_RESULT_OUTCOMES)
+            )
+    return issues
 
 
 @dataclass(frozen=True)
@@ -438,9 +532,7 @@ def assemble_prd(submission: dict[str, Any], template: TemplateSelection) -> Ass
             "REVIEW_PENDING/NOT_RUN"
         )
     if metadata.get("delivery_intent") == "EXPERIMENT":
-        experiment = metadata.get("experiment_contract")
-        if not isinstance(experiment, dict) or any(not experiment.get(field) for field in EXPERIMENT_FIELDS):
-            issues.append("complete Agent-authored experiment_contract is required")
+        issues.extend(validate_experiment_contract(metadata.get("experiment_contract")))
     try:
         validate_candidate_delivery_contract(metadata)
     except DeliveryContractError as error:

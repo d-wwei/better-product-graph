@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.2.1 — Unreleased — Bug contract and local Handoff repair
+## 0.2.2 — Unreleased — Public experiment contract and compatible resume
+
+- Publish the complete closed `experiment-contract.v1` field, type and enum contract plus a legal installed example in the public `prd.generate` instruction.
+- Return exact field-path errors for missing, mistyped, unknown or illegal experiment fields instead of the opaque `complete Agent-authored experiment_contract is required` message.
+- Reuse the same validation at PRD assembly and Ready so the two boundaries cannot silently drift.
+- Declare the 0.2.1 `prd.generate` instruction hash as a compatible predecessor, allowing its unfinished dispatch to resume under the installed successor contract without rewriting the durable attempt.
+
+## 0.2.1 — 2026-08-23 — Bug contract and local Handoff repair
 
 - Bind the Host-owned `signal.classify` node to the complete Signal Intake classification contract instead of the Controller-only Route Select instruction; keep `route.select` deterministic and reject the old misbound active dispatch as incompatible without rewriting its Run.
 - Publish the complete installed `bug.baseline.check` semantic contract, including exact baseline identity, expected/actual behavior, implementation-deviation conditions, and explicit routes, so a Host no longer needs internal source code to satisfy the Validator.

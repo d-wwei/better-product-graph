@@ -9,7 +9,7 @@ from typing import Any
 
 from .documents import ArtifactSet
 from .evals_authority import EvalsAuthorityError, validate_reviewed_evals
-from .prd_contract import EXPERIMENT_FIELDS
+from .prd_contract import validate_experiment_contract
 from .receipts import (
     READY_RULES_VERSION,
     ReceiptError,
@@ -169,16 +169,12 @@ def calculate_prd_ready(request: dict[str, Any]) -> ReadyResult:
 
     if request.get("delivery_intent") == "EXPERIMENT":
         experiment = request.get("experiment_contract")
-        missing = [
-            field
-            for field in EXPERIMENT_FIELDS
-            if not isinstance(experiment, dict) or not experiment.get(field)
-        ]
-        if missing:
+        experiment_issues = validate_experiment_contract(experiment)
+        if experiment_issues:
             unmet.append(
                 _unmet(
                     "EXPERIMENT_CONTRACT",
-                    {"missing": missing},
+                    {"issues": experiment_issues},
                     "COMPLETE_EXPERIMENT_CONTROL_CONTRACT",
                     "prd.generate",
                 )

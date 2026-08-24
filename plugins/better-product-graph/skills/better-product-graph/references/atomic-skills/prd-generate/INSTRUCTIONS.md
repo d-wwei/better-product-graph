@@ -1,4 +1,4 @@
-# PRD Generate — Agent Instructions v0.1
+# PRD Generate — Agent Instructions v0.2
 
 Run only through the public Skill and Controller after an exact activated+eligible Slice is created from a Ready Product Plan. Read the exact Decision, Plan, planning views, Slice, Knowledge/Evidence, Guardrails/shared contracts, Template Profile, and Document Experience policy. The current `prd.generate` dispatch includes a closed `prd_generation_context`. Copy every field from its `metadata_authority` into PRD metadata exactly; do not calculate a scope hash, select a competing upstream ref, or infer an origin yourself. The Controller independently recomputes the packet and rejects any drift.
 
@@ -10,7 +10,54 @@ Metadata must keep specification provenance and future product runtime inputs se
 - `spec_traceability` is the closed `spec-traceability.v1` supplied by `prd_generation_context.metadata_authority`. It already contains the complete Controller-selected Decision, roadmap, Product Plan, Slice, Knowledge, Evidence, optional Problem Ready (`problem_ready`), and any authorized replacement origins (`source_candidate`, `review_aggregate_result`). Copy it exactly; never invent, alias, remove, or independently select an origin.
 - `product_runtime_inputs` is closed `product-runtime-inputs.v1` with non-empty `required` and separate `optional`. Required inputs always include `project_workspace` (`PROJECT_WORKSPACE`, `HOST_PROJECT_ROOT`, `PROJECT`, `project-workspace.v1`, `FAIL_CLOSED`) and `product_signal` (`RAW_SIGNAL_OR_EXACT_OCCURRENCE`, `SIGNAL_INTAKE`, `INVOCATION_OR_PROJECT_INBOX`, `signal-contract.v1`, `REQUEST_SIGNAL`). Planning Run/Attempt/Candidate identities, Ready receipts, specification refs, machine paths, and `current/latest` are provenance, never required runtime inputs. A genuine runtime BPG artifact needs the complete typed exception defined by the delivery contract and still cannot point into the current specification Run.
 
-For `EXPERIMENT`, use the same PRD pipeline and add key unknown/hypothesis, audience/exposure, specific change, observable measurement, continue/adjust/stop mapping, monitoring, kill/rollback, Owner, end time, harm Guardrails, and typed-result return binding. Do not create an Experiment-only pipeline or lower Ready standards.
+For `EXPERIMENT`, use the same PRD pipeline and include the complete closed
+`experiment-contract.v1` object below. Do not create an Experiment-only pipeline
+or lower Ready standards. Every listed property is required; unknown properties
+are rejected.
+
+Exact public field contract:
+
+- `schema_version`: literal string enum `experiment-contract.v1`.
+- `key_unknown`, `hypothesis`, `audience_exposure`, `specific_change`,
+  `observable_measurement`, `monitoring`, `kill_rollback`, `owner`: non-empty strings.
+- `end_time`: ISO calendar date string (`YYYY-MM-DD`).
+- `harm_guardrails`: non-empty array of non-empty strings.
+- `result_mapping`: object containing exactly the four enum keys `CONTINUE`,
+  `ADJUST`, `STOP`, `INCONCLUSIVE`; every value is a non-empty condition string.
+- `typed_result_return`: object containing exactly `schema_version`, `ingress_node`,
+  and `outcome_enum`. The schema version is the literal
+  `experiment-result-binding.v1`; `ingress_node` is the literal `signal.ingest`;
+  `outcome_enum` is exactly `["CONTINUE", "ADJUST", "STOP", "INCONCLUSIVE"]`.
+
+Legal standalone example:
+
+<!-- experiment-contract-v1-example -->
+```json
+{
+  "schema_version": "experiment-contract.v1",
+  "key_unknown": "受控提示是否减少失败后的重复提交",
+  "hypothesis": "状态解释与安全重试会减少重复提交且不增加重复扣款",
+  "audience_exposure": "仅向进入恢复页的 5% 白名单用户展示",
+  "specific_change": "展示结算状态解释和一个幂等重试入口",
+  "observable_measurement": "重复提交率下降，同时重复扣款保持为零",
+  "result_mapping": {
+    "CONTINUE": "主指标改善且所有伤害护栏未触发",
+    "ADJUST": "方向正确但需要调整文案或曝光范围",
+    "STOP": "触发任一伤害护栏或重复扣款不为零",
+    "INCONCLUSIVE": "样本不足或数据质量无法支持判断"
+  },
+  "monitoring": "Owner 每日检查主指标、重复扣款与退出率",
+  "kill_rollback": "触发 STOP 条件后立即停止曝光并恢复旧入口",
+  "owner": "checkout-product-owner",
+  "end_time": "2026-09-20",
+  "harm_guardrails": ["重复扣款必须为零", "用户可以立即退出实验"],
+  "typed_result_return": {
+    "schema_version": "experiment-result-binding.v1",
+    "ingress_node": "signal.ingest",
+    "outcome_enum": ["CONTINUE", "ADJUST", "STOP", "INCONCLUSIVE"]
+  }
+}
+```
 
 Submit `document_markdown`, `template_mapping`, metadata, and exact provenance as a `HOST_AGENT` Node Result. The program may validate, archive, version, and release the supplied content; it must not write missing PRD semantics.
 
@@ -39,7 +86,7 @@ same fact appears in the Markdown.
     "version": "v0.1",
     "date": "2026-08-21",
     "status": "CANDIDATE",
-    "delivery_intent": "COMMIT",
+    "delivery_intent": "EXPERIMENT",
     "decision_refs": [
       {"path": ".better-product-graph/decisions/decision-example/DECISION_v1.json", "hash": "sha256:decision", "version": 1}
     ],
@@ -101,6 +148,30 @@ same fact appears in the Markdown.
       "reason": "Behavior includes safety and recovery claims that benefit from a future Eval Pack.",
       "fulfillment": "NOT_STARTED",
       "execution_status": "NOT_RUN"
+    },
+    "experiment_contract": {
+      "schema_version": "experiment-contract.v1",
+      "key_unknown": "受控提示是否减少失败后的重复提交",
+      "hypothesis": "状态解释与安全重试会减少重复提交且不增加重复扣款",
+      "audience_exposure": "仅向进入恢复页的 5% 白名单用户展示",
+      "specific_change": "展示结算状态解释和一个幂等重试入口",
+      "observable_measurement": "重复提交率下降，同时重复扣款保持为零",
+      "result_mapping": {
+        "CONTINUE": "主指标改善且所有伤害护栏未触发",
+        "ADJUST": "方向正确但需要调整文案或曝光范围",
+        "STOP": "触发任一伤害护栏或重复扣款不为零",
+        "INCONCLUSIVE": "样本不足或数据质量无法支持判断"
+      },
+      "monitoring": "Owner 每日检查主指标、重复扣款与退出率",
+      "kill_rollback": "触发 STOP 条件后立即停止曝光并恢复旧入口",
+      "owner": "checkout-product-owner",
+      "end_time": "2026-09-20",
+      "harm_guardrails": ["重复扣款必须为零", "用户可以立即退出实验"],
+      "typed_result_return": {
+        "schema_version": "experiment-result-binding.v1",
+        "ingress_node": "signal.ingest",
+        "outcome_enum": ["CONTINUE", "ADJUST", "STOP", "INCONCLUSIVE"]
+      }
     }
   }
 }

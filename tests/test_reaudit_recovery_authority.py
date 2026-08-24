@@ -9,6 +9,7 @@ from pathlib import Path
 from src.bpg.engine import HostEngine
 from src.bpg.failpoints import InjectedCrash, begin_node_call, crash_at, persist_node_dispatch
 from src.bpg.host_runtime import HostRuntime
+from src.bpg.node_registry import NodeRegistry
 from src.bpg.product_memory import persist_decision_proposal
 from src.bpg.state_controller import StateController, TransitionRejected
 from src.bpg.storage import (
@@ -182,6 +183,20 @@ class PublicResumeAuthorityTests(unittest.TestCase):
             if path.is_file()
         }
         self.assertEqual(after, before)
+
+    def test_prd_generate_declares_the_real_pre_schema_dispatch_as_compatible(self) -> None:
+        registry = NodeRegistry(
+            REPO_ROOT / "src" / "core",
+            REPO_ROOT / "src" / "core" / "graph" / "manifest.json",
+        )
+
+        self.assertEqual(
+            registry.instruction_compatibility(
+                "prd.generate",
+                "sha256:6432e9f737b73a33e09f4e6b39e61137a391ecaf9d41bdfd8054ab4159213283",
+            ),
+            "DECLARED_COMPATIBLE_SUCCESSOR",
+        )
 
     def test_authoritative_barrier_rejects_attempt_and_state_version_tamper(self) -> None:
         for field in ("state_version", "dispatch_attempts"):
