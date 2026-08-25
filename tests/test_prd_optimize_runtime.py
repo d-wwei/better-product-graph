@@ -26,6 +26,7 @@ from src.bpg.templates import TemplateRegistry
 from tests.controller_fixtures import position_run_internal
 from tests.test_planning_contract import complete_plan
 from tests.test_prd_contract import prd_submission
+from tests.writing_review_fixtures import attach_zero_finding_writing_coverage
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -515,6 +516,9 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             },
             "artifact_refs": [],
         }
+        writing_ref = attach_zero_finding_writing_coverage(
+            self.project, review_dispatch, review_result
+        )
         aggregate_dispatch = self._invoke(
             "--operation", "submit", "--run-id", run_id,
             "--payload-file", str(
@@ -540,6 +544,7 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
                     "finding_ids": [retained["finding_id"]],
                 }
             ],
+            "writing_coverage_ref": writing_ref,
         }
         dispositions = {
             "schema_version": "review-dispositions.v1",
@@ -1674,6 +1679,9 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             },
             "artifact_refs": [],
         }
+        writing_ref = attach_zero_finding_writing_coverage(
+            self.project, review_dispatch, review_result
+        )
         aggregate_dispatch = self._invoke(
             "--operation", "submit", "--run-id", case["run_id"],
             "--payload-file", str(
@@ -1694,6 +1702,7 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             ],
             "findings": [verified_finding],
             "disagreements": [],
+            "writing_coverage_ref": writing_ref,
         }
         dispositions = {
             "schema_version": "review-dispositions.v1",

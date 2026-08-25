@@ -79,6 +79,11 @@ def complete_ready_input(candidate_ref: dict) -> dict:
                 "hash": "sha256:companion",
                 "resolved_hash": "sha256:companion",
             },
+            "writing_coverage_ref": {
+                "path": "writing-coverage.json",
+                "hash": "sha256:writing-coverage",
+                "version": 1,
+            },
         },
         "upstream_refs": [
             {
@@ -463,6 +468,88 @@ def materialize_ready_evidence(
     request["review"]["findings"] = findings
     request["review"]["dispositions"] = dispositions_payload
     request["review"]["companion_view_ref"]["finding_count"] = finding_count
+    profile_path = REPO_ROOT / "src" / "core" / "policies" / "prd-writing-profile-v0.2.json"
+    guide_path = REPO_ROOT / "src" / "core" / "policies" / "prd-writing-guide-v0.2.md"
+    coverage_contract_path = (
+        REPO_ROOT
+        / "src"
+        / "core"
+        / "reviewer-profiles"
+        / "prd-writing-standard-coverage-v1.json"
+    )
+    profile = read_json(profile_path)
+    coverage_contract = read_json(coverage_contract_path)
+    output_contract = archived_metadata["template_profile"]["output_contract"]
+    candidate_identity = {
+        "path": candidate_document_ref["path"],
+        "hash": archived.document_hash,
+        "version": archived.version,
+    }
+    profile_ref = {
+        key: archived_metadata["document_experience"]["profile_ref"][key]
+        for key in ("path", "hash", "version")
+    }
+    guide_ref = {
+        key: archived_metadata["document_experience"]["writing_guide_ref"][key]
+        for key in ("path", "hash", "version")
+    }
+    output_ref = {
+        "path": output_contract["path"],
+        "hash": output_contract["sha256"],
+        "version": output_contract["version"],
+    }
+    basis = [{
+        "path": candidate_identity["path"],
+        "hash": candidate_identity["hash"],
+        "start_line": 1,
+        "end_line": 1,
+    }]
+    writing_coverage = evidence_root / "writing-coverage.json"
+    atomic_write_json(
+        writing_coverage,
+        {
+            "schema_version": "document-experience-coverage.v1",
+            "candidate_ref": candidate_identity,
+            "candidate_tree_hash": archived.tree_hash,
+            "profile_ref": profile_ref,
+            "guide_ref": guide_ref,
+            "output_contract_ref": output_ref,
+            "author_execution_ref": {
+                "kind": "HOST_AGENT_ATTEMPT",
+                "id": archived_metadata["provenance"]["attempt_id"],
+            },
+            "reviewer_execution_ref": {
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": "review-writing-ready-fixture",
+            },
+            "reviewer_role": "writing_standard",
+            "isolated_input_refs": [candidate_identity, profile_ref, guide_ref, output_ref],
+            "required_rule_results": [
+                {
+                    "rule_id": rule_id,
+                    "verdict": "PASS",
+                    "basis_refs": basis,
+                    "reason": "Ready 测试夹具提供精确依据。",
+                }
+                for rule_id in profile["required_expression_rules"]
+            ],
+            "delivery_check_results": [
+                {
+                    "check_id": item["check_id"],
+                    "verdict": "PASS",
+                    "basis_refs": basis,
+                    "reason": "Ready 测试夹具提供精确依据。",
+                }
+                for item in coverage_contract["delivery_checks"]
+            ],
+            "finding_refs": [],
+        },
+    )
+    request["review"]["writing_coverage_ref"] = {
+        "path": writing_coverage.relative_to(project).as_posix(),
+        "hash": sha256_file(writing_coverage),
+        "version": 1,
+    }
     aggregate = evidence_root / "review-aggregate.json"
     atomic_write_json(
         aggregate,
@@ -481,6 +568,7 @@ def materialize_ready_evidence(
             ],
             "findings": findings,
             "disagreements": [],
+            "writing_coverage_ref": request["review"]["writing_coverage_ref"],
         },
     )
     dispositions = evidence_root / "review-dispositions.json"
@@ -512,6 +600,9 @@ def materialize_ready_evidence(
         key: request["review"]["dispositions_ref"][key]
         for key in ("path", "hash", "version")
     }
+    companion_payload["writing_coverage_ref"] = request["review"][
+        "writing_coverage_ref"
+    ]
     atomic_write_json(companion, companion_payload)
     archived = replace(
         archived,
@@ -587,6 +678,7 @@ def materialize_ready_evidence(
         request["review"]["companion_view_ref"],
         request["review"]["aggregate_ref"],
         request["review"]["dispositions_ref"],
+        request["review"]["writing_coverage_ref"],
     ]
     artifact_refs = dict(state["artifact_refs"])
     for index, ref in enumerate(authorized_refs):
@@ -632,6 +724,7 @@ def materialize_ready_evidence(
                     companion_ref,
                     {"role": "review_aggregate", **request["review"]["aggregate_ref"]},
                     {"role": "review_dispositions", **request["review"]["dispositions_ref"]},
+                    {"role": "writing_coverage", **request["review"]["writing_coverage_ref"]},
                 ],
             ),
             "document_experience": issue(
@@ -639,6 +732,7 @@ def materialize_ready_evidence(
                 "document_experience",
                 [
                     candidate_document_ref,
+                    companion_ref,
                     {"role": "template_profile", **request["presentation"]["template_profile_ref"]},
                     {"role": "version_record", **request["presentation"]["version_record_ref"]},
                     {"role": "document_changelog", **request["presentation"]["changelog_ref"]},
@@ -697,6 +791,44 @@ class ReviewsReadyTests(unittest.TestCase):
         result = calculate_prd_ready(complete_ready_input(self.candidate_ref))
         self.assertEqual(result.status, "READY")
         self.assertEqual(result.unmet, [])
+
+    def test_ready_fails_closed_when_prd_lifecycle_claim_conflicts_with_authority(self) -> None:
+        cases = (
+            ("review", "- **当前 Review 状态**：待 Review", "review_status_conflict"),
+            ("eval", "| Product Evals 执行状态 | PASS |", "eval_execution_status_conflict"),
+        )
+        for label, claim, expected in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                project = Path(directory).resolve()
+                submission = prd_submission()
+                submission["semantic_output"]["document_markdown"] = submission[
+                    "semantic_output"
+                ]["document_markdown"].replace(
+                    "## 阅读摘要", f"{claim}\n\n## 阅读摘要", 1
+                )
+                assembled = assemble_prd(
+                    submission, TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
+                )
+                archived = archive_prd_candidate(
+                    project,
+                    assembled,
+                    assets={},
+                    review_companion=finalized_review_companion(assembled),
+                )
+                request = complete_ready_input(
+                    {
+                        "path": str(archived.path),
+                        "hash": archived.document_hash,
+                        "tree_hash": archived.tree_hash,
+                        "version": archived.version,
+                    }
+                )
+
+                with self.assertRaisesRegex(TransitionRejected, expected):
+                    materialize_ready_evidence(project, request, archived)
+                self.assertFalse(
+                    (project / "artifacts" / "prds" / "released").exists()
+                )
 
     def test_required_evals_cannot_reach_full_release_without_verifiable_fulfillment_authority(self) -> None:
         request = complete_ready_input(self.candidate_ref)

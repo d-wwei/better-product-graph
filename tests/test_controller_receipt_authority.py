@@ -76,10 +76,12 @@ class ControllerReceiptAuthorityTests(unittest.TestCase):
                 {"role": "review_companion", **self.request["review"]["companion_view_ref"]},
                 {"role": "review_aggregate", **self.request["review"]["aggregate_ref"]},
                 {"role": "review_dispositions", **self.request["review"]["dispositions_ref"]},
+                {"role": "writing_coverage", **self.request["review"]["writing_coverage_ref"]},
             ]
         if kind == "document_experience":
             return [
                 candidate,
+                {"role": "review_companion", **self.request["review"]["companion_view_ref"]},
                 {"role": "template_profile", **self.request["presentation"]["template_profile_ref"]},
                 {"role": "version_record", **self.request["presentation"]["version_record_ref"]},
                 {"role": "document_changelog", **self.request["presentation"]["changelog_ref"]},

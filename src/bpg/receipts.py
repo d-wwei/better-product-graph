@@ -8,7 +8,11 @@ from typing import Any
 
 from .contracts import PolicyViolation, validate_node_result_producer
 from .delivery_contract import DeliveryContractError, derive_active_scope_ref
-from .documents import hash_tree, validate_document_experience
+from .documents import (
+    hash_tree,
+    validate_document_experience,
+    validate_lifecycle_expression_reconciliation,
+)
 from .document_experience_profile import (
     DocumentExperienceProfileError,
     resolve_prd_document_experience,
@@ -38,10 +42,17 @@ REQUIRED_SUBJECT_ROLES = {
             "review_companion",
             "review_aggregate",
             "review_dispositions",
+            "writing_coverage",
         }
     ),
     "document_experience": frozenset(
-        {"candidate_document", "template_profile", "version_record", "document_changelog"}
+        {
+            "candidate_document",
+            "review_companion",
+            "template_profile",
+            "version_record",
+            "document_changelog",
+        }
     ),
     "audit_integrity": frozenset({"audit_snapshot"}),
     "mechanical_contracts": frozenset(
@@ -205,6 +216,7 @@ def evaluate_receipt_subjects(
         companion = json_subject("review_companion")
         aggregate = json_subject("review_aggregate")
         dispositions = json_subject("review_dispositions")
+        writing_coverage = json_subject("writing_coverage")
         attempts = aggregate.get("attempts", [])
         roles = {
             role
@@ -216,6 +228,15 @@ def evaluate_receipt_subjects(
         finding_ids = [
             item.get("finding_id") for item in findings if isinstance(item, dict)
         ]
+        writing_finding_ids = {
+            item.get("finding_id")
+            for item in findings
+            if isinstance(item, dict)
+            and (
+                item.get("reviewer_role") == "writing_standard"
+                or item.get("reviewer_profile") == "WRITING_STANDARD"
+            )
+        }
         disposition_items = dispositions.get("dispositions", [])
         disposition_ids = [
             item.get("finding_id")
@@ -237,6 +258,11 @@ def evaluate_receipt_subjects(
             or companion.get("dispositions_ref") != {
                 key: subjects["review_dispositions"].get(key) for key in ("path", "hash", "version")
             }
+            or companion.get("writing_coverage_ref")
+            != {
+                key: subjects["writing_coverage"].get(key)
+                for key in ("path", "hash", "version")
+            }
             or aggregate.get("schema_version") != "review-aggregate.v1"
             or aggregate.get("authority") != "ADVISORY_ONLY"
             or aggregate.get("candidate_ref", {}).get("path") != candidate_ref.get("path")
@@ -252,6 +278,22 @@ def evaluate_receipt_subjects(
             or sorted(disposition_ids) != sorted(finding_ids)
             or len(disposition_ids) != len(set(disposition_ids))
             or companion.get("finding_count") != len(finding_ids)
+            or aggregate.get("writing_coverage_ref")
+            != {
+                key: subjects["writing_coverage"].get(key)
+                for key in ("path", "hash", "version")
+            }
+            or writing_coverage.get("schema_version")
+            != "document-experience-coverage.v1"
+            or writing_coverage.get("candidate_ref", {}).get("path")
+            != candidate_ref.get("path")
+            or writing_coverage.get("candidate_ref", {}).get("hash")
+            != candidate_ref.get("hash")
+            or writing_coverage.get("candidate_ref", {}).get("version")
+            != candidate_ref.get("version")
+            or len(writing_coverage.get("required_rule_results", [])) != 13
+            or len(writing_coverage.get("delivery_check_results", [])) != 10
+            or set(writing_coverage.get("finding_refs", [])) != writing_finding_ids
         ):
             raise ReceiptError(
                 "review_finalize Finding/disposition evidence is not an exact finalized advisory review"
@@ -268,12 +310,24 @@ def evaluate_receipt_subjects(
             ) from error
         template = json_subject("template_profile")
         version = json_subject("version_record")
+        companion = json_subject("review_companion")
         changelog = (root / subjects["document_changelog"]["path"]).read_text(encoding="utf-8")
         if experience.status != "PASS":
             raise ReceiptError("document_experience Candidate failed: " + ", ".join(experience.issues))
         if metadata.get("document_experience") != expected_document_experience:
             raise ReceiptError(
                 "document_experience Candidate does not bind the exact released writing profile"
+            )
+        if (
+            companion.get("status") != "FINALIZED"
+            or companion.get("candidate_hash") != candidate_ref.get("hash")
+            or subjects["review_companion"].get("path")
+            != candidate_ref.get("review_path")
+            or subjects["review_companion"].get("hash")
+            != candidate_ref.get("review_hash")
+        ):
+            raise ReceiptError(
+                "document_experience lifecycle authority is not the exact finalized companion"
             )
         if (
             template.get("schema_version") != "template-profile-evidence.v1"
@@ -333,6 +387,22 @@ def evaluate_receipt_subjects(
             raise ReceiptError("document_experience version record is not exact")
         if candidate_ref.get("version") not in changelog or candidate_ref.get("artifact_path", "") not in changelog:
             raise ReceiptError("document_experience changelog does not bind Candidate version/path")
+        lifecycle_issues = validate_lifecycle_expression_reconciliation(
+            document,
+            authoritative={
+                "review_status": companion.get("status"),
+                "eval_fulfillment": metadata.get("evals", {}).get("fulfillment"),
+                "eval_execution_status": metadata.get("evals", {}).get(
+                    "execution_status", "NOT_RUN"
+                ),
+                "remote_handoff_status": "NOT_SENT",
+            },
+        )
+        if lifecycle_issues:
+            raise ReceiptError(
+                "document_experience lifecycle claims conflict with authority: "
+                + ", ".join(lifecycle_issues)
+            )
         observed = {
             "document_experience": "PASS",
             "version_visible": candidate_ref["version"],

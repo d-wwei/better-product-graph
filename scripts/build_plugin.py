@@ -342,7 +342,7 @@ def _validate_reference_catalog(output_root: Path) -> None:
     if (
         catalog.get("discoverable") is not False
         or len(catalog.get("cognitive_bases", [])) != 20
-        or len({item.get("resource_id") for item in refs[:-1]}) != 26
+        or len({item.get("resource_id") for item in refs[:-1]}) != 29
     ):
         raise BuildError("internal reference catalog membership is invalid")
     for ref in refs:

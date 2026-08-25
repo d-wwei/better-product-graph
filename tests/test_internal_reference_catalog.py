@@ -7,10 +7,14 @@ from pathlib import Path
 from scripts.build_plugin import build_plugin
 from tests.controller_fixtures import position_run_internal
 from src.bpg.host_runtime import HostRuntime
+from src.bpg.documents import archive_prd_candidate
+from src.bpg.prd_contract import assemble_prd
 from src.bpg.node_registry import NodeRegistry
 from src.bpg.reference_catalog import ReferenceCatalog, ReferenceCatalogError
 from src.bpg.state_controller import TransitionRejected
 from src.bpg.storage import atomic_write_json, read_json, sha256_file
+from src.bpg.templates import TemplateRegistry
+from tests.test_prd_contract import TEMPLATES, prd_submission
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +22,14 @@ GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
 
 
 class InternalReferenceCatalogTests(unittest.TestCase):
+    def test_review_resources_include_exact_writing_standard_contracts(self) -> None:
+        catalog = ReferenceCatalog(REPO_ROOT / "src" / "core")
+        resources = {item["resource_id"]: item for item in catalog.review_resources()}
+
+        self.assertIn("writing-standard-coverage-contract", resources)
+        self.assertIn("prd-writing-profile-v0.2", resources)
+        self.assertIn("prd-writing-guide-v0.2", resources)
+
     def test_source_extraction_manifest_rehashes_all_twenty_declared_cognitive_bases(self) -> None:
         upstream = Path("/Users/example/Documents/AI/认知基座")
         if not upstream.is_dir():
@@ -48,7 +60,7 @@ class InternalReferenceCatalogTests(unittest.TestCase):
             {"better-question", "cognitive-router", "cognitive-base-catalog"},
         )
         self.assertTrue(all("SKILL.md" not in item["path"] for item in catalog.all_resource_refs()))
-        self.assertEqual(len({item["resource_id"] for item in catalog.all_resource_refs()}), 26)
+        self.assertEqual(len({item["resource_id"] for item in catalog.all_resource_refs()}), 29)
 
     def test_problem_learning_and_review_dispatch_bind_installed_reference_hashes(self) -> None:
         registry = NodeRegistry(REPO_ROOT / "src" / "core", GRAPH)
@@ -58,7 +70,14 @@ class InternalReferenceCatalogTests(unittest.TestCase):
         self.assertEqual(len(learning["resource_refs"]), 23)
         self.assertEqual(
             {item["resource_id"] for item in review["resource_refs"]},
-            {"goal-fidelity-profile", "goal-fidelity-rubric", "goal-fidelity-packet-contract"},
+            {
+                "goal-fidelity-profile",
+                "goal-fidelity-rubric",
+                "goal-fidelity-packet-contract",
+                "writing-standard-coverage-contract",
+                "prd-writing-profile-v0.2",
+                "prd-writing-guide-v0.2",
+            },
         )
         self.assertTrue(all(item["hash"].startswith("sha256:") for item in learning["resource_refs"] + review["resource_refs"]))
 
@@ -78,7 +97,7 @@ class InternalReferenceCatalogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             plugin = root / "plugin"
-            project = root / "project"
+            project = (root / "project").resolve()
             project.mkdir()
             build_plugin(REPO_ROOT, plugin)
             skill = plugin / "skills" / "better-product-graph"
@@ -86,11 +105,22 @@ class InternalReferenceCatalogTests(unittest.TestCase):
             runtime = HostRuntime(project, graph, skill)
             run_id = "run-review-resources"
             runtime.controller.create_run(run_id, raw_signal="审查候选")
-            candidate_path = project / "candidate.json"
             commitment_path = project / "commitment.json"
-            atomic_write_json(candidate_path, {"candidate": "v1"})
             atomic_write_json(commitment_path, {"commitment": "目标不漂移"})
-            candidate_ref = {"path": "candidate.json", "hash": sha256_file(candidate_path), "version": 1}
+            assembled = assemble_prd(
+                prd_submission(), TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
+            )
+            archived = archive_prd_candidate(project, assembled, assets={})
+            candidate_ref = {
+                "path": archived.document_path.relative_to(project).as_posix(),
+                "hash": archived.document_hash,
+                "tree_hash": archived.tree_hash,
+                "artifact_path": archived.path.relative_to(project).as_posix(),
+                "version": archived.version,
+                "review_path": archived.review_path.relative_to(project).as_posix(),
+                "review_hash": archived.review_hash,
+                "generation": 1,
+            }
             commitment_ref = {"path": "commitment.json", "hash": sha256_file(commitment_path), "version": 1}
             position_run_internal(
                 runtime.controller,
@@ -98,6 +128,7 @@ class InternalReferenceCatalogTests(unittest.TestCase):
                 "review.parallel",
                 ["review.aggregate"],
                 artifact_refs={"candidate": candidate_ref, "commitment": commitment_ref},
+                state_updates={"current_candidate_ref": candidate_ref},
             )
             dispatch = runtime.dispatch_current(run_id)
             by_id = {item["resource_id"]: item for item in dispatch["resource_refs"]}
@@ -107,6 +138,59 @@ class InternalReferenceCatalogTests(unittest.TestCase):
                     field: by_id[resource_id][field]
                     for field in ("path", "hash", "version")
                 }
+
+            writing = dispatch["writing_review_context"]
+            basis = [
+                {
+                    "path": writing["candidate_ref"]["path"],
+                    "hash": writing["candidate_ref"]["hash"],
+                    "start_line": 1,
+                    "end_line": 1,
+                }
+            ]
+            writing_path = project / "writing-coverage.json"
+            atomic_write_json(
+                writing_path,
+                {
+                    "schema_version": "document-experience-coverage.v1",
+                    "candidate_ref": writing["candidate_ref"],
+                    "candidate_tree_hash": writing["candidate_tree_hash"],
+                    "profile_ref": writing["profile_ref"],
+                    "guide_ref": writing["guide_ref"],
+                    "output_contract_ref": writing["output_contract_ref"],
+                    "author_execution_ref": writing["author_execution_ref"],
+                    "reviewer_execution_ref": {
+                        "kind": "HOST_SUBAGENT_ATTEMPT",
+                        "id": "attempt-writing-review",
+                    },
+                    "reviewer_role": "writing_standard",
+                    "isolated_input_refs": writing["isolated_input_refs"],
+                    "required_rule_results": [
+                        {
+                            "rule_id": item,
+                            "verdict": "PASS",
+                            "basis_refs": basis,
+                            "reason": "候选稿提供了直接依据。",
+                        }
+                        for item in writing["required_rule_ids"]
+                    ],
+                    "delivery_check_results": [
+                        {
+                            "check_id": item,
+                            "verdict": "PASS",
+                            "basis_refs": basis,
+                            "reason": "普通产品经理可以直接理解。",
+                        }
+                        for item in writing["required_check_ids"]
+                    ],
+                    "finding_refs": [],
+                },
+            )
+            writing_ref = {
+                "path": writing_path.relative_to(project).as_posix(),
+                "hash": sha256_file(writing_path),
+                "version": 1,
+            }
 
             result = {
                 "schema_version": "node-result.v1",
@@ -134,9 +218,10 @@ class InternalReferenceCatalogTests(unittest.TestCase):
                         "candidate_ref": candidate_ref,
                         "commitment_refs": [commitment_ref],
                     },
+                    "writing_coverage_ref": writing_ref,
                     "findings": [],
                 },
-                "artifact_refs": [],
+                "artifact_refs": [{"role": "writing_coverage", **writing_ref}],
             }
 
             with self.assertRaisesRegex(TransitionRejected, "resource"):

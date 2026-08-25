@@ -127,6 +127,10 @@ class HostRuntime:
                 envelope["planning_context_discovery"] = discover_planning_context(
                     self.controller.project_root
                 )
+            elif state["current_node"] == "review.parallel":
+                envelope["writing_review_context"] = self.controller.writing_review_context(
+                    state, envelope["resource_refs"]
+                )
             persist_node_dispatch(self.controller, run_id, attempt_id, contract=envelope)
             begin_node_call(self.controller, run_id, attempt_id)
             return envelope

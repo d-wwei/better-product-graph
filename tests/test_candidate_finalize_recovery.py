@@ -13,6 +13,7 @@ from src.bpg.storage import atomic_write_json, read_json, sha256_file, verify_ev
 from src.bpg.templates import TemplateRegistry
 from tests.controller_fixtures import position_run_internal
 from tests.test_prd_contract import REPO_ROOT, TEMPLATES, prd_submission
+from tests.writing_review_fixtures import attach_zero_finding_writing_coverage
 
 
 GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
@@ -115,6 +116,9 @@ def prepare_review_finalize(
         },
         "artifact_refs": [],
     }
+    writing_ref = attach_zero_finding_writing_coverage(
+        project, review_dispatch, review_result
+    )
     aggregate_dispatch = runtime.submit_and_advance(
         run_id, review_result, requested_node="review.aggregate"
     )["dispatch"]
@@ -133,6 +137,7 @@ def prepare_review_finalize(
         "disagreements": [
             {"topic_id": "candidate-finalize", "finding_ids": ["finding-recovery"]}
         ],
+        "writing_coverage_ref": writing_ref,
     }
     dispositions = {
         "schema_version": "review-dispositions.v1",

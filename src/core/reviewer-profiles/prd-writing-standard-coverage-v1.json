@@ -1,0 +1,36 @@
+{
+  "schema_version": "writing-standard-coverage-contract.v1",
+  "resource_id": "writing-standard-coverage-contract",
+  "version": "v1",
+  "authority": "ADVISORY_ONLY",
+  "coverage_schema": "document-experience-coverage.v1",
+  "profile_ref": {
+    "path": "references/policies/prd-writing-profile-v0.2.json",
+    "hash": "sha256:0345faff7d65038de74d571a12fbb9eacc3ba70122034cc678669e335c644d8c",
+    "version": "0.2.0"
+  },
+  "guide_ref": {
+    "path": "references/policies/prd-writing-guide-v0.2.md",
+    "hash": "sha256:6ff72f9e26c448bdd8c3153e054e71a682b587bcd2102a4bfee9c0caa566b21f",
+    "version": "0.2.0"
+  },
+  "allowed_verdicts": ["PASS", "FINDING", "NOT_APPLICABLE"],
+  "delivery_checks": [
+    {"check_id": "CHECK-01", "guide_line": 129, "question": "谁遇到什么具体问题，为什么现有方式不够？"},
+    {"check_id": "CHECK-02", "guide_line": 130, "question": "本期改变什么结果，明确不做什么？"},
+    {"check_id": "CHECK-03", "guide_line": 131, "question": "整体方案由哪些阶段或模块组成？"},
+    {"check_id": "CHECK-04", "guide_line": 132, "question": "用户从开始到完成经历什么，失败后怎样继续？"},
+    {"check_id": "CHECK-05", "guide_line": 133, "question": "哪些是产品必须决定的规则，哪些留给 Engineering SPEC？"},
+    {"check_id": "CHECK-06", "guide_line": 134, "question": "第一次出现的术语是否已经用普通中文解释？"},
+    {"check_id": "CHECK-07", "guide_line": 135, "question": "复杂关系是否有真正有用的图，简单关系是否避免装饰图？"},
+    {"check_id": "CHECK-08", "guide_line": 136, "question": "哪些是事实、判断、假设和未知？"},
+    {"check_id": "CHECK-09", "guide_line": 137, "question": "验收、权限、风险和恢复是否因简化而丢失？"},
+    {"check_id": "CHECK-10", "guide_line": 138, "question": "PRD Ready、代码实现、测试/Eval、交付和上线是否分别准确表达？"}
+  ],
+  "independence": {
+    "author_kind": "HOST_AGENT_ATTEMPT",
+    "reviewer_kind": "HOST_SUBAGENT_ATTEMPT",
+    "different_ids_required": true,
+    "claim_boundary": "RECORDED_DISTINCT_DURABLE_ATTEMPTS_NOT_EXTERNAL_IDENTITY_PROOF"
+  }
+}

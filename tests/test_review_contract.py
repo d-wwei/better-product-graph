@@ -45,6 +45,11 @@ def review_submission(role: str, finding_id: str, stance: str) -> dict:
                     {"path": "decision-v1.json", "hash": "sha256:decision", "version": 1}
                 ],
             },
+            "writing_coverage_ref": {
+                "path": "reviews/writing-coverage-v1.json",
+                "hash": "sha256:writing-coverage",
+                "version": 1,
+            },
             "findings": [
                 {
                     "finding_id": finding_id,
@@ -65,6 +70,13 @@ def review_submission(role: str, finding_id: str, stance: str) -> dict:
 
 
 class ReviewContractTests(unittest.TestCase):
+    def test_review_requires_exact_writing_coverage_ref(self) -> None:
+        submission = review_submission("product", "f-writing", "concern")
+        submission["semantic_output"].pop("writing_coverage_ref")
+
+        with self.assertRaisesRegex(ReviewContractError, "Writing Coverage"):
+            validate_review_submission(submission)
+
     def test_disagreement_aliases_are_unambiguous(self) -> None:
         with self.assertRaisesRegex(ReviewContractError, "both finding_ids and findings"):
             validate_aggregate_disagreements(
@@ -129,6 +141,32 @@ class ReviewContractTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "FINALIZED")
         self.assertNotIn("approved", result)
+
+    def test_undispositioned_writing_finding_cannot_finalize(self) -> None:
+        submissions = [
+            review_submission("product", "f-writing", "readability-gap"),
+            review_submission("engineering_feasibility", "f-eng", "feasible"),
+            review_submission("testability", "f-test", "testable"),
+        ]
+        submissions[0]["semantic_output"]["reviewer_role"] = "writing_standard"
+        submissions[0]["semantic_output"]["reviewer_profile"] = "WRITING_STANDARD"
+        aggregated = aggregate_reviews(CANDIDATE, submissions)
+        dispositions = [
+            {"finding_id": "f-eng", "status": "EXTERNAL_REVIEW"},
+            {"finding_id": "f-test", "status": "EXTERNAL_REVIEW"},
+        ]
+
+        with self.assertRaisesRegex(ReviewContractError, "every Finding"):
+            finalize_review(
+                CANDIDATE,
+                submissions,
+                aggregated,
+                dispositions,
+                companion_view_ref={
+                    "candidate_hash": "sha256:prd",
+                    "finding_count": 3,
+                },
+            )
 
     def test_review_optimize_stops_on_no_progress_or_round_limit_without_generating_content(self) -> None:
         self.assertEqual(

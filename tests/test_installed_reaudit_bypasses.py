@@ -39,6 +39,7 @@ from tests.test_reviews_ready import (
     materialize_ready_evidence,
 )
 from tests.controller_fixtures import position_run_internal
+from tests.writing_review_fixtures import attach_zero_finding_writing_coverage
 
 
 GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
@@ -1650,6 +1651,9 @@ class InstalledPublicReauditTests(unittest.TestCase):
             },
             "artifact_refs": [],
         }
+        writing_ref = attach_zero_finding_writing_coverage(
+            self.project, review_dispatch, review_result
+        )
         aggregate_dispatch = self._ok(
             "--operation",
             "submit",
@@ -1677,6 +1681,7 @@ class InstalledPublicReauditTests(unittest.TestCase):
             ],
             "findings": [],
             "disagreements": [],
+            "writing_coverage_ref": writing_ref,
         }
         dispositions = {
             "schema_version": "review-dispositions.v1",
@@ -2463,6 +2468,9 @@ class InstalledPublicReauditTests(unittest.TestCase):
                 else []
             ),
         }
+        writing_ref = attach_zero_finding_writing_coverage(
+            self.project, review_dispatch, review_result
+        )
         aggregate_dispatch = self._ok(
             "--operation", "submit", "--run-id", run_id,
             "--payload-file", str(self._payload("review-parallel-result.json", review_result)),
@@ -2486,6 +2494,7 @@ class InstalledPublicReauditTests(unittest.TestCase):
                 if no_findings
                 else [{"topic_id": "recovery", "finding_ids": ["finding-1"]}]
             ),
+            "writing_coverage_ref": writing_ref,
         }
         if aggregate_disagreements is not _DEFAULT_DISAGREEMENTS:
             aggregate["disagreements"] = aggregate_disagreements
