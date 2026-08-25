@@ -35,6 +35,10 @@
       "target_source": "host-adapters/claude/public-skill/better-product-graph/SKILL.md",
       "substitutions": [
         {
+          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation install-template-pack \\",
+          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation install-template-pack \\"
+        },
+        {
           "from": "Map explicit `$better-product-graph` and equivalent natural language through the same Host parser:",
           "to": "Map explicit `/better-product-graph:better-product-graph <intent>` entries and equivalent natural language through the same Host parser:"
         },
