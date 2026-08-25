@@ -18,6 +18,7 @@ AGGREGATE_SEMANTIC_FIELDS = frozenset(
         "findings",
         "disagreements",
         "dispositions",
+        "writing_coverage_ref",
     }
 )
 AGGREGATE_ARTIFACT_FIELDS = AGGREGATE_SEMANTIC_FIELDS - {"dispositions"}
@@ -181,6 +182,9 @@ def validate_review_aggregate_semantic(value: Any) -> dict[str, Any]:
     dispositions = _required_closed_mapping_list(
         output, "dispositions", DISPOSITION_FIELDS, "semantic_output.dispositions"
     )
+    _exact_ref(
+        output.get("writing_coverage_ref"), "ref", prefix="Writing Coverage"
+    )
     _validate_aggregate_collection_cardinality(
         attempts=attempts,
         findings=findings,
@@ -225,6 +229,11 @@ def validate_review_aggregate_artifacts(
         raise ReviewContractError("review_aggregate.disagreements is required")
     disagreement_items = validate_aggregate_disagreements(
         aggregate_payload["disagreements"], path="review_aggregate.disagreements"
+    )
+    _exact_ref(
+        aggregate_payload.get("writing_coverage_ref"),
+        "aggregate ref",
+        prefix="Writing Coverage",
     )
 
     disposition_payload = _closed_mapping(
@@ -298,14 +307,16 @@ def validate_aggregate_disagreements(
     return value
 
 
-def _exact_ref(value: Any, label: str) -> dict[str, Any]:
+def _exact_ref(
+    value: Any, label: str, *, prefix: str = "Goal Fidelity"
+) -> dict[str, Any]:
     if (
         not isinstance(value, dict)
         or not value.get("path")
         or not value.get("hash")
         or value.get("version") is None
     ):
-        raise ReviewContractError(f"Goal Fidelity {label} requires an exact ref")
+        raise ReviewContractError(f"{prefix} {label} requires an exact ref")
     return value
 
 
@@ -374,6 +385,9 @@ def validate_review_submission(submission: dict[str, Any]) -> dict[str, Any]:
     for finding in findings:
         if not isinstance(finding, dict) or any(not finding.get(field) for field in required):
             raise ReviewContractError("Reviewer Finding is missing its advisory construction contract")
+    _exact_ref(
+        output.get("writing_coverage_ref"), "ref", prefix="Writing Coverage"
+    )
     return output
 
 
@@ -383,10 +397,15 @@ def aggregate_reviews(
     findings: list[dict[str, Any]] = []
     attempts: list[dict[str, Any]] = []
     topics: dict[str, list[dict[str, Any]]] = {}
+    writing_coverage_ref: dict[str, Any] | None = None
     for submission in submissions:
         output = validate_review_submission(submission)
         if output["candidate_ref"] != candidate_ref:
             raise ReviewContractError("Reviewer attempts must bind the same exact Candidate")
+        if writing_coverage_ref is None:
+            writing_coverage_ref = deepcopy(output["writing_coverage_ref"])
+        elif output["writing_coverage_ref"] != writing_coverage_ref:
+            raise ReviewContractError("Reviewer attempts bind different Writing Coverage")
         attempts.append(
             {
                 "attempt_id": submission["attempt_id"],
@@ -414,6 +433,7 @@ def aggregate_reviews(
         "attempts": attempts,
         "findings": findings,
         "disagreements": disagreements,
+        "writing_coverage_ref": writing_coverage_ref,
         "authority": "ADVISORY_ONLY",
     }
 
@@ -428,11 +448,16 @@ def finalize_review(
 ) -> dict[str, Any]:
     if aggregate.get("candidate_ref") != candidate_ref:
         raise ReviewContractError("Aggregate binds a different Candidate")
+    writing_coverage_ref: dict[str, Any] | None = None
     roles: set[str] = set()
     for submission in submissions:
         output = validate_review_submission(submission)
         if output["candidate_ref"] != candidate_ref:
             raise ReviewContractError("Review attempt binds a different Candidate")
+        if writing_coverage_ref is None:
+            writing_coverage_ref = output["writing_coverage_ref"]
+        elif output["writing_coverage_ref"] != writing_coverage_ref:
+            raise ReviewContractError("Review attempts bind different Writing Coverage")
         roles.update(output["roles_covered"])
     if not REQUIRED_LOGICAL_ROLES.issubset(roles):
         raise ReviewContractError("required logical Reviewer roles are incomplete")
@@ -444,6 +469,8 @@ def finalize_review(
     }
     if finding_ids != disposed:
         raise ReviewContractError("every Finding requires one explicit disposition")
+    if aggregate.get("writing_coverage_ref") != writing_coverage_ref:
+        raise ReviewContractError("Aggregate Writing Coverage is stale or incomplete")
     if (
         companion_view_ref.get("candidate_hash") != candidate_ref.get("hash")
         or companion_view_ref.get("finding_count") != len(finding_ids)

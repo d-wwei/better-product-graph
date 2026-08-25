@@ -75,6 +75,7 @@ def calculate_prd_ready(request: dict[str, Any]) -> ReadyResult:
             if isinstance(item, dict) and item.get("status")
         }
         companion = review.get("companion_view_ref", {})
+        writing_coverage = review.get("writing_coverage_ref", {})
         review_valid = (
             review.get("candidate_hash") == candidate.get("hash")
             and review.get("candidate_version") == candidate.get("version")
@@ -86,6 +87,10 @@ def calculate_prd_ready(request: dict[str, Any]) -> ReadyResult:
             and companion.get("finding_count") == len(finding_ids)
             and bool(companion.get("hash"))
             and companion.get("resolved_hash") == companion.get("hash")
+            and isinstance(writing_coverage, dict)
+            and bool(writing_coverage.get("path"))
+            and bool(writing_coverage.get("hash"))
+            and writing_coverage.get("version") is not None
         )
     if not review_valid:
         unmet.append(
@@ -316,9 +321,11 @@ def ready_and_release(
                 controller_subject_ref("review_companion", review.get("companion_view_ref", {})),
                 controller_subject_ref("review_aggregate", review.get("aggregate_ref", {})),
                 controller_subject_ref("review_dispositions", review.get("dispositions_ref", {})),
+                controller_subject_ref("writing_coverage", review.get("writing_coverage_ref", {})),
             ],
             "document_experience": [
                 candidate_document_ref,
+                controller_subject_ref("review_companion", review.get("companion_view_ref", {})),
                 controller_subject_ref("template_profile", presentation.get("template_profile_ref", {})),
                 controller_subject_ref("version_record", presentation.get("version_record_ref", {})),
                 controller_subject_ref("document_changelog", presentation.get("changelog_ref", {})),

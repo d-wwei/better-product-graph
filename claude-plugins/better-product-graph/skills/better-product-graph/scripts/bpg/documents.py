@@ -42,6 +42,21 @@ NEXT_ACTION = re.compile(
     re.IGNORECASE,
 )
 
+CONTROLLED_LIFECYCLE_LABELS = {
+    "review": re.compile(r"(?:当前\s*)?(?:Review|审查)\s*状态", re.IGNORECASE),
+    "eval_fulfillment": re.compile(
+        r"(?:Product\s*)?Evals?\s*(?:准备|履行|fulfillment)\s*状态|Eval\s*Pack\s*状态",
+        re.IGNORECASE,
+    ),
+    "eval_execution": re.compile(
+        r"(?:Product\s*)?Evals?\s*(?:执行|execution)\s*状态", re.IGNORECASE
+    ),
+    "remote_handoff": re.compile(
+        r"(?:远程交付|远程发送|remote\s*(?:delivery|handoff))\s*状态",
+        re.IGNORECASE,
+    ),
+}
+
 
 class ImmutableArtifactError(RuntimeError):
     """An immutable archive/release would be overwritten or is not self-contained."""
@@ -129,6 +144,48 @@ def validate_document_experience(markdown: str, profile: str) -> DocumentExperie
     if profile in {"incident", "bug"} and len(markdown.splitlines()) > 40:
         issues.append("minimal_actionable_length")
     return DocumentExperienceResult("FAIL" if issues else "PASS", issues)
+
+
+def validate_lifecycle_expression_reconciliation(
+    markdown: str, *, authoritative: dict[str, Any]
+) -> list[str]:
+    """Compare only registered lifecycle statement rows with Controller facts."""
+
+    controlled: dict[str, list[str]] = {key: [] for key in CONTROLLED_LIFECYCLE_LABELS}
+    for line in markdown.splitlines():
+        for key, label in CONTROLLED_LIFECYCLE_LABELS.items():
+            if label.search(line):
+                controlled[key].append(line)
+    issues: list[str] = []
+    if authoritative.get("review_status") == "FINALIZED" and any(
+        re.search(r"REVIEW_PENDING|待\s*Review|待审查|尚未审查", line, re.IGNORECASE)
+        for line in controlled["review"]
+    ):
+        issues.append("review_status_conflict")
+    if authoritative.get("eval_fulfillment") == "REVIEWED" and any(
+        re.search(
+            r"REVIEW_PENDING|尚未生成|待生成|尚未开始|已生成待审|NOT_GENERATED",
+            line,
+            re.IGNORECASE,
+        )
+        for line in controlled["eval_fulfillment"]
+    ):
+        issues.append("eval_fulfillment_status_conflict")
+    if authoritative.get("eval_execution_status") == "NOT_RUN" and any(
+        re.search(r"(?<![A-Z_])(?:PASS|FAIL|PASSED|FAILED)(?![A-Z_])|已通过|未通过", line, re.IGNORECASE)
+        for line in controlled["eval_execution"]
+    ):
+        issues.append("eval_execution_status_conflict")
+    if authoritative.get("remote_handoff_status") not in {
+        "SENT",
+        "RECEIVED",
+        "APPROVED",
+    } and any(
+        re.search(r"已发送|已接收|已批准|\bSENT\b|\bRECEIVED\b|\bAPPROVED\b", line, re.IGNORECASE)
+        for line in controlled["remote_handoff"]
+    ):
+        issues.append("remote_handoff_status_conflict")
+    return issues
 
 
 def hash_tree(root: Path) -> str:

@@ -14,6 +14,50 @@ Do not add a new confirmation or consent checkpoint when exact commitments alrea
 
 PRD 应说明产品问题、用户结果、范围、业务规则、边界条件和可观察验收。对象拆分、内部 Schema、存储布局、线程模型、类与函数设计等通常属于下游 Engineering SPEC，不应为了显得完整而塞进 PRD；只有当某项技术约束会改变外部行为、安全、隐私、兼容性、性能承诺或产品取舍时，才把它提升为产品要求。发现问题时，使用正常 Finding 合同给出 exact basis、影响和建议，不得新增 Gate、阻塞权或强制确认点。
 
+### Mandatory Writing Standard subreview
+
+`review.parallel` 还必须在现有 Review 内启动一个独立 Writing Reviewer；这不是新 Node，也不产生新 Gate。主 Host 把 dispatch 返回的 `writing_review_context.isolated_input_refs` 原样交给一个新的 subagent execution。首轮 Writing Reviewer 只能读取这四项：exact Candidate、exact Writing Profile、exact Writing Guide、exact PRD Output Contract；不得读取作者隐藏推理、可变聊天上下文或其他 Reviewer Findings。
+
+Writing Reviewer 必须逐项覆盖 `writing_review_context.required_rule_ids` 的 13 条规则和 `required_check_ids` 的 10 个交稿问题。每项只允许 `PASS`、`FINDING`、`NOT_APPLICABLE`，并必须给出 Candidate exact path/hash、有效起止行号和简短理由。`FINDING` 必须链接一个正常 Review Finding；该 Finding 使用 `reviewer_role=writing_standard`、`reviewer_profile=WRITING_STANDARD`，并继续遵守现有 Finding 严重级别、依据和最小修改建议合同。`NOT_APPLICABLE` 仍需具体理由。不能用 `findings=[]` 代替 13+10 的覆盖证据。
+
+把完整覆盖保存为一个 project-local JSON 文件，计算最终字节 hash，并在 Node Result 中同时提交 `semantic_output.writing_coverage_ref` 与恰好一个同身份的 `artifact_refs[role=writing_coverage]`。覆盖文件采用以下 closed-world 合同：
+
+```json
+{
+  "schema_version": "document-experience-coverage.v1",
+  "candidate_ref": {"path": "<copy context>", "hash": "<copy context>", "version": "<copy context>"},
+  "candidate_tree_hash": "<copy writing_review_context.candidate_tree_hash>",
+  "profile_ref": {"path": "<copy context>", "hash": "<copy context>", "version": "<copy context>"},
+  "guide_ref": {"path": "<copy context>", "hash": "<copy context>", "version": "<copy context>"},
+  "output_contract_ref": {"path": "<copy context>", "hash": "<copy context>", "version": "<copy context>"},
+  "author_execution_ref": {"kind": "HOST_AGENT_ATTEMPT", "id": "<copy context>"},
+  "reviewer_execution_ref": {"kind": "HOST_SUBAGENT_ATTEMPT", "id": "<new distinct durable attempt id>"},
+  "reviewer_role": "writing_standard",
+  "isolated_input_refs": ["<copy the four context refs in exact order>"],
+  "required_rule_results": [
+    {
+      "rule_id": "<each required rule id exactly once>",
+      "verdict": "PASS | FINDING | NOT_APPLICABLE",
+      "basis_refs": [{"path": "<Candidate path>", "hash": "<Candidate hash>", "start_line": 1, "end_line": 3}],
+      "reason": "<short concrete reason>",
+      "finding_id": "<required only for FINDING>"
+    }
+  ],
+  "delivery_check_results": [
+    {
+      "check_id": "<CHECK-01 through CHECK-10 exactly once>",
+      "verdict": "PASS | FINDING | NOT_APPLICABLE",
+      "basis_refs": [{"path": "<Candidate path>", "hash": "<Candidate hash>", "start_line": 1, "end_line": 3}],
+      "reason": "<short concrete reason>",
+      "finding_id": "<required only for FINDING>"
+    }
+  ],
+  "finding_refs": ["<every FINDING-linked writing Finding ID exactly once>"]
+}
+```
+
+`reviewer_execution_ref` 证明的是 Host 记录了不同的 durable attempt，不是外部加密身份认证；不得把它夸大成模型身份或人员身份的强证明。Writing Finding 仍是 `ADVISORY_ONLY`，进入现有 aggregate 与 disposition；未处置不能 finalize，但 Reviewer 自己没有批准或阻塞权。
+
 If the independent review finds no material issue, do not invent one. Use the
 complete zero-Finding semantic shape below, replacing every representative ref
 with its exact dispatched path/hash/version. A combined LIGHT attempt still
@@ -62,6 +106,11 @@ declares all three logical roles.
       {"path": ".better-product-graph/decisions/decision-example/DECISION_v1.json", "hash": "sha256:decision", "version": 1}
     ]
   },
+  "writing_coverage_ref": {
+    "path": ".better-product-graph/runs/<run-id>/artifacts/writing-coverage-v1.json",
+    "hash": "sha256:writing-coverage",
+    "version": 1
+  },
   "findings": []
 }
 ```
@@ -82,7 +131,7 @@ unadopted or externally retained advisory disposition and does not authorize
 Controller will reject an Optimize request that lacks this exact accepted repair
 before persisting the aggregate.
 
-The `semantic_output` must equal the complete aggregate artifact plus the same `dispositions` array. The two `artifact_refs` must each contain exact `role`, `path`, `hash`, and `version`; paths may not leave the project and neither file may be a symlink. Do not submit until the Candidate path/hash/version, Reviewer attempt, Reviewer logical roles, Finding IDs, disposition coverage, JSON files, and hashes all agree. Missing or stale facts are a repair condition, not permission to continue to `review.finalize`.
+The `semantic_output` must equal the complete aggregate artifact plus the same `dispositions` array. Both must preserve the exact committed `writing_coverage_ref`; do not summarize or replace it. The two aggregate `artifact_refs` must each contain exact `role`, `path`, `hash`, and `version`; paths may not leave the project and neither file may be a symlink. Do not submit until the Candidate path/hash/version, Reviewer attempt, Reviewer logical roles, Writing Coverage, Finding IDs, disposition coverage, JSON files, and hashes all agree. Missing or stale facts are a repair condition, not permission to continue to `review.finalize`.
 
 `disagreements` is always present and is a JSON list. Use `[]` when no material disagreement exists. Every non-empty item must include a non-empty `topic_id` and a unique non-empty `finding_ids` (or generated `findings`) list that refers only to Findings preserved in this aggregate; if `stances` is present, it must cover those Finding refs one-for-one.
 
@@ -90,7 +139,7 @@ Collection cardinality is exact: `attempts` must contain at least one completed 
 
 This is a closed-world `review.aggregate` contract. Do not add extension or future-authority fields. The exact allowed keys are:
 
-- `semantic_output`: `schema_version`, `authority`, `candidate_ref`, `attempts`, `findings`, `disagreements`, `dispositions`.
+- `semantic_output`: `schema_version`, `authority`, `candidate_ref`, `attempts`, `findings`, `disagreements`, `dispositions`, `writing_coverage_ref`.
 - `review_aggregate` artifact: the same keys except `dispositions`.
 - `candidate_ref`: `path`, `hash`, `version`; each attempt: `attempt_id`, `status`, `roles_covered`.
 - each Finding: `finding_id`, `topic_id`, `stance`, `concern`, `concern_level`, `basis_refs`, `upstream_commitment_refs`, `affected_scope`, `possible_impact`, `professional_recommendation`, `confidence`, `confidence_basis`, `reviewer_role`, `reviewer_profile`, `cross_check_status`, `repair_target`, `disposition`.
@@ -126,7 +175,8 @@ An unknown key at any of these paths is a repair condition. Remove it, recompute
         "status": "ACCEPTED_CURRENT_PRD_REPAIR",
         "repair_scope": ["<exact PRD section to revise>"]
       }
-    ]
+    ],
+    "writing_coverage_ref": {"path": "<exact committed path>", "hash": "<exact committed hash>", "version": 1}
   },
   "aggregate_artifact": {
     "schema_version": "review-aggregate.v1",
@@ -144,7 +194,8 @@ An unknown key at any of these paths is a repair condition. Remove it, recompute
       }
     ],
     "findings": ["<same complete Finding objects>"],
-    "disagreements": []
+    "disagreements": [],
+    "writing_coverage_ref": {"path": "<same exact path>", "hash": "<same exact hash>", "version": 1}
   },
   "disposition_artifact": {
     "schema_version": "review-dispositions.v1",
@@ -193,7 +244,8 @@ When the exact committed Reviewer result contains no Findings, use this complete
     ],
     "findings": [],
     "disagreements": [],
-    "dispositions": []
+    "dispositions": [],
+    "writing_coverage_ref": {"path": "<exact committed path>", "hash": "<exact committed hash>", "version": 1}
   },
   "aggregate_artifact": {
     "schema_version": "review-aggregate.v1",
@@ -207,7 +259,8 @@ When the exact committed Reviewer result contains no Findings, use this complete
       }
     ],
     "findings": [],
-    "disagreements": []
+    "disagreements": [],
+    "writing_coverage_ref": {"path": "<same exact path>", "hash": "<same exact hash>", "version": 1}
   },
   "disposition_artifact": {
     "schema_version": "review-dispositions.v1",

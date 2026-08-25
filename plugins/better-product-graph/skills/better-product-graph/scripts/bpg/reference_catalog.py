@@ -52,8 +52,11 @@ class ReferenceCatalog:
             "goal-fidelity-profile",
             "goal-fidelity-rubric",
             "goal-fidelity-packet-contract",
+            "writing-standard-coverage-contract",
+            "prd-writing-profile-v0.2",
+            "prd-writing-guide-v0.2",
         }:
-            raise ReferenceCatalogError("Goal Fidelity reviewer reference set is incomplete")
+            raise ReferenceCatalogError("reviewer reference set is incomplete")
         self._validate_cognitive_base_selectors()
         self._validate_extraction_manifest()
 

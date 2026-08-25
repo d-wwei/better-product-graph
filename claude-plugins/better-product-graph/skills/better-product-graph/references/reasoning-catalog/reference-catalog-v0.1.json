@@ -33,6 +33,9 @@
   "reviewer_profiles": [
     {"resource_id": "goal-fidelity-profile", "kind": "REVIEWER_PROFILE", "version": "v0.1", "path": "references/reviewer-profiles/product-goal-fidelity-v0.1.json", "hash": "sha256:6e5d4cea2e3a06b77e50b62063934db55a6b830ccaea97292b237627280d610e"},
     {"resource_id": "goal-fidelity-rubric", "kind": "REVIEWER_RUBRIC", "version": "v0.1", "path": "references/reviewer-profiles/product-goal-fidelity-rubric-v0.1.json", "hash": "sha256:3db8b6a5b11dbb3221e0ffdbdcc594fd9333b3bb6ebd5829dcdc987dcbca221f"},
-    {"resource_id": "goal-fidelity-packet-contract", "kind": "REVIEWER_PACKET_CONTRACT", "version": "v0.1", "path": "references/reviewer-profiles/product-goal-fidelity-packet-v0.1.json", "hash": "sha256:b5a06ef701b2decfa286f361fdfcbf250015d707972f3ee1304c9cbba63c5b42"}
+    {"resource_id": "goal-fidelity-packet-contract", "kind": "REVIEWER_PACKET_CONTRACT", "version": "v0.1", "path": "references/reviewer-profiles/product-goal-fidelity-packet-v0.1.json", "hash": "sha256:b5a06ef701b2decfa286f361fdfcbf250015d707972f3ee1304c9cbba63c5b42"},
+    {"resource_id": "writing-standard-coverage-contract", "kind": "REVIEWER_PACKET_CONTRACT", "version": "v1", "path": "references/reviewer-profiles/prd-writing-standard-coverage-v1.json", "hash": "sha256:28194fcec75ac912e76222272ea38d1e9185292e33d59466e81565fb1e82f773"},
+    {"resource_id": "prd-writing-profile-v0.2", "kind": "WRITING_PROFILE", "version": "0.2.0", "path": "references/policies/prd-writing-profile-v0.2.json", "hash": "sha256:0345faff7d65038de74d571a12fbb9eacc3ba70122034cc678669e335c644d8c"},
+    {"resource_id": "prd-writing-guide-v0.2", "kind": "WRITING_GUIDE", "version": "0.2.0", "path": "references/policies/prd-writing-guide-v0.2.md", "hash": "sha256:6ff72f9e26c448bdd8c3153e054e71a682b587bcd2102a4bfee9c0caa566b21f"}
   ]
 }

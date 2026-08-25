@@ -51,7 +51,9 @@ from .storage import (
     sha256_file,
     verify_event_chain,
 )
+from .reference_catalog import ReferenceCatalog, ReferenceCatalogError
 from .templates import TemplateContractError, TemplateRegistry, TemplateSelection
+from .writing_review import WritingReviewError, load_and_validate_writing_coverage
 
 
 class StateConflict(RuntimeError):
@@ -1701,6 +1703,8 @@ class StateController:
         self._validate_exact_dispatch_result(state, result)
         if not controller_owned:
             self._validate_artifact_refs(result)
+        if state["current_node"] == "review.parallel":
+            self._validate_writing_review_authority(state, result)
         if state["current_node"] == "review.aggregate":
             self._review_aggregate_authority(state["run_id"], state, result)
 
@@ -2144,6 +2148,184 @@ class StateController:
             ref["review_hash"],
         )
 
+    def writing_review_context(
+        self, state: dict[str, Any], resource_refs: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Derive the exact isolated Writing Reviewer authority for one Candidate."""
+
+        archived = self._current_candidate_artifact(state)
+        candidate = state["current_candidate_ref"]
+        metadata_paths = list(archived.path.glob("*.metadata.json"))
+        if len(metadata_paths) != 1:
+            raise TransitionRejected("Writing Review requires self-contained Candidate metadata")
+        metadata = read_json(metadata_paths[0])
+        experience = metadata.get("document_experience")
+        template = metadata.get("template_profile")
+        provenance = metadata.get("provenance")
+        if not all(isinstance(item, dict) for item in (experience, template, provenance)):
+            raise TransitionRejected("Writing Review Candidate authority is incomplete")
+        resources = {
+            item.get("resource_id"): item
+            for item in resource_refs
+            if isinstance(item, dict) and isinstance(item.get("resource_id"), str)
+        }
+        try:
+            profile_resource = resources["prd-writing-profile-v0.2"]
+            guide_resource = resources["prd-writing-guide-v0.2"]
+            coverage_resource = resources["writing-standard-coverage-contract"]
+            profile_ref = {
+                key: profile_resource[key] for key in ("path", "hash", "version")
+            }
+            guide_ref = {
+                key: guide_resource[key] for key in ("path", "hash", "version")
+            }
+            coverage_contract_ref = {
+                key: coverage_resource[key] for key in ("path", "hash", "version")
+            }
+            metadata_profile = {
+                key: experience["profile_ref"][key] for key in ("path", "hash", "version")
+            }
+            metadata_guide = {
+                key: experience["writing_guide_ref"][key]
+                for key in ("path", "hash", "version")
+            }
+            output = template["output_contract"]
+            output_contract_ref = {
+                "path": output["path"],
+                "hash": output["sha256"],
+                "version": output["version"],
+            }
+            author_attempt_id = provenance["attempt_id"]
+        except (KeyError, TypeError) as error:
+            raise TransitionRejected("Writing Review exact Candidate bindings are incomplete") from error
+        if metadata_profile != profile_ref or metadata_guide != guide_ref:
+            raise TransitionRejected("Writing Review Profile/Guide differs from Candidate binding")
+        if not isinstance(author_attempt_id, str) or not author_attempt_id:
+            raise TransitionRejected("Writing Review author attempt provenance is missing")
+        try:
+            references = ReferenceCatalog(self.skill_root)
+            profile = read_json(references.resolve(profile_ref["path"]))
+            coverage_contract = read_json(references.resolve(coverage_contract_ref["path"]))
+            output_path = references.resolve(output_contract_ref["path"])
+        except (ReferenceCatalogError, OSError, ValueError) as error:
+            raise TransitionRejected(f"Writing Review resource authority is invalid: {error}") from error
+        if sha256_file(output_path) != output_contract_ref["hash"]:
+            raise TransitionRejected("Writing Review Output Contract hash differs")
+        required_rule_ids = profile.get("required_expression_rules")
+        delivery_checks = coverage_contract.get("delivery_checks")
+        required_check_ids = [
+            item.get("check_id") for item in delivery_checks if isinstance(item, dict)
+        ] if isinstance(delivery_checks, list) else []
+        if (
+            not isinstance(required_rule_ids, list)
+            or len(required_rule_ids) != 13
+            or len(required_rule_ids) != len(set(required_rule_ids))
+            or len(required_check_ids) != 10
+            or len(required_check_ids) != len(set(required_check_ids))
+            or coverage_contract.get("profile_ref") != profile_ref
+            or coverage_contract.get("guide_ref") != guide_ref
+        ):
+            raise TransitionRejected("Writing Review coverage contract is incomplete")
+        candidate_ref = {
+            key: candidate[key] for key in ("path", "hash", "version")
+        }
+        return {
+            "schema_version": "writing-review-dispatch.v1",
+            "candidate_ref": candidate_ref,
+            "candidate_tree_hash": candidate["tree_hash"],
+            "profile_ref": profile_ref,
+            "guide_ref": guide_ref,
+            "output_contract_ref": output_contract_ref,
+            "coverage_contract_ref": coverage_contract_ref,
+            "author_execution_ref": {
+                "kind": "HOST_AGENT_ATTEMPT",
+                "id": author_attempt_id,
+            },
+            "isolated_input_refs": [
+                candidate_ref,
+                profile_ref,
+                guide_ref,
+                output_contract_ref,
+            ],
+            "required_rule_ids": required_rule_ids,
+            "required_check_ids": required_check_ids,
+            "claim_boundary": (
+                "RECORDED_DISTINCT_DURABLE_ATTEMPTS_NOT_EXTERNAL_IDENTITY_PROOF"
+            ),
+        }
+
+    def _validate_writing_review_authority(
+        self, state: dict[str, Any], result: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Bind one complete Writing subreview to the exact Candidate and attempt."""
+
+        dispatch = self._matching_dispatch(state, result)
+        contract = dispatch.get("contract") if isinstance(dispatch, dict) else None
+        durable_context = (
+            contract.get("writing_review_context")
+            if isinstance(contract, dict)
+            else None
+        )
+        if not isinstance(durable_context, dict):
+            raise TransitionRejected(
+                "review.parallel dispatch lacks the exact Writing Review contract; redispatch"
+            )
+        current_context = self.writing_review_context(
+            state, result.get("resource_refs", [])
+        )
+        if durable_context != current_context:
+            raise TransitionRejected(
+                "Writing Review context differs from exact current Candidate authority"
+            )
+        output = result.get("semantic_output", {})
+        declared_ref = output.get("writing_coverage_ref")
+        refs = [
+            ref
+            for ref in result.get("artifact_refs", [])
+            if isinstance(ref, dict) and ref.get("role") == "writing_coverage"
+        ]
+        if len(refs) != 1:
+            raise TransitionRejected(
+                "review.parallel requires exactly one writing_coverage artifact ref"
+            )
+        exact_ref = {
+            key: refs[0].get(key) for key in ("path", "hash", "version")
+        }
+        if declared_ref != exact_ref:
+            raise TransitionRejected(
+                "writing_coverage_ref must equal the exact writing_coverage artifact ref"
+            )
+        findings = output.get("findings", [])
+        available_ids = {
+            item.get("finding_id")
+            for item in findings
+            if isinstance(item, dict) and isinstance(item.get("finding_id"), str)
+        }
+        writing_ids = {
+            item["finding_id"]
+            for item in findings
+            if isinstance(item, dict)
+            and isinstance(item.get("finding_id"), str)
+            and (
+                item.get("reviewer_role") == "writing_standard"
+                or item.get("reviewer_profile") == "WRITING_STANDARD"
+            )
+        }
+        try:
+            coverage = load_and_validate_writing_coverage(
+                self.project_root,
+                exact_ref,
+                context=current_context,
+                available_finding_ids=available_ids,
+            )
+        except WritingReviewError as error:
+            raise TransitionRejected(f"Writing Review coverage is invalid: {error}") from error
+        if set(coverage["finding_refs"]) != writing_ids:
+            raise TransitionRejected(
+                "Writing Review Findings and coverage finding_refs must match exactly"
+            )
+        return coverage
+
     @serialized_run_mutation
     def prepare_ready_gate_evidence(
         self,
@@ -2224,6 +2406,10 @@ class StateController:
             self._validate_single_artifact_ref(ref)
         aggregate = read_json(self.project_root / aggregate_ref["path"])
         dispositions = read_json(self.project_root / dispositions_ref["path"])
+        writing_coverage_ref = aggregate.get("writing_coverage_ref")
+        if not isinstance(writing_coverage_ref, dict):
+            raise TransitionRejected("Ready evidence requires exact Writing Coverage")
+        self._validate_single_artifact_ref(writing_coverage_ref)
         decision_refs = metadata.get("decision_refs")
         evidence_refs = metadata.get("evidence_refs")
         fixed_metadata_refs = {
@@ -2445,9 +2631,11 @@ class StateController:
                 review_companion,
                 controller_subject_ref("review_aggregate", aggregate_ref),
                 controller_subject_ref("review_dispositions", dispositions_ref),
+                controller_subject_ref("writing_coverage", writing_coverage_ref),
             ],
             "document_experience": [
                 candidate_document,
+                review_companion,
                 controller_subject_ref("template_profile", evidence_refs["template_profile"]),
                 controller_subject_ref("version_record", evidence_refs["version_record"]),
                 evidence_refs["document_changelog"],
@@ -2460,6 +2648,7 @@ class StateController:
             review_companion,
             controller_subject_ref("review_aggregate", aggregate_ref),
             controller_subject_ref("review_dispositions", dispositions_ref),
+            controller_subject_ref("writing_coverage", writing_coverage_ref),
         ]
         next_state = json.loads(canonical_json_bytes(state))
         changed = False
@@ -2518,6 +2707,7 @@ class StateController:
                 },
                 "aggregate_ref": aggregate_ref,
                 "dispositions_ref": dispositions_ref,
+                "writing_coverage_ref": writing_coverage_ref,
             },
             "upstream_refs": upstream_refs,
             "evals": metadata["evals"],
@@ -2788,6 +2978,32 @@ class StateController:
         ) != review_output.get("findings"):
             raise TransitionRejected(
                 "review.aggregate findings: preserve the exact review.parallel Finding set"
+            )
+        writing_ref = review_output.get("writing_coverage_ref")
+        if (
+            output.get("writing_coverage_ref") != writing_ref
+            or aggregate.get("writing_coverage_ref") != writing_ref
+            or not isinstance(writing_ref, dict)
+        ):
+            raise TransitionRejected(
+                "review.aggregate must preserve the exact Writing Coverage ref"
+            )
+        writing_matches = [
+            ref
+            for ref in state.get("artifact_refs", {}).values()
+            if isinstance(ref, dict)
+            and ref.get("role") == "writing_coverage"
+            and all(
+                ref.get(field) == writing_ref.get(field)
+                for field in ("path", "hash", "version")
+            )
+        ]
+        if (
+            len(writing_matches) != 1
+            or dispatch_hashes.get(writing_ref.get("path")) != writing_ref.get("hash")
+        ):
+            raise TransitionRejected(
+                "review.aggregate Writing Coverage is not an exact committed dispatch input"
             )
         finding_ids = [
             item.get("finding_id")
@@ -3420,6 +3636,7 @@ class StateController:
             "dispositions_ref": {
                 key: dispositions_ref[key] for key in ("path", "hash", "version")
             },
+            "writing_coverage_ref": aggregate["writing_coverage_ref"],
         }
         stage, after_tree_hash, review_hash = self._prepare_candidate_finalize_stage(
             run_id, archived, companion
@@ -3454,6 +3671,9 @@ class StateController:
                 },
                 controller_subject_ref("review_aggregate", aggregate_ref),
                 controller_subject_ref("review_dispositions", dispositions_ref),
+                controller_subject_ref(
+                    "writing_coverage", aggregate["writing_coverage_ref"]
+                ),
             ],
         }
         result_path = self._result_path(run_id, attempt_id)
