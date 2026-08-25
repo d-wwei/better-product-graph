@@ -90,7 +90,7 @@ def main() -> int:
             "submit",
             "owner-choice",
             "fulfill-evals",
-            "install-template-pack",
+            "configure-template",
         ),
         default="entry",
     )
@@ -119,17 +119,17 @@ def main() -> int:
         return 1
     if args.operation == "entry" and not args.entry:
         parser.error("A stable Better Product Graph intent is required through the Host Skill")
-    if args.operation not in {"entry", "install-template-pack"} and not args.run_id:
+    if args.operation not in {"entry", "configure-template"} and not args.run_id:
         parser.error("--run-id is required for installed non-entry operations")
-    if args.operation == "install-template-pack" and not args.pack_path:
-        parser.error("--pack-path is required for Template Pack installation")
+    if args.operation == "configure-template" and not args.pack_path:
+        parser.error("--pack-path is required for project Template configuration")
     if args.operation in {"submit", "owner-choice", "fulfill-evals"} and not args.payload_file:
         parser.error("--payload-file is required for installed mutation operations")
     from bpg.runner import (
         dispatch,
         fulfill_evals,
         handle_entry,
-        install_template_pack,
+        configure_project_template,
         owner_choice,
         submit,
     )
@@ -142,8 +142,8 @@ def main() -> int:
         result = handle_entry(Path.cwd(), graph, entry, skill_root=skill_root)
     elif args.operation == "dispatch":
         result = dispatch(Path.cwd(), graph, args.run_id, skill_root=skill_root)
-    elif args.operation == "install-template-pack":
-        result = install_template_pack(
+    elif args.operation == "configure-template":
+        result = configure_project_template(
             Path.cwd(),
             Path(args.pack_path),
             allow_version_change=args.allow_version_change,

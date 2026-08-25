@@ -9,7 +9,7 @@ from pathlib import Path
 
 from scripts.build_plugin import build_plugin
 from src.bpg.storage import sha256_file
-from src.bpg.template_packs import TemplatePackError, install_template_pack
+from src.bpg.template_packs import TemplatePackError, configure_project_template
 from src.bpg.templates import TemplateRegistry
 
 
@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = REPO_ROOT / "src" / "core" / "templates"
 
 
-class TemplatePackInstallationTests(unittest.TestCase):
+class TemplatePackConfigurationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name).resolve()
@@ -63,8 +63,8 @@ class TemplatePackInstallationTests(unittest.TestCase):
         )
         return pack
 
-    def _install(self, pack: Path, *, allow_version_change: bool = False) -> dict:
-        return install_template_pack(
+    def _configure(self, pack: Path, *, allow_version_change: bool = False) -> dict:
+        return configure_project_template(
             project_root=self.project,
             templates_root=TEMPLATES,
             pack_root=pack,
@@ -72,12 +72,12 @@ class TemplatePackInstallationTests(unittest.TestCase):
             allow_version_change=allow_version_change,
         )
 
-    def test_valid_pack_installs_into_trusted_area_and_registers_exact_identity(self) -> None:
+    def test_valid_pack_configures_trusted_project_template_with_exact_identity(self) -> None:
         pack = self._write_pack()
 
-        result = self._install(pack)
+        result = self._configure(pack)
 
-        self.assertEqual(result["status"], "INSTALLED_AND_ACTIVE")
+        self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(result["pack_id"], "test.product-team")
         self.assertEqual(result["pack_version"], "1.0.0")
         self.assertEqual(result["bpg_version"], "0.2.13")
@@ -110,7 +110,7 @@ class TemplatePackInstallationTests(unittest.TestCase):
         pack = self._write_pack(requires_bpg=">=0.3.0,<0.4.0")
 
         with self.assertRaisesRegex(TemplatePackError, "requires BPG"):
-            self._install(pack)
+            self._configure(pack)
 
         self.assertFalse((self.project / ".better-product-graph").exists())
 
@@ -120,7 +120,7 @@ class TemplatePackInstallationTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(TemplatePackError, "Template Pack template hash"):
-            self._install(pack)
+            self._configure(pack)
 
         self.assertFalse(
             (self.project / ".better-product-graph/template-profile.json").exists()
@@ -139,7 +139,7 @@ class TemplatePackInstallationTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
         with self.assertRaisesRegex(TemplatePackError, "output contract"):
-            self._install(pack)
+            self._configure(pack)
 
         self.assertFalse(
             (self.project / ".better-product-graph/template-profile.json").exists()
@@ -158,7 +158,7 @@ class TemplatePackInstallationTests(unittest.TestCase):
             }
         )
         with self.assertRaisesRegex(TemplatePackError, "escapes|path"):
-            self._install(escaped)
+            self._configure(escaped)
 
         shutil.rmtree(self.pack)
         linked_pack = self._write_pack()
@@ -170,17 +170,17 @@ class TemplatePackInstallationTests(unittest.TestCase):
         manifest["template_sha256"] = sha256_file(outside)
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         with self.assertRaisesRegex(TemplatePackError, "symlink"):
-            self._install(linked_pack)
+            self._configure(linked_pack)
 
         self.assertFalse(
             (self.project / ".better-product-graph/template-profile.json").exists()
         )
 
-    def test_reinstalling_same_version_is_idempotent_without_duplicate_history(self) -> None:
+    def test_reconfiguring_same_version_is_idempotent_without_duplicate_history(self) -> None:
         pack = self._write_pack()
-        first = self._install(pack)
+        first = self._configure(pack)
 
-        second = self._install(pack)
+        second = self._configure(pack)
 
         self.assertEqual(first["template_sha256"], second["template_sha256"])
         self.assertEqual(second["status"], "ALREADY_ACTIVE")
@@ -193,7 +193,7 @@ class TemplatePackInstallationTests(unittest.TestCase):
 
     def test_version_change_requires_explicit_authorization_and_preserves_old_version(self) -> None:
         first_pack = self._write_pack()
-        self._install(first_pack)
+        self._configure(first_pack)
         config_path = self.project / ".better-product-graph/template-profile.json"
         before = config_path.read_bytes()
         second_pack = self._write_pack(
@@ -202,15 +202,15 @@ class TemplatePackInstallationTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(TemplatePackError, "explicit version change"):
-            self._install(second_pack)
+            self._configure(second_pack)
 
         self.assertEqual(config_path.read_bytes(), before)
         self.assertFalse(
             (self.project / ".better-product-graph/templates/test-product/1.1.0").exists()
         )
 
-        upgraded = self._install(second_pack, allow_version_change=True)
-        self.assertEqual(upgraded["status"], "INSTALLED_AND_ACTIVE")
+        upgraded = self._configure(second_pack, allow_version_change=True)
+        self.assertEqual(upgraded["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(upgraded["pack_version"], "1.1.0")
         self.assertTrue(
             (self.project / ".better-product-graph/templates/test-product/1.0.0").is_dir()
@@ -219,7 +219,36 @@ class TemplatePackInstallationTests(unittest.TestCase):
         config = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(len(config["history"]), 2)
 
-    def test_built_installed_runner_exposes_public_non_graph_install_operation(self) -> None:
+    def test_built_runner_exposes_internal_non_graph_configuration_action(self) -> None:
+        pack = self._write_pack()
+        built = self.root / "built-plugin"
+        build_plugin(REPO_ROOT, built)
+        runner = built / "skills/better-product-graph/scripts/bpg_runner.py"
+
+        completed = subprocess.run(
+            [
+                "python3",
+                str(runner),
+                "--operation",
+                "configure-template",
+                "--pack-path",
+                str(pack),
+            ],
+            cwd=self.project,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
+        result = json.loads(completed.stdout)
+        self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
+        self.assertEqual(result["configuration_action"], "PROJECT_TEMPLATE_CONFIGURE")
+        self.assertEqual(result["graph_run_created"], False)
+        self.assertEqual(result["bpg_version"], "0.2.13")
+        self.assertFalse((self.project / ".better-product-graph/runs").exists())
+
+    def test_legacy_install_operation_is_not_a_user_facing_entry(self) -> None:
         pack = self._write_pack()
         built = self.root / "built-plugin"
         build_plugin(REPO_ROOT, built)
@@ -240,13 +269,9 @@ class TemplatePackInstallationTests(unittest.TestCase):
             check=False,
         )
 
-        self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
-        result = json.loads(completed.stdout)
-        self.assertEqual(result["status"], "INSTALLED_AND_ACTIVE")
-        self.assertEqual(result["configuration_action"], "TEMPLATE_PACK_INSTALL")
-        self.assertEqual(result["graph_run_created"], False)
-        self.assertEqual(result["bpg_version"], "0.2.13")
-        self.assertFalse((self.project / ".better-product-graph/runs").exists())
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("invalid choice", completed.stderr)
+        self.assertFalse((self.project / ".better-product-graph").exists())
 
 
 if __name__ == "__main__":

@@ -34,17 +34,19 @@ Map explicit `$better-product-graph` and equivalent natural language through the
 
 No intent means guided help with no mutation. Do not register or accept `$bpg`, `$prd-graph`, `review.gate`, legacy aliases, or internal node IDs as public entry points.
 
-## Template Pack configuration
+## Project Template configuration
 
-Natural-language requests such as “为这个项目启用内部产品模板” are project configuration, not a Graph intent or Node. Resolve the independently distributed Pack root, then use only the installed public runner:
+Natural-language requests such as “为这个项目启用内部产品模板” are the complete user-facing interaction. Treat them as project configuration, not a Graph intent or Node. Do not ask the user to run a command, calculate hashes, copy files, or edit `template-profile.json`. Resolve the independently distributed Pack root from the available project/workspace context; ask one targeted location question only when no unique Pack can be resolved.
+
+Then, without exposing implementation syntax unless the user asks for debugging or recovery details, use this internal Host control action:
 
 ```text
 python3 <installed-skill-root>/scripts/bpg_runner.py \
-  --operation install-template-pack \
+  --operation configure-template \
   --pack-path <absolute-template-pack-root>
 ```
 
-The operation validates the Pack schema, its declared BPG compatibility, exact Template and output-contract hashes, output contract, trusted destination, and symlink boundary before copying into `.better-product-graph/templates/` and activating the existing exact-hash project registry entry. It creates no Run. Reinstalling the same exact version is idempotent. An upgrade, downgrade, or switch from another active project Template requires the user's explicit version-change authorization and `--allow-version-change`. Preserve the configured fallback policy and existing registry history; never infer or rewrite Pack product semantics.
+The action validates the Pack schema, its declared BPG compatibility, exact Template and output-contract hashes, output contract, trusted destination, and symlink boundary before materializing the exact files under `.better-product-graph/templates/` and activating the existing exact-hash project registry entry. It creates no Run. Reconfiguring the same exact version is idempotent. An upgrade, downgrade, or switch from another active project Template requires the user's explicit version-change authorization and `--allow-version-change`. Preserve the configured fallback policy and existing registry history; never infer or rewrite Pack product semantics. Report the active profile/version, exact hashes, and fallback policy to the user instead of the internal command.
 
 ## Execution sequence
 

@@ -2,9 +2,9 @@
 
 ## 0.2.13 — Unreleased — External Template Pack configuration
 
-- Install and activate an independently versioned external Template Pack through the existing project Template registry without adding a Graph Node, public Graph intent, service, daemon, or second source of truth.
-- Validate Pack schema, BPG compatibility, exact Template and output-contract hashes, trusted project paths, symlink safety, and explicit version changes before activation; keep failed validation zero-write and same-version installs idempotent.
-- Expose the configuration action through both installed Host Skills while preserving exact per-Run Template pins, existing fallback policy, rollback history, and ordinary PRD lifecycle authority.
+- Let users configure an independently versioned external Template Pack by asking the Host Agent in natural language; do not expose an installer as a product concept or add a Graph Node, public Graph intent, service, daemon, or second source of truth.
+- Keep one internal configuration action that validates Pack schema, BPG compatibility, exact Template and output-contract hashes, trusted project paths, symlink safety, and explicit version changes before activation; failed validation remains zero-write and same-version configuration is idempotent.
+- Route both installed Host Skills through the existing project Template registry while preserving exact per-Run Template pins, fallback policy, rollback history, and ordinary PRD lifecycle authority.
 
 ## 0.2.12 — Unreleased — Compatible in-flight Optimize context upgrade
 

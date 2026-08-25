@@ -1,4 +1,4 @@
-"""Install a versioned external Template Pack through the existing project registry."""
+"""Configure a project Template from a versioned external Pack."""
 
 from __future__ import annotations
 
@@ -161,21 +161,21 @@ def _validate_existing_destination(
     if not destination.exists():
         return False
     if destination.is_symlink() or not destination.is_dir():
-        raise TemplatePackError("Installed Template Pack version path is not a regular directory")
+        raise TemplatePackError("Configured Template Pack version path is not a regular directory")
     entries = {path.name for path in destination.iterdir()}
     if entries != {"PRD_TEMPLATE.md", "OUTPUT_CONTRACT.json"}:
-        raise TemplatePackError("Installed Template Pack version directory is ambiguous")
+        raise TemplatePackError("Configured Template Pack version directory is ambiguous")
     template = destination / "PRD_TEMPLATE.md"
     contract = destination / "OUTPUT_CONTRACT.json"
     if template.is_symlink() or contract.is_symlink():
-        raise TemplatePackError("Installed Template Pack version contains a symlink")
+        raise TemplatePackError("Configured Template Pack version contains a symlink")
     if (
         not template.is_file()
         or not contract.is_file()
         or sha256_file(template) != template_sha256
         or sha256_file(contract) != output_contract_sha256
     ):
-        raise TemplatePackError("Installed Template Pack version differs from the Pack identity")
+        raise TemplatePackError("Configured Template Pack version differs from the Pack identity")
     return True
 
 
@@ -189,7 +189,7 @@ def _remove_empty_parents(path: Path, stop: Path) -> None:
         current = current.parent
 
 
-def install_template_pack(
+def configure_project_template(
     *,
     project_root: Path,
     templates_root: Path,
@@ -197,7 +197,7 @@ def install_template_pack(
     bpg_version: str,
     allow_version_change: bool = False,
 ) -> dict[str, Any]:
-    """Validate, install, and activate one Pack version without creating a Graph Run."""
+    """Validate and activate one Pack version as project configuration, without a Run."""
 
     manifest, source_template, source_contract = _load_manifest(pack_root, bpg_version)
     project = project_root.resolve()
@@ -211,7 +211,7 @@ def install_template_pack(
     destination = registry._project_path(
         project,
         destination_relative.as_posix(),
-        "Template Pack installation",
+        "Template Pack configuration",
     )
     destination_template = destination / "PRD_TEMPLATE.md"
     destination_contract = destination / "OUTPUT_CONTRACT.json"
@@ -242,7 +242,7 @@ def install_template_pack(
             raise TemplatePackError("Active Template Pack files are unavailable")
         return {
             "status": "ALREADY_ACTIVE",
-            "configuration_action": "TEMPLATE_PACK_INSTALL",
+            "configuration_action": "PROJECT_TEMPLATE_CONFIGURE",
             "graph_run_created": False,
             "pack_id": manifest["pack_id"],
             "pack_version": manifest["version"],
@@ -299,8 +299,8 @@ def install_template_pack(
         raise TemplatePackError(f"Template Pack activation failed: {error}") from error
 
     return {
-        "status": "INSTALLED_AND_ACTIVE",
-        "configuration_action": "TEMPLATE_PACK_INSTALL",
+        "status": "CONFIGURED_AND_ACTIVE",
+        "configuration_action": "PROJECT_TEMPLATE_CONFIGURE",
         "graph_run_created": False,
         "pack_id": manifest["pack_id"],
         "pack_version": manifest["version"],

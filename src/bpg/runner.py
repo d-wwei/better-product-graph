@@ -8,7 +8,7 @@ from typing import Any
 from .git_preflight import GitPreflight, preflight_project, validate_project_root
 from .host_runtime import HostRuntime
 from .storage import read_json
-from .template_packs import install_template_pack as install_pack
+from .template_packs import configure_project_template as configure_template
 
 
 def _plugin_root(skill_root: Path) -> Path:
@@ -138,14 +138,14 @@ def fulfill_evals(
     )
 
 
-def install_template_pack(
+def configure_project_template(
     project_root: Path,
     pack_root: Path,
     *,
     allow_version_change: bool = False,
     skill_root: Path,
 ) -> dict[str, Any]:
-    """Install and activate external Template content as a project configuration action."""
+    """Configure external Template content through the existing project registry."""
 
     checked = _preflight(project_root, skill_root)
     manifest = read_json(_plugin_root(skill_root) / "build-manifest.json")
@@ -154,7 +154,7 @@ def install_template_pack(
         raise RuntimeError("Installed BPG version binding is missing")
     return _with_preflight(
         checked,
-        install_pack(
+        configure_template(
             project_root=project_root,
             templates_root=skill_root / "references" / "templates",
             pack_root=pack_root,
