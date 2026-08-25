@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.13 — Unreleased — External Template Pack configuration
+
+- Install and activate an independently versioned external Template Pack through the existing project Template registry without adding a Graph Node, public Graph intent, service, daemon, or second source of truth.
+- Validate Pack schema, BPG compatibility, exact Template and output-contract hashes, trusted project paths, symlink safety, and explicit version changes before activation; keep failed validation zero-write and same-version installs idempotent.
+- Expose the configuration action through both installed Host Skills while preserving exact per-Run Template pins, existing fallback policy, rollback history, and ordinary PRD lifecycle authority.
+
 ## 0.2.12 — Unreleased — Compatible in-flight Optimize context upgrade
 
 - Enrich an exact declared-compatible predecessor `prd.optimize` dispatch at read time with the new Controller-derived trace authority while preserving its attempt ID, input bindings, and historical durable contract.

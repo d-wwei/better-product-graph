@@ -84,12 +84,21 @@ def main() -> int:
     parser.add_argument("--self-check", action="store_true")
     parser.add_argument(
         "--operation",
-        choices=("entry", "dispatch", "submit", "owner-choice", "fulfill-evals"),
+        choices=(
+            "entry",
+            "dispatch",
+            "submit",
+            "owner-choice",
+            "fulfill-evals",
+            "install-template-pack",
+        ),
         default="entry",
     )
     parser.add_argument("--run-id")
     parser.add_argument("--payload-file")
     parser.add_argument("--requested-node")
+    parser.add_argument("--pack-path")
+    parser.add_argument("--allow-version-change", action="store_true")
     parser.add_argument("entry", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     paths = installed_paths()
@@ -110,11 +119,20 @@ def main() -> int:
         return 1
     if args.operation == "entry" and not args.entry:
         parser.error("A stable Better Product Graph intent is required through the Host Skill")
-    if args.operation != "entry" and not args.run_id:
+    if args.operation not in {"entry", "install-template-pack"} and not args.run_id:
         parser.error("--run-id is required for installed non-entry operations")
+    if args.operation == "install-template-pack" and not args.pack_path:
+        parser.error("--pack-path is required for Template Pack installation")
     if args.operation in {"submit", "owner-choice", "fulfill-evals"} and not args.payload_file:
         parser.error("--payload-file is required for installed mutation operations")
-    from bpg.runner import dispatch, fulfill_evals, handle_entry, owner_choice, submit
+    from bpg.runner import (
+        dispatch,
+        fulfill_evals,
+        handle_entry,
+        install_template_pack,
+        owner_choice,
+        submit,
+    )
 
     graph = skill_root / "references" / "graph" / "manifest.json"
     if args.operation == "entry":
@@ -124,6 +142,13 @@ def main() -> int:
         result = handle_entry(Path.cwd(), graph, entry, skill_root=skill_root)
     elif args.operation == "dispatch":
         result = dispatch(Path.cwd(), graph, args.run_id, skill_root=skill_root)
+    elif args.operation == "install-template-pack":
+        result = install_template_pack(
+            Path.cwd(),
+            Path(args.pack_path),
+            allow_version_change=args.allow_version_change,
+            skill_root=skill_root,
+        )
     else:
         payload = json.loads(Path(args.payload_file).read_text(encoding="utf-8"))
         if not isinstance(payload, dict):

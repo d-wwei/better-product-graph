@@ -1,6 +1,6 @@
 ---
 name: better-product-graph
-description: Use when handling product ideas, user feedback, online issues, product discovery, product decisions, outcome-first planning, versioned PRDs, or resuming/auditing a Better Product Graph run. Supports new, capture, inbox, status, resume, pause, handoff, connectors, audit, interview, and help. Do not use for simple PRD copy-editing, generic project management, or requests to bypass the governed workflow and invoke an internal node directly.
+description: Use when handling product ideas, user feedback, online issues, product discovery, product decisions, outcome-first planning, versioned PRDs, configuring a Better Product Graph Template Pack, or resuming/auditing a Better Product Graph run. Supports new, capture, inbox, status, resume, pause, handoff, connectors, audit, interview, and help. Do not use for simple PRD copy-editing, generic project management, or requests to bypass the governed workflow and invoke an internal node directly.
 ---
 
 # Better Product Graph
@@ -33,6 +33,18 @@ Map explicit `/better-product-graph:better-product-graph <intent>` entries and e
 | `help` | `host.help` | Explain entry points and boundaries only. |
 
 No intent means guided help with no mutation. Do not register or accept `$bpg`, `$prd-graph`, `review.gate`, legacy aliases, or internal node IDs as public entry points.
+
+## Template Pack configuration
+
+Natural-language requests such as “为这个项目启用内部产品模板” are project configuration, not a Graph intent or Node. Resolve the independently distributed Pack root, then use only the installed public runner:
+
+```text
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \
+  --operation install-template-pack \
+  --pack-path <absolute-template-pack-root>
+```
+
+The operation validates the Pack schema, its declared BPG compatibility, exact Template and output-contract hashes, output contract, trusted destination, and symlink boundary before copying into `.better-product-graph/templates/` and activating the existing exact-hash project registry entry. It creates no Run. Reinstalling the same exact version is idempotent. An upgrade, downgrade, or switch from another active project Template requires the user's explicit version-change authorization and `--allow-version-change`. Preserve the configured fallback policy and existing registry history; never infer or rewrite Pack product semantics.
 
 ## Execution sequence
 
