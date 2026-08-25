@@ -31,6 +31,7 @@ from tests.test_prd_contract import prd_submission
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
 TEMPLATES = REPO_ROOT / "src" / "core" / "templates"
+FIXTURES = REPO_ROOT / "tests" / "fixtures" / "prd-v0.2-golden"
 
 
 class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
@@ -152,8 +153,13 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         source_evals: dict | None = None,
         candidate_version: str = "v0.1",
         authority_run_id: str | None = None,
+        source_structure_mode: str = "legacy",
     ):
-        submission = prd_submission()
+        submission = (
+            json.loads((FIXTURES / "simple-compact.json").read_text(encoding="utf-8"))
+            if source_structure_mode == "compact"
+            else prd_submission()
+        )
         metadata = submission["semantic_output"]["metadata"]
         metadata["prd_id"] = f"PRD-OPT-{label.upper()}"
         metadata["short_title"] = f"结算恢复-{label}"
@@ -243,6 +249,7 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         source_version: str = "v0.1",
         next_version: str = "v0.2",
         authoritative_upstreams: bool = False,
+        source_structure_mode: str = "legacy",
     ) -> dict:
         activated = self._invoke("new", "review optimize must preserve version authority")
         run_id = activated["run_id"]
@@ -377,6 +384,7 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             source_evals=source_evals,
             candidate_version=source_version,
             authority_run_id=run_id if authoritative_upstreams else None,
+            source_structure_mode=source_structure_mode,
         )
         source_ref = {
             "role": "prd_candidate",
@@ -583,6 +591,9 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             "--payload-file", str(self._input_payload(f"aggregate-result-{label}.json", aggregate_result)),
             "--requested-node", "prd.optimize",
         )["dispatch"]
+        published_traceability = optimize_dispatch["optimize_context"][
+            "metadata_authority"
+        ]["spec_traceability"]
 
         self.assertEqual(
             optimize_dispatch["optimize_context"],
@@ -603,6 +614,9 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
                 "unadopted_dispositions": [dispositions["dispositions"][1]],
                 "repair_scope": ["验收标准"],
                 "next_version": next_version,
+                "metadata_authority": {
+                    "spec_traceability": published_traceability,
+                },
             },
         )
 
@@ -690,9 +704,11 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         ]
         self.assertEqual(len(review_result_refs), 1)
         trace_pairs.append(("review_aggregate_result", review_result_refs[0]))
+        expected_traceability = derive_spec_traceability(trace_pairs, latest_artifacts)
+        self.assertEqual(published_traceability, expected_traceability)
         optimize_result["semantic_output"]["metadata"][
             "spec_traceability"
-        ] = derive_spec_traceability(trace_pairs, latest_artifacts)
+        ] = deepcopy(published_traceability)
         return {
             "run_id": run_id,
             "archived": archived,
@@ -739,6 +755,138 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         self.assertEqual(repeated["state"]["state_version"], advanced["state"]["state_version"])
         self.assertEqual(repeated["state"]["current_candidate_ref"], current)
         self.assertEqual(repeated["dispatch"]["attempt_id"], advanced["dispatch"]["attempt_id"])
+
+    def test_installed_optimize_publishes_exact_traceability_authority(self) -> None:
+        case = self._prepare_case("published-traceability")
+
+        self.assertEqual(
+            case["optimize_dispatch"]["optimize_context"]["metadata_authority"][
+                "spec_traceability"
+            ],
+            case["optimize_result"]["semantic_output"]["metadata"][
+                "spec_traceability"
+            ],
+        )
+
+    def test_installed_compatible_predecessor_attempt_exposes_new_trace_authority(self) -> None:
+        case = self._prepare_case("predecessor-traceability")
+        run_id = case["run_id"]
+        attempt_id = case["optimize_dispatch"]["attempt_id"]
+        predecessor_hash = (
+            "sha256:93cf9453e27da16eba82d99550b763ef5dec5107afed4308f8afb84a23066c55"
+        )
+        controller = StateController(self.project, GRAPH)
+        state = controller.load_state(run_id)
+        predecessor_state = deepcopy(state)
+        predecessor_state["state_version"] += 1
+        durable = next(
+            item for item in predecessor_state["dispatch_attempts"]
+            if item["attempt_id"] == attempt_id
+        )
+        durable["contract"]["instruction_hash"] = predecessor_hash
+        durable["contract"]["optimize_context"].pop("metadata_authority")
+        durable["authorized_state_version"] = predecessor_state["state_version"]
+        durable["authority_hash"] = controller._dispatch_authority_hash(
+            predecessor_state
+        )
+        controller._commit_state_event(
+            run_id,
+            state,
+            predecessor_state,
+            {
+                "event_type": "NODE_TRANSITION_COMMITTED",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "from_node": "prd.optimize",
+                "to_node": "prd.optimize",
+                "attempt_id": "internal-compatible-predecessor-fixture",
+                "before_state_version": state["state_version"],
+                "after_state_version": predecessor_state["state_version"],
+            },
+            transaction_id="internal-compatible-predecessor-fixture",
+        )
+
+        resumed = self._invoke(
+            "--operation", "dispatch", "--run-id", run_id
+        )["dispatch"]
+
+        self.assertEqual(resumed["attempt_id"], attempt_id)
+        self.assertEqual(resumed["instruction_hash"], predecessor_hash)
+        published = resumed["optimize_context"]["metadata_authority"][
+            "spec_traceability"
+        ]
+        result = deepcopy(case["optimize_result"])
+        result["instruction_hash"] = predecessor_hash
+        result["semantic_output"]["metadata"]["spec_traceability"] = deepcopy(
+            published
+        )
+        advanced = self._invoke(
+            "--operation", "submit", "--run-id", run_id,
+            "--payload-file", str(
+                self._input_payload("predecessor-traceability-result.json", result)
+            ),
+            "--requested-node", "review.parallel",
+        )
+
+        self.assertEqual(advanced["state"]["current_candidate_ref"]["version"], "v0.2")
+        self.assertIn(attempt_id, advanced["state"]["consumed_attempts"])
+
+    def test_installed_optimize_accepts_template_mapped_visible_change_log(self) -> None:
+        case = self._prepare_case(
+            "mapped-changelog",
+            source_structure_mode="compact",
+        )
+        result = deepcopy(case["optimize_result"])
+        output = result["semantic_output"]
+        output["structure_mode"] = "compact"
+        output["document_markdown"] = output["document_markdown"].replace(
+            "版本 v0.1：首次形成本地 Golden Candidate；",
+            "版本 v0.2：明确 AC-1 的最终可观察状态；",
+        )
+
+        advanced = self._invoke(
+            "--operation", "submit", "--run-id", case["run_id"],
+            "--payload-file", str(
+                self._input_payload("mapped-changelog-result.json", result)
+            ),
+            "--requested-node", "review.parallel",
+        )
+
+        self.assertEqual(advanced["state"]["current_candidate_ref"]["version"], "v0.2")
+        self.assertEqual(advanced["dispatch"]["node_id"], "review.parallel")
+
+    def test_installed_optimize_rejects_missing_mapped_change_log_without_traceback(self) -> None:
+        case = self._prepare_case(
+            "missing-mapped-changelog",
+            source_structure_mode="compact",
+        )
+        result = deepcopy(case["optimize_result"])
+        output = result["semantic_output"]
+        output["structure_mode"] = "compact"
+        output["document_markdown"] = output["document_markdown"].replace(
+            "## 附录 C：文档变更日志",
+            "## 附录 C：修订记录",
+        )
+        before = self._inventory()
+        state_before = StateController(self.project, GRAPH).load_state(case["run_id"])
+
+        failed = self._invoke_error(
+            "--operation", "submit", "--run-id", case["run_id"],
+            "--payload-file", str(
+                self._input_payload("missing-mapped-changelog-result.json", result)
+            ),
+            "--requested-node", "review.parallel",
+        )
+
+        self.assertIn(
+            "template_mapping.document_changelog does not bind a required output heading",
+            failed.stderr,
+        )
+        self.assertNotIn("IndexError", failed.stderr)
+        self.assertEqual(self._inventory(), before)
+        self.assertEqual(
+            StateController(self.project, GRAPH).load_state(case["run_id"]), state_before
+        )
 
     def test_installed_optimize_can_localize_the_new_version_without_renaming_source(self) -> None:
         case = self._prepare_case("localized-title")
@@ -1336,9 +1484,15 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             "unclosed": lambda result: result["semantic_output"]["metadata"]["change_log"].update(
                 {"repaired_finding_ids": []}
             ),
+            "unknown_change_log_field": lambda result: result["semantic_output"]["metadata"]["change_log"].update(
+                {"private_closure_claim": True}
+            ),
             "metadata": lambda result: result["semantic_output"]["metadata"].update(
                 {"prd_id": "PRD-TAMPERED"}
             ),
+            "traceability": lambda result: result["semantic_output"]["metadata"][
+                "spec_traceability"
+            ]["refs"][0].update({"origin_attempt_id": "attempt-forged-origin"}),
             "evals": lambda result: result["semantic_output"]["metadata"].update(
                 {
                     "evals": {
@@ -1368,8 +1522,15 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
                 )
                 self.assertRegex(
                     failed.stderr,
-                    "stale|version|changelog|identity|Evals|Candidate|Product Plan|prd_matrix",
+                    "stale|version|change_log|changelog|identity|authority|traceability|Evals|Candidate|Product Plan|prd_matrix",
                 )
+                if label == "unclosed":
+                    self.assertIn("metadata.change_log.repaired_finding_ids", failed.stderr)
+                if label == "unknown_change_log_field":
+                    self.assertIn(
+                        "metadata.change_log contains unknown field private_closure_claim",
+                        failed.stderr,
+                    )
                 self.assertEqual(self._inventory(), before)
                 self.assertEqual(
                     StateController(self.project, GRAPH).load_state(case["run_id"]),

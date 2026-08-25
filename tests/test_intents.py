@@ -162,6 +162,22 @@ class HostEngineSafetyTests(unittest.TestCase):
         self.assertFalse((self.project / ".better-product-graph" / "handoffs").exists())
         self.assertEqual(help_result["status"], "HELP")
 
+    def test_signal_occurrence_separates_product_text_from_host_intent_syntax(self) -> None:
+        activated = self.engine.handle("$better-product-graph new 用户无法判断结算是否成功")
+        occurrences = (
+            self.project / ".better-product-graph" / "signals" / "occurrences.jsonl"
+        ).read_text(encoding="utf-8").splitlines()
+        occurrence = __import__("json").loads(occurrences[-1])
+
+        self.assertEqual(occurrence["source"]["entry"], "用户无法判断结算是否成功")
+        self.assertEqual(
+            occurrence["source"]["host_intent"],
+            "$better-product-graph new 用户无法判断结算是否成功",
+        )
+        raw_signal_path = self.project / activated["state"]["artifact_refs"]["raw_signal"]["path"]
+        raw_signal = __import__("json").loads(raw_signal_path.read_text(encoding="utf-8"))
+        self.assertEqual(raw_signal["raw_text"], "用户无法判断结算是否成功")
+
     def test_forged_released_state_without_exact_artifact_set_cannot_handoff(self) -> None:
         activated = self.engine.handle("$better-product-graph new 可交付产品")
         run_id = activated["run_id"]

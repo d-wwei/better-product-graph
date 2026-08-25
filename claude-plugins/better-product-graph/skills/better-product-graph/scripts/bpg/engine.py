@@ -54,7 +54,11 @@ class HostEngine:
         recorded = record_signal_occurrence(
             self.project_root,
             parsed.argument,
-            source={"kind": "MANUAL", "entry": parsed.raw_entry},
+            source={
+                "kind": "MANUAL",
+                "entry": parsed.argument,
+                "host_intent": parsed.raw_entry,
+            },
         )
         signal_id = recorded["signal_id"]
         path = self.project_root / ".better-product-graph" / "inbox" / f"{signal_id}.json"
@@ -79,7 +83,11 @@ class HostEngine:
         recorded = record_signal_occurrence(
             self.project_root,
             parsed.argument,
-            source={"kind": "MANUAL", "entry": parsed.raw_entry},
+            source={
+                "kind": "MANUAL",
+                "entry": parsed.argument,
+                "host_intent": parsed.raw_entry,
+            },
         )
         run_id = self._stable_id("run", recorded["occurrence"]["occurrence_id"])
         state_path = self.controller._state_path(run_id)

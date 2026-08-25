@@ -115,8 +115,12 @@ def validate_learning_submission(submission: dict[str, Any]) -> ValidationResult
     if submission.get("runtime_status") not in {"COMPLETED", "WAITING", "BLOCKED"}:
         repairs.append("runtime_status")
     challenges = submission.get("material_challenges", [])
-    if not isinstance(challenges, list) or len(challenges) > 1:
-        repairs.append("material_challenges.max_one")
+    if not isinstance(challenges, list):
+        repairs.append("material_challenges")
+    elif any(not isinstance(challenge, str) or not challenge.strip() for challenge in challenges):
+        repairs.append("material_challenges.items")
+    elif len(challenges) != len(set(challenges)):
+        repairs.append("material_challenges.distinct")
     actions = submission.get("next_actions", [])
     if submission.get("interaction_policy") == "NO_PM_INTERVIEW" and any(
         isinstance(action, dict) and action.get("kind") == "PROMPT_PM" for action in actions

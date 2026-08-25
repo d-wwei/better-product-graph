@@ -220,6 +220,41 @@ When the exact committed Reviewer result contains no Findings, use this complete
 
 The main Host Agent decides which advisory repairs to adopt. When `node_id=prd.optimize`, read the exact `optimize_context`: revise only its accepted current-PRD Findings, use its exact source Candidate and `next_version`, and author the complete replacement PRD rather than a patch. Submit `source_candidate_ref`, the declared `{prd_id, version}` Candidate identity, the canonical `proposed_scope_projection`, full `document_markdown`, `template_mapping`, and metadata. Preserve the user's explicit/current working language (fallback `zh-CN`) in `metadata.document_language`; use a short human title in that language rather than introducing a hidden English slug. Recompute the immutable `<prd_id>_<short_title>_<version>_<date>` stem for the new version, and make the directory, Markdown filename, and unique H1 exact matches. Never rename the source Candidate in place. The projection contains exactly the Plan-owned Slice fields `id`, `user_outcome`, sorted `modules`, `iteration`, sorted `dependencies`, `validation`, `split_reason`, and `delivery_intent`. Caller claims such as `scope_changed=false` do not decide the route: the Controller recomputes the exact Plan projection. A mismatch returns `PLAN_RECONCILE_REQUIRED` before Candidate persistence; an unclassifiable or missing projection returns `AMBIGUOUS_SCOPE_CHANGE` for the current Owner, never a Reviewer Gate.
 
-Metadata must preserve upstream authority and the closed active-scope/trace/runtime contracts, declare exact `supersedes`, and include a `change_log` with the source Candidate, every repaired Finding ID, all unadopted dispositions unchanged, material delta, and re-review scope. Extend `spec_traceability` with the exact `source_candidate` and the committed `review_aggregate_result` from `optimize_context`; a Product Planning reconciliation carries those same two roles into its later `prd.generate`. A legal Evals specification update may be submitted, but in the current skills-only Host REQUIRED Evals must remain `REVIEW_PENDING`/`NOT_RUN` without active stale Pack/review refs; typed Pack/review consistency cannot prove independent fulfillment or grant release authority. Python validates and archives these Agent-authored bytes; it never generates the revision.
+Metadata must preserve upstream authority and the closed active-scope/trace/runtime contracts, declare exact `supersedes`, and include a `change_log` with the source Candidate, every repaired Finding ID, all unadopted dispositions unchanged, material delta, and re-review scope. `optimize_context.metadata_authority.spec_traceability` is the complete closed `spec-traceability.v1` selected by the Controller, including the exact current `source_candidate` and committed `review_aggregate_result` origins. Copy it byte-for-byte into `metadata.spec_traceability`; do not extend, replace, infer, reorder, or retain superseded trace roles yourself. A Product Planning reconciliation carries those same two roles into its later `prd.generate`. A legal Evals specification update may be submitted, but in the current skills-only Host REQUIRED Evals must remain `REVIEW_PENDING`/`NOT_RUN` without active stale Pack/review refs; typed Pack/review consistency cannot prove independent fulfillment or grant release authority. Python validates and archives these Agent-authored bytes; it never generates the revision.
+
+The `metadata.change_log` contract is closed-world. Copy `source_candidate_ref` and `unadopted_dispositions` byte-for-byte from `optimize_context`. Build `repaired_finding_ids` from every `accepted_dispositions[].finding_id` in the same order; do not use only the Findings mentioned in prose. `material_delta` and `rereview_scope` are non-empty lists of non-empty human-readable strings. Do not add private closure flags or rename these keys.
+
+<!-- prd-optimize-change-log-contract -->
+```json
+{
+  "schema_version": "prd-optimize-change-log.v1",
+  "allowed_keys": [
+    "source_candidate_ref",
+    "repaired_finding_ids",
+    "unadopted_dispositions",
+    "material_delta",
+    "rereview_scope"
+  ],
+  "valid_example": {
+    "source_candidate_ref": {
+      "path": "<copy optimize_context.source_candidate_ref.path>",
+      "hash": "<copy optimize_context.source_candidate_ref.hash>",
+      "version": "<copy optimize_context.source_candidate_ref.version>"
+    },
+    "repaired_finding_ids": [
+      "<copy every optimize_context.accepted_dispositions[].finding_id in order>"
+    ],
+    "unadopted_dispositions": [
+      "<copy every complete optimize_context.unadopted_dispositions[] object exactly>"
+    ],
+    "material_delta": [
+      "<what materially changed in this PRD revision>"
+    ],
+    "rereview_scope": [
+      "<which revised PRD sections the next reviewers must check>"
+    ]
+  }
+}
+```
 
 Stop at the bounded round/no-progress limit, record unadopted or external-review dispositions, render the same-version companion view, and let deterministic `review.finalize` check completeness before the single `prd.ready.gate`.

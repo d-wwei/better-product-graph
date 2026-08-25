@@ -99,6 +99,19 @@ def _kind(relative: str) -> str:
     return "PROJECT_CONFIG"
 
 
+def _version_key(relative: str) -> tuple[int, ...]:
+    """Return the final filename version as a tuple suitable for newest-first sorting."""
+
+    matches = re.findall(r"(?:^|[_-])v(\d+(?:\.\d+)*)", PurePosixPath(relative).name, re.I)
+    if not matches:
+        return (-1,)
+    return tuple(int(part) for part in matches[-1].split("."))
+
+
+def _newest_first(paths: list[str]) -> list[str]:
+    return sorted(paths, key=lambda item: (_version_key(item), item.casefold()), reverse=True)
+
+
 def _candidate_paths(root: Path) -> list[Path]:
     paths = [root / name for name in _ROOT_CANDIDATES]
     for pattern in _DISCOVERY_GLOBS:
@@ -118,13 +131,53 @@ def _candidate_paths(root: Path) -> list[Path]:
         "RELEASED_PRD": 4,
         "PROJECT_CONFIG": 5,
     }
-    return [
-        unique[key]
-        for key in sorted(
-            unique,
-            key=lambda item: (priority[_kind(item)], item.casefold()),
-        )
+    grouped: dict[str, list[str]] = {kind: [] for kind in priority}
+    for relative in unique:
+        grouped[_kind(relative)].append(relative)
+    for kind in grouped:
+        grouped[kind] = _newest_first(grouped[kind])
+
+    # Reserve the first positions for one current representative of every important
+    # product context class. Otherwise a long Roadmap history can consume the bounded
+    # budget before the current architecture, Graph manifest, or Released PRD is seen.
+    representatives: list[str] = []
+    overview = next(
+        (item for item in grouped["PROJECT_OVERVIEW"] if item.casefold() == "readme.md"),
+        grouped["PROJECT_OVERVIEW"][0] if grouped["PROJECT_OVERVIEW"] else None,
+    )
+    memory = next(
+        (item for item in grouped["PROJECT_MEMORY"] if item == ".assistant/project.md"),
+        grouped["PROJECT_MEMORY"][0] if grouped["PROJECT_MEMORY"] else None,
+    )
+    newest_roadmap = grouped["ROADMAP"][0] if grouped["ROADMAP"] else None
+    newest_architecture = next(
+        (item for item in grouped["ARCHITECTURE"] if item != "src/core/graph/manifest.json"),
+        None,
+    )
+    graph_manifest = (
+        "src/core/graph/manifest.json"
+        if "src/core/graph/manifest.json" in grouped["ARCHITECTURE"]
+        else None
+    )
+    newest_released_prd = grouped["RELEASED_PRD"][0] if grouped["RELEASED_PRD"] else None
+    for item in (
+        overview,
+        memory,
+        newest_roadmap,
+        newest_architecture,
+        graph_manifest,
+        newest_released_prd,
+    ):
+        if item is not None and item not in representatives:
+            representatives.append(item)
+
+    remaining = [
+        item
+        for kind in sorted(priority, key=priority.get)
+        for item in grouped[kind]
+        if item not in representatives
     ]
+    return [unique[item] for item in representatives + remaining]
 
 
 def discover_planning_context(project_root: Path) -> dict[str, Any]:
@@ -134,6 +187,7 @@ def discover_planning_context(project_root: Path) -> dict[str, Any]:
     available: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     total_bytes = 0
+    truncated_materials = 0
 
     explicit_sensitive = [
         path
@@ -153,6 +207,10 @@ def discover_planning_context(project_root: Path) -> dict[str, Any]:
             skipped.append({"path": relative, "status": "SKIPPED_SENSITIVE"})
             continue
         if not path.is_file() or path.is_symlink():
+            continue
+        if len(available) >= MAX_DISCOVERED_MATERIALS:
+            skipped.append({"path": relative, "status": "SKIPPED_MATERIAL_LIMIT"})
+            truncated_materials += 1
             continue
         size = path.stat().st_size
         if size > MAX_MATERIAL_BYTES or total_bytes + size > MAX_TOTAL_BYTES:
@@ -179,8 +237,6 @@ def discover_planning_context(project_root: Path) -> dict[str, Any]:
             }
         )
         total_bytes += size
-        if len(available) >= MAX_DISCOVERED_MATERIALS:
-            break
 
     return {
         "schema_version": "planning-context-discovery.v1",
@@ -195,6 +251,7 @@ def discover_planning_context(project_root: Path) -> dict[str, Any]:
             "max_materials": MAX_DISCOVERED_MATERIALS,
             "max_material_bytes": MAX_MATERIAL_BYTES,
             "max_total_bytes": MAX_TOTAL_BYTES,
+            "truncated_materials": truncated_materials,
         },
         "scope": "CURRENT_RUN_ONLY",
     }
@@ -335,4 +392,3 @@ def validate_planning_context_submission(result: dict[str, Any]) -> None:
     _require_nonempty_string(reviewer.get("id"), "reviewed_by id")
     if output["status"] == "READY" and not included:
         raise PlanningContextError("READY planning context requires at least one included material")
-

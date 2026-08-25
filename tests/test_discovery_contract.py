@@ -79,6 +79,33 @@ class DiscoveryContractTests(unittest.TestCase):
         self.assertEqual(validated.status, "READY")
         self.assertEqual(validated.generated_artifacts, [])
 
+    def test_learning_accepts_multiple_material_challenges_from_the_public_array_contract(self) -> None:
+        submission = {
+            "learning_disposition": "READY_FOR_SYNTHESIS",
+            "runtime_status": "COMPLETED",
+            "interaction_policy": "NO_PM_INTERVIEW",
+            "next_actions": [
+                {
+                    "kind": "SYNTHESIZE_PROBLEM",
+                    "reason": "剩余挑战已被保留，但不改变当前可逆行动",
+                }
+            ],
+            "material_challenges": [
+                "独立 Reviewer 身份必须可核验",
+                "标准答案不能暴露给被测 Agent",
+                "机械合同通过不能冒充产品判断通过",
+            ],
+            "reasoning_usage": {
+                "used_resource_ids": ["better-question", "first-principles"],
+                "selection_rationale": "保留所有会影响验收可信度的不同挑战",
+            },
+        }
+
+        validated = validate_learning_submission(submission)
+
+        self.assertEqual(validated.status, "READY")
+        self.assertEqual(validated.repair_targets, [])
+
     def test_problem_ready_is_mechanical_and_advisory_concern_does_not_veto(self) -> None:
         candidate = {
             "candidate_ref": {"path": "problem-v3.json", "hash": "sha256:current", "version": 3},

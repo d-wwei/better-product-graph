@@ -1,12 +1,12 @@
 {
   "schema_version": "better-product-graph.release-source.v1",
-  "generated_at": "2026-08-24",
+  "generated_at": "2026-08-25",
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
   "source_branch": "main",
-  "source_commit": "349d55a6ad719fbd5cf6a87c7713080d60403d83",
-  "release_evidence_commit": "349d55a6ad719fbd5cf6a87c7713080d60403d83",
-  "plugin_version": "0.2.7",
+  "source_commit": "81c1f26bc428a5eab62ee20b13889f472d89e528",
+  "release_evidence_commit": "81c1f26bc428a5eab62ee20b13889f472d89e528",
+  "plugin_version": "0.2.12",
   "release_channel": "Developer Alpha",
   "publication_status": "NOT_PUBLISHED_AS_GITHUB_RELEASE",
   "intended_tag": null,
@@ -53,29 +53,29 @@
   },
   "release_artifacts": {
     "codex_marketplace_zip": {
-      "name": "better-product-graph-0.2.7-codex.zip",
-      "sha256": "52b6e179fc4f643852bbb7aa2dcfd1a98d0aac6743edbbbb642447292048f31d",
-      "bytes": 286966,
-      "plugin_artifact_hash": "sha256:13ffb45e0c6f0165431d6377cc43256e4500d47d3ca219fe60d10d34d018032b"
+      "name": "better-product-graph-codex-0.2.12.zip",
+      "sha256": "9393b491bfcd06821d2c7bfd29fe89dc1ffffe42d28dbb6fe138461c9cff70c6",
+      "bytes": 277349,
+      "plugin_artifact_hash": "sha256:ee1dae1add734080ddee2735a3b3486cca9b4fbf693cf686fe158f02cd5d472d"
     },
     "claude_marketplace_zip": {
-      "name": "better-product-graph-0.2.7-claude.zip",
-      "sha256": "e693629c71fbc01c7ea1d01ed4c3d728099c24890b441990ca13380225d81e40",
-      "bytes": 287792,
-      "plugin_artifact_hash": "sha256:664a213b1554aa1e0d577a4c08ff0246b3a49d3477d0070565060824ef7b6286"
+      "name": "better-product-graph-claude-0.2.12.zip",
+      "sha256": "56bff0784cc779430bc6be6b573abfe4fb67cf0d6499d28c73718ddfaaa4bb2d",
+      "bytes": 276611,
+      "plugin_artifact_hash": "sha256:3cc04012bc4e1797a650a6799808e1f291d89eea492917ab87bee0a76ffeec5c"
     },
-    "core_tree_fingerprint": "sha256:484c52bcb56d8f0123416e826555179d99db6f802ea5dfacf2b3185aa18dc3bc"
+    "core_tree_fingerprint": "sha256:ccbee57e732cd68075725c116bfc845993b5d95ebb9ef69df859070128dfc84c"
   },
   "release_evidence": {
-    "source_tests": "442/442 PASS",
-    "public_snapshot_tests": "417/417 PASS; 1 optional local-upstream check skipped",
-    "repair_verifier": "PASS; failed=[]",
-    "deterministic_marketplace_packages": "PASS for Codex and Claude Code",
+    "source_tests": "452/452 PASS",
+    "public_snapshot_tests": "427/427 PASS; 1 optional local-upstream check skipped",
+    "repair_verifier": "PASS on source commit 81c1f26; 53 findings; failed=[]",
+    "deterministic_marketplace_packages": "PASS for Codex and Claude Code Marketplace ZIPs and Plugin ZIPs",
     "codex_marketplace_local_install": "PASS",
     "claude_marketplace_local_install": "PASS",
-    "plugin_creator_validator": "NOT_RUN_FOR_0.2.7",
+    "plugin_creator_validator": "NOT_RUN_FOR_0.2.12",
     "claude_strict_validator": "PASS",
-    "authenticated_host_exact_release_commit": "NOT_RUN",
+    "authenticated_host_exact_release_commit": "PASS for Codex installed-only planning pipeline Run run-f89329a5e075",
     "product_golden_agent_judgment": "NOT_RUN",
     "document_experience_user_readability_validation": "NOT_RUN"
   },

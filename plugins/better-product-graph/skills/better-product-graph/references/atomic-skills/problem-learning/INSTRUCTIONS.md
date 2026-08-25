@@ -226,6 +226,8 @@ Use the Better Question techniques and cognitive-lens catalog only when they add
 
 Copy the dispatch's exact `resource_refs` to the top-level Node Result. Then return this complete `semantic_output`; replace `better-question` only with IDs that actually appear in those dispatched refs:
 
+material_challenges 可保留零项或多项彼此不同的重大挑战。它不是 PM 问题列表，不能因为一次只问一个问题就删掉其他不同风险；保持简洁并去重即可。
+
 <!-- problem-learning-semantic-output-contract -->
 ```json
 {

@@ -1,6 +1,34 @@
 # Changelog
 
-## 0.2.7 — 2026-08-24 — Main testing snapshot — Planning context, Document Experience v0.2, and exact delivery navigation
+## 0.2.12 — Unreleased — Compatible in-flight Optimize context upgrade
+
+- Enrich an exact declared-compatible predecessor `prd.optimize` dispatch at read time with the new Controller-derived trace authority while preserving its attempt ID, input bindings, and historical durable contract.
+- Accept submission from that same predecessor attempt only when its durable Optimize context is the exact predecessor shape whose sole difference is the additive `metadata_authority`; all other context drift remains fail-closed.
+
+## 0.2.11 — Unreleased — Public PRD Optimize trace authority
+
+- Publish the complete Controller-derived `optimize_context.metadata_authority.spec_traceability` so an installed Host can copy the exact current Candidate and review aggregate origins without guessing hidden validator state.
+- Require byte-for-byte trace copying, reject tampered origins before Candidate persistence, and retain the 0.2.10 review instruction hash for exact in-flight Optimize recovery.
+
+## 0.2.10 — Unreleased — Template-mapped PRD Optimize changelog
+
+- Validate the visible Optimize changelog through the exact `template_mapping.document_changelog` H2 instead of assuming the legacy Chinese `版本与变更` heading.
+- Reuse the fence-aware Markdown section parser so compact and split PRDs pass their published template contract without an `IndexError`, while missing mapped headings still fail before Candidate persistence.
+
+## 0.2.9 — Unreleased — Public PRD Optimize change-log contract
+
+- Publish the exact closed-world `metadata.change_log` keys, copy rules, accepted-Finding ordering, and one complete `prd-optimize-change-log.v1` example in the installed `prd-review` instruction.
+- Return field-specific validation errors and reject unknown change-log fields before any revised Candidate is persisted.
+- Declare the exact 0.2.8 PRD Review instruction as a compatible predecessor so its existing unconsumed `prd.optimize` attempt can resume without rewriting Run history.
+
+## 0.2.8 — Unreleased — Dogfood contract convergence
+
+- Align the public `problem.learning.loop` instruction and Validator: preserve zero or multiple distinct material challenges while retaining the one-MVU and one-PM-question interaction budget.
+- Make bounded Planning Context discovery reserve space for the newest Roadmap, current architecture, Graph manifest, and latest Released PRD before historical tails; report every material omitted by the count limit as `SKIPPED_MATERIAL_LIMIT`.
+- Keep the user's product Signal separate from synthesized Host intent syntax in the durable occurrence source record instead of presenting an internal command as user-authored text.
+- Declare the exact 0.2.7 Problem Learning instruction a compatible predecessor so an unfinished durable dispatch may recover under the relaxed successor contract without rewriting history.
+
+## 0.2.7 — Unreleased — Planning context, Document Experience v0.2, and exact delivery navigation
 
 - Insert a safe, Run-scoped `planning.context.prepare` step before Evidence collection for new Discovery runs; discover bounded project material first, bind only exact accepted refs, and keep shared knowledge/Refresh outside this release.
 - Release Document Experience Profile and Guide v0.2 as the installed default while preserving v0.1 bytes as the previous released profile.

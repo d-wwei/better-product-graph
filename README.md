@@ -16,7 +16,7 @@ Better Product Graph（BPG）是一个运行在 Codex 和 Claude Code 里的本�
 
 它不会把每个 Signal 都强行写成 PRD。合理的结果也可以是：立即处理线上事故、提交 Bug 核查包、继续研究、做可逆实验、等待条件成熟，或者明确停止。
 
-> **最新 GitHub Release：`0.2.0` Developer Alpha；当前 `main` 测试快照：`0.2.7`。** `0.2.7` 新增每次规划前的安全“规划上下文准备”、Document Experience v0.2 和需求版本导航；它仍不冒充跨 Run 共享的项目知识库。
+> **最新 GitHub Release：`0.2.0` Developer Alpha；当前 `main` 测试快照：`0.2.12`。** `0.2.12` 收敛了真实试用中发现的学习、规划上下文和 PRD 优化合同，并支持符合精确前置条件的在途 Run 安全恢复；它仍不冒充跨 Run 共享的项目知识库或已执行的产品评测。
 
 ### 来自对 eli 的蒸馏
 
@@ -96,7 +96,7 @@ codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.0
 codex plugin add better-product-graph@better-product-graph
 ```
 
-如需试用尚未制作 GitHub Release 的 `0.2.7`，把 `--ref v0.2.0` 改为 `--ref main`。
+如需试用尚未制作 GitHub Release 的 `0.2.12`，把 `--ref v0.2.0` 改为 `--ref main`。
 
 Claude Code：
 
@@ -149,7 +149,7 @@ Better Product Graph (BPG) is a local product workflow for Codex and Claude Code
 
 It does not force every signal into a PRD. A valid outcome may be an incident brief, a bug investigation packet, more research, a reversible experiment, a deliberate wait, or a recorded stop.
 
-> **Latest GitHub Release: `0.2.0` Developer Alpha; current `main` test snapshot: `0.2.7`.** Version `0.2.7` adds safe per-run Planning Context Preparation, Document Experience v0.2, and requirement-version navigation. It does not pretend to provide a shared cross-run project knowledge base.
+> **Latest GitHub Release: `0.2.0` Developer Alpha; current `main` test snapshot: `0.2.12`.** Version `0.2.12` converges learning, planning-context, and PRD-optimization contracts found through real dogfooding, with exact-precondition recovery for in-flight Runs. It does not pretend to provide shared cross-run project knowledge or executed product evaluations.
 
 ### Distilled from eli
 
@@ -229,7 +229,7 @@ codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.0
 codex plugin add better-product-graph@better-product-graph
 ```
 
-To try the unreleased `0.2.7` snapshot, replace `--ref v0.2.0` with `--ref main`.
+To try the unreleased `0.2.12` snapshot, replace `--ref v0.2.0` with `--ref main`.
 
 Claude Code:
 

@@ -494,10 +494,20 @@ class StateController:
             or result_resources != contract.get("resource_refs", [])
         ):
             raise TransitionRejected("result resource refs differ from exact dispatch")
-        if state["current_node"] == "prd.optimize" and contract.get(
-            "optimize_context"
-        ) != self.prd_optimize_context(state["run_id"], state):
-            raise TransitionRejected("PRD Optimize context differs from exact current repair authority")
+        if state["current_node"] == "prd.optimize":
+            expected_optimize_context = self.prd_optimize_context(
+                state["run_id"], state
+            )
+            durable_optimize_context = contract.get("optimize_context")
+            if durable_optimize_context != expected_optimize_context and not (
+                compatibility == "DECLARED_COMPATIBLE_SUCCESSOR"
+                and self._is_pre_trace_authority_optimize_context(
+                    durable_optimize_context, expected_optimize_context
+                )
+            ):
+                raise TransitionRejected(
+                    "PRD Optimize context differs from exact current repair authority"
+                )
         if (
             state["current_node"] == "prd.generate"
             and isinstance(state.get("scope_reconciliation"), dict)
@@ -2900,6 +2910,7 @@ class StateController:
     ) -> dict[str, Any]:
         """Derive the exact, read-only repair authority for one Optimize attempt."""
 
+        from .delivery_contract import DeliveryContractError, derive_spec_traceability
         from .prd_contract import next_prd_version
 
         state = state or self.load_state(run_id)
@@ -2921,6 +2932,53 @@ class StateController:
             key: candidate[key]
             for key in ("path", "hash", "version")
         }
+        source = self._current_candidate_artifact(state)
+        source_metadata_paths = list(source.path.glob("*.metadata.json"))
+        if len(source_metadata_paths) != 1:
+            raise TransitionRejected("current Candidate metadata identity is ambiguous")
+        source_metadata = read_json(source_metadata_paths[0])
+        source_traceability = source_metadata.get("spec_traceability")
+        source_trace_refs = (
+            source_traceability.get("refs")
+            if isinstance(source_traceability, dict)
+            else None
+        )
+        if not isinstance(source_trace_refs, list):
+            raise TransitionRejected("current Candidate spec_traceability is unavailable")
+        aggregate_result_refs = [
+            item
+            for item in state.get("artifact_refs", {}).values()
+            if isinstance(item, dict)
+            and item.get("role") == "node_result"
+            and item.get("node_id", item.get("origin_node_id")) == "review.aggregate"
+            and item.get("attempt_id", item.get("origin_attempt_id"))
+            == prior.get("attempt_id")
+        ]
+        if len(aggregate_result_refs) != 1:
+            raise TransitionRejected(
+                "current review.aggregate result lacks unique committed trace origin"
+            )
+        trace_pairs = [
+            (item["role"], item)
+            for item in source_trace_refs
+            if isinstance(item, dict)
+            and item.get("role", "").split(":", 1)[0]
+            not in {"source_candidate", "review_aggregate_result"}
+        ]
+        trace_pairs.extend(
+            [
+                ("source_candidate", source_candidate_ref),
+                ("review_aggregate_result", aggregate_result_refs[0]),
+            ]
+        )
+        try:
+            spec_traceability = derive_spec_traceability(
+                trace_pairs, state.get("artifact_refs", {})
+            )
+        except (DeliveryContractError, KeyError, TypeError, ValueError) as error:
+            raise TransitionRejected(
+                f"PRD Optimize traceability authority is invalid: {error}"
+            ) from error
         return {
             "source_candidate_ref": source_candidate_ref,
             "aggregate_ref": {
@@ -2942,7 +3000,24 @@ class StateController:
                 }
             ),
             "next_version": next_prd_version(candidate["version"]),
+            "metadata_authority": {
+                "spec_traceability": spec_traceability,
+            },
         }
+
+    @staticmethod
+    def _is_pre_trace_authority_optimize_context(
+        durable: Any, current: dict[str, Any]
+    ) -> bool:
+        """Accept only the exact predecessor context lacking the additive trace authority."""
+
+        if not isinstance(durable, dict):
+            return False
+        predecessor = {
+            key: value for key, value in current.items()
+            if key != "metadata_authority"
+        }
+        return durable == predecessor
 
     def reconciliation_generation_context(
         self, run_id: str, state: dict[str, Any] | None = None

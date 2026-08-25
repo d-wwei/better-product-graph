@@ -87,6 +87,50 @@ class PlanningContextTests(unittest.TestCase):
             with self.assertRaisesRegex(PlanningContextError, "exactly equal"):
                 validate_planning_context_submission(result)
 
+    def test_discovery_prioritizes_current_documents_and_reports_capacity_omissions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# 项目\n", encoding="utf-8")
+            roadmap = root / "docs" / "roadmap"
+            architecture = root / "docs" / "architecture"
+            released = root / "artifacts" / "prds" / "released" / "BPG-PRD-CURRENT"
+            roadmap.mkdir(parents=True)
+            architecture.mkdir(parents=True)
+            released.mkdir(parents=True)
+            for version in range(1, 31):
+                (roadmap / f"BETTER_PRODUCT_GRAPH_ROADMAP_v0.{version}.md").write_text(
+                    f"# Roadmap v0.{version}\n", encoding="utf-8"
+                )
+            (architecture / "PRD_GRAPH_v1.4.md").write_text(
+                "# Current architecture\n", encoding="utf-8"
+            )
+            (released / "BPG-PRD-CURRENT_当前需求_v1.0_2026-08-24.md").write_text(
+                "# 当前需求\n", encoding="utf-8"
+            )
+            graph = root / "src" / "core" / "graph"
+            graph.mkdir(parents=True)
+            (graph / "manifest.json").write_text("{}\n", encoding="utf-8")
+
+            discovery = discover_planning_context(root)
+            available = [item["ref"]["path"] for item in discovery["available_materials"]]
+            skipped = {
+                item["path"]: item["status"] for item in discovery["skipped_materials"]
+            }
+
+            self.assertIn("docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.30.md", available)
+            self.assertIn("docs/architecture/PRD_GRAPH_v1.4.md", available)
+            self.assertIn("src/core/graph/manifest.json", available)
+            self.assertIn(
+                "artifacts/prds/released/BPG-PRD-CURRENT/"
+                "BPG-PRD-CURRENT_当前需求_v1.0_2026-08-24.md",
+                available,
+            )
+            self.assertEqual(
+                skipped["docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md"],
+                "SKIPPED_MATERIAL_LIMIT",
+            )
+            self.assertGreater(discovery["limits"]["truncated_materials"], 0)
+
     def test_unknown_semantic_field_fails_closed(self) -> None:
         result = {
             "semantic_output": {

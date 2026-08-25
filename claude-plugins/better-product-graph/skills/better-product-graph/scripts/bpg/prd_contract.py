@@ -304,6 +304,13 @@ def _section_bodies(markdown: str) -> dict[str, list[str]]:
     return sections
 
 
+def markdown_h2_section(markdown: str, heading: str) -> str | None:
+    """Return one exact visible H2 body, excluding same-looking fenced examples."""
+
+    body = _section_bodies(markdown).get(heading)
+    return None if body is None else "\n".join(body)
+
+
 def _has_substantive_section_content(lines: list[str], policy: str) -> bool:
     visible: list[str] = []
     fence_character: str | None = None

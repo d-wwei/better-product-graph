@@ -23,7 +23,7 @@ from .delivery_contract import (
 from .engine import HostEngine
 from .failpoints import begin_node_call, persist_node_dispatch
 from .node_registry import NodeRegistry
-from .prd_contract import PRDContractError, assemble_prd
+from .prd_contract import PRDContractError, assemble_prd, markdown_h2_section
 from .planning_contract import derive_prd_run_specs
 from .planning_context import discover_planning_context
 from .ready import PRDNotReady, ready_and_release
@@ -63,7 +63,27 @@ class HostRuntime:
             if current:
                 if len(current) != 1 or not isinstance(current[0].get("contract"), dict):
                     raise TransitionRejected("current Node has ambiguous dispatch authority")
-                return deepcopy(current[0]["contract"])
+                durable_contract = deepcopy(current[0]["contract"])
+                if state["current_node"] == "prd.optimize":
+                    expected_context = self.controller.prd_optimize_context(
+                        run_id, state
+                    )
+                    durable_context = durable_contract.get("optimize_context")
+                    if durable_context != expected_context:
+                        compatibility = self.registry.instruction_compatibility(
+                            "prd.optimize", durable_contract.get("instruction_hash")
+                        )
+                        if not (
+                            compatibility == "DECLARED_COMPATIBLE_SUCCESSOR"
+                            and self.controller._is_pre_trace_authority_optimize_context(
+                                durable_context, expected_context
+                            )
+                        ):
+                            raise TransitionRejected(
+                                "current PRD Optimize dispatch context drifted"
+                            )
+                        durable_contract["optimize_context"] = expected_context
+                return durable_contract
             attempt_id = f"attempt-{uuid4().hex}"
             hashes: dict[str, str] = {}
             for ref in state.get("artifact_refs", {}).values():
@@ -798,6 +818,14 @@ class HostRuntime:
                     raise TransitionRejected(
                         f"Agent PRD metadata {field} differs from exact dispatch authority"
                     )
+        elif result.get("node_id") == "prd.optimize":
+            expected_traceability = self.controller.prd_optimize_context(
+                run_id, state
+            )["metadata_authority"]["spec_traceability"]
+            if metadata.get("spec_traceability") != expected_traceability:
+                raise TransitionRejected(
+                    "Agent PRD metadata spec_traceability differs from exact dispatch authority"
+                )
         slice_ref = metadata.get("slice_ref")
         try:
             self.controller._validate_single_artifact_ref(slice_ref)
@@ -963,24 +991,62 @@ class HostRuntime:
         accepted_ids = [
             item["finding_id"] for item in context["accepted_dispositions"]
         ]
-        if (
-            not isinstance(change_log, dict)
-            or change_log.get("source_candidate_ref") != source_ref
-            or change_log.get("repaired_finding_ids") != accepted_ids
-            or change_log.get("unadopted_dispositions")
-            != context["unadopted_dispositions"]
-            or not isinstance(change_log.get("material_delta"), list)
-            or not change_log["material_delta"]
-            or not isinstance(change_log.get("rereview_scope"), list)
-            or not change_log["rereview_scope"]
-        ):
+        if not isinstance(change_log, dict):
+            raise TransitionRejected("metadata.change_log must be an object")
+        allowed_change_log_fields = {
+            "source_candidate_ref",
+            "repaired_finding_ids",
+            "unadopted_dispositions",
+            "material_delta",
+            "rereview_scope",
+        }
+        unknown_change_log_fields = sorted(set(change_log) - allowed_change_log_fields)
+        if unknown_change_log_fields:
             raise TransitionRejected(
-                "PRD Optimize changelog must close every accepted Finding and preserve unadopted items"
+                "metadata.change_log contains unknown field "
+                f"{unknown_change_log_fields[0]}"
             )
+        if change_log.get("source_candidate_ref") != source_ref:
+            raise TransitionRejected(
+                "metadata.change_log.source_candidate_ref must equal "
+                "optimize_context.source_candidate_ref"
+            )
+        if change_log.get("repaired_finding_ids") != accepted_ids:
+            raise TransitionRejected(
+                "metadata.change_log.repaired_finding_ids must equal every accepted "
+                "disposition Finding ID in optimize_context order"
+            )
+        if change_log.get("unadopted_dispositions") != context["unadopted_dispositions"]:
+            raise TransitionRejected(
+                "metadata.change_log.unadopted_dispositions must copy "
+                "optimize_context.unadopted_dispositions exactly"
+            )
+        for field in ("material_delta", "rereview_scope"):
+            value = change_log.get(field)
+            if (
+                not isinstance(value, list)
+                or not value
+                or any(not isinstance(item, str) or not item.strip() for item in value)
+            ):
+                raise TransitionRejected(
+                    f"metadata.change_log.{field} must be a non-empty list of non-empty strings"
+                )
         markdown = output["document_markdown"]
         if markdown == source.document_path.read_text(encoding="utf-8"):
             raise TransitionRejected("PRD Optimize did not produce a material Candidate change")
-        visible_change_log = markdown.split("## 版本与变更", 1)[1].split("\n## ", 1)[0]
+        template_mapping = output.get("template_mapping")
+        visible_change_log_heading = (
+            template_mapping.get("document_changelog", "版本与变更")
+            if isinstance(template_mapping, dict)
+            else "版本与变更"
+        )
+        visible_change_log = markdown_h2_section(
+            markdown, visible_change_log_heading
+        )
+        if visible_change_log is None:
+            raise TransitionRejected(
+                "PRD Optimize template_mapping.document_changelog must bind an existing H2 section"
+            )
         if (
             metadata["version"] not in visible_change_log
             or len(visible_change_log.strip()) <= len(metadata["version"]) + 8

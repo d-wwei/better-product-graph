@@ -75,6 +75,17 @@ class LearningFrontierPilotContractTests(unittest.TestCase):
             },
         )
 
+    def test_successor_declares_the_exact_previous_learning_instruction_compatible(self) -> None:
+        registry = json.loads(
+            (self.plugin / "skills" / "better-product-graph" / "references" / "graph" / "node-contracts.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertIn(
+            "sha256:b40c5bc84317a2bd9c235387ed9bfd7119c93ab81534c4fcf9a575cb71b51a65",
+            registry["nodes"]["problem.learning.loop"]["compatible_instruction_hashes"],
+        )
+
     def test_installed_contract_exposes_one_mvu_and_source_routing_without_a_question_wall(self) -> None:
         contract = self._pilot_contract()
         interaction = contract["complex_path"]["pm_interaction"]
@@ -147,6 +158,10 @@ class LearningFrontierPilotContractTests(unittest.TestCase):
                 "next_actions",
                 "reasoning_usage",
             },
+        )
+        self.assertIn(
+            "material_challenges 可保留零项或多项彼此不同的重大挑战",
+            self.instruction,
         )
 
 
