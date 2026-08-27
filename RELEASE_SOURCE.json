@@ -4,12 +4,12 @@
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
   "development_branch": "main",
-  "development_snapshot_commit": "2b773261e5b4da4892a620fa6401d8d9b36fe6f4",
-  "artifact_build_source_commit": "16d8ce48b999f85d34747afb94ff255d40220c78",
+  "development_snapshot_commit": "8953634c294801f1a3d886d08a7c16259c095427",
+  "artifact_build_source_commit": "8953634c294801f1a3d886d08a7c16259c095427",
   "artifact_build_source_dirty": false,
-  "plugin_version": "0.2.18",
+  "plugin_version": "0.2.19",
   "release_channel": "Developer Alpha",
-  "intended_tag": "v0.2.18",
+  "intended_tag": "v0.2.19",
   "public_identity_binding": "The public snapshot commit, tag and GitHub Release are external final-publication evidence. This file intentionally contains no self-referential public commit.",
   "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
   "documents": {
@@ -34,32 +34,34 @@
       "sha256": "c276e951bba16ff868f5b2cf7dacb1642adf5eac512fb2a3898f4ad825ad64a4"
     },
     "installation": {
-      "path": "docs/release/INSTALL_v0.2.18.md",
-      "sha256": "bc2f14598a87e9aa90faf6511d311063845c00d9c5030caf4e006498cef7f739"
+      "path": "docs/release/INSTALL_v0.2.19.md",
+      "sha256": "c1ea173fcd7d3e81945656c90883e83c02d9bc0c1081673c9ba10755fe4c4a1f"
     },
     "release_notes": {
-      "path": "docs/release/RELEASE_NOTES_v0.2.18.md",
-      "sha256": "f703cb827b0a66394cd4cebb2b2f1832a85a8ab063c9e687ec1b9bf2f3d11d57"
+      "path": "docs/release/RELEASE_NOTES_v0.2.19.md",
+      "sha256": "80a5025f3bd38903dba8330fda6be8d47e288cd950a75167183576b7b73ee769"
     }
   },
   "release_artifacts": {
     "codex_marketplace_zip": {
-      "name": "better-product-graph-codex-0.2.18-a.zip",
-      "sha256": "163d6c3f65047af4e514d864eead60f49e816a5112fc1be15200f1520b1bf9f5",
-      "bytes": 401267,
-      "plugin_artifact_hash": "sha256:5f5f9e68cbccab58726381ae2e145356d7ce995d054286639e4aacc279bfa737"
+      "name": "better-product-graph-codex-0.2.19.zip",
+      "sha256": "49eed28ad307cc01ce1959bd16c79fd4e9e06eaf353bd6e05be715f8cbe62953",
+      "bytes": 431270,
+      "plugin_artifact_hash": "sha256:6a272679ceb02ab2661618485e41d855c0fa0ffcae660e2b9873492208c09016"
     },
     "claude_marketplace_zip": {
-      "name": "better-product-graph-claude-0.2.18-a.zip",
-      "sha256": "4c73c3a38f77fa6e6610cbc56abcbad8e9f65e445b6290415da24ad042f28919",
-      "bytes": 400539,
-      "plugin_artifact_hash": "sha256:37d39b5dab0f95d58be47a93b9f7e7e3ce9e8e63764ae01185e07ef32aac93f8"
+      "name": "better-product-graph-claude-0.2.19.zip",
+      "sha256": "50f6a90045f2b6f6f964030e61d161d7436eb6749205a18b0a700b1fb98e7a8d",
+      "bytes": 432585,
+      "plugin_artifact_hash": "sha256:4b33fdc9a0d57f330d10502d527c28f78b427c4857fcb19bd958066ab9d72a8d"
     },
-    "core_tree_fingerprint": "sha256:20b8fe2e26ce0e49172e36c61ec014bbfac857d675644533aae08a86aa0840b5",
+    "core_tree_fingerprint": "sha256:158c80c7ea39800439b75ff22412bf5b640ba7cb568078538d02ba1fc7365131",
     "asset_policy": "The GitHub Release must reuse these exact evaluated ZIP bytes. A package rebuilt from the public snapshot is a source-reproducibility check only and cannot replace either gated asset."
   },
   "release_evidence": {
-    "development_source_tests": "761/761 PASS on the exact development tree committed as 2b773261e5b4da4892a620fa6401d8d9b36fe6f4",
+    "development_source_tests": "773/773 PASS on the exact development tree committed as 8953634c294801f1a3d886d08a7c16259c095427",
+    "stale_run_recovery": "APPROVED; five exact recovery contracts plus one existing migration; six historical Run copies reached current legal work orders under the original Run IDs",
+    "concurrent_resume": "PASS; ACTIVE, PAUSED forward, PAUSED reverse and unrelated-suffix fail-closed interleavings each repeated 50/50; focused suite 12 tests x 10 rounds",
     "rc5_agent_eval": "27/27 PASS",
     "final_public_artifact_agent_eval": "27/27 PASS",
     "multi_root_release_aggregation": "PASS; both phases rederived at 27/27; 54 fresh Reviewer identities; cross-phase issues=[]; no phase rescore",

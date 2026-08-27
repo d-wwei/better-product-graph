@@ -1,0 +1,148 @@
+{
+  "schema_version": "stale-run-recovery-registry.v1",
+  "contracts": [
+    {
+      "recovery_id": "signal-classify-route-select-misbinding-v1",
+      "from_graph": {
+        "version": "0.1.0-alpha.1",
+        "hash": "sha256:f3debef5fe47747685327beb9a560068bb3351df4b734f9246692c1da9fe555e"
+      },
+      "status": "ACTIVE",
+      "current_node": "signal.classify",
+      "state_fingerprint": "sha256:630be8758e848e9b83545ef431f1fa4fc12e8ce128b7213907b3f8ca3bf234c5",
+      "retire_dispatches": [
+        {
+          "node_id": "signal.classify",
+          "instruction_hash": "sha256:630c02a7ee934422913318909e3bbd568466b15718c6d17dbf55c42559a832e1",
+          "status": "DISPATCHED",
+          "count": 2,
+          "result_authority": "ABSENT"
+        }
+      ],
+      "resume_node": "signal.classify",
+      "resume_last_completed_node": "signal.prepare",
+      "clear_ready_receipts": false,
+      "git_restore": null,
+      "message_zh": "检测到旧版信号分类错误绑定了内部路由说明。两个未产生结果的旧派发已保留并退休；系统会在同一个 Run 中按当前公开分类合同重新派发。"
+    },
+    {
+      "recovery_id": "signal-prepare-alpha1-contract-v1",
+      "from_graph": {
+        "version": "0.1.0-alpha.1",
+        "hash": "sha256:e06610dc94019082f3f52b467f70c22f9a2449dbe00c7dfc41848581866db791"
+      },
+      "status": "PAUSED",
+      "current_node": "signal.prepare",
+      "state_fingerprint": "sha256:0c0caf42724eb7994b6686f4104a9b53e4e276a0096d1b245ef46455dce7f833",
+      "retire_dispatches": [
+        {
+          "node_id": "signal.prepare",
+          "instruction_hash": "sha256:e5f3c72506ce3581258b2619aa3fa3b937920640a06022d7f0d839f8cc82b8b9",
+          "status": "DISPATCHED",
+          "count": 1,
+          "result_authority": "ABSENT"
+        }
+      ],
+      "resume_node": "signal.prepare",
+      "resume_last_completed_node": "signal.ingest",
+      "clear_ready_receipts": false,
+      "git_restore": null,
+      "message_zh": "检测到旧版信号准备派发尚未形成结果。旧派发已保留并退休；系统会在同一个 Run 中按当前合同重新执行。"
+    },
+    {
+      "recovery_id": "ready-alpha1-rereview-v1",
+      "from_graph": {
+        "version": "0.1.0-alpha.1",
+        "hash": "sha256:e06610dc94019082f3f52b467f70c22f9a2449dbe00c7dfc41848581866db791"
+      },
+      "status": "ACTIVE",
+      "current_node": "prd.ready.gate",
+      "state_fingerprint": "sha256:0aa950ad93a67e7d46e05e721d83af65b0067590c451fbfa5c8c3f7c74768e2b",
+      "retire_dispatches": [
+        {
+          "node_id": "prd.ready.gate",
+          "instruction_hash": "sha256:f5f21f40e7c6b80f5ddbcab97c6ad063cc4b06cf688e0977ca6d1c0e4682c301",
+          "status": "DISPATCHED",
+          "count": 1,
+          "result_authority": "ABSENT"
+        }
+      ],
+      "resume_node": "review.parallel",
+      "resume_last_completed_node": "prd.optimize",
+      "clear_ready_receipts": true,
+      "git_restore": null,
+      "message_zh": "检测到旧版 Ready 合同已过期。旧 Ready 派发和三张部分回执会保留为历史但不再拥有当前权限；同一 Run 将从当前并行审查重新开始。"
+    },
+    {
+      "recovery_id": "claude-adapter-candidate-git-restore-v1",
+      "from_graph": {
+        "version": "0.1.0-alpha.1",
+        "hash": "sha256:e06610dc94019082f3f52b467f70c22f9a2449dbe00c7dfc41848581866db791"
+      },
+      "status": "ACTIVE",
+      "current_node": "review.aggregate",
+      "state_fingerprint": "sha256:2cc9aed083a1c3769d7c56960fd2234294aee35e2964ca635bcf156fe2ab2428",
+      "retire_dispatches": [
+        {
+          "node_id": "review.aggregate",
+          "instruction_hash": "sha256:a3ac93b6874ee781e8606ed3ff29c00f7477d4915393c93fb433dc4d6420f1f1",
+          "status": "DISPATCHED",
+          "count": 1,
+          "result_authority": "ABSENT"
+        }
+      ],
+      "resume_node": "review.parallel",
+      "resume_last_completed_node": "prd.optimize",
+      "clear_ready_receipts": false,
+      "git_restore": {
+        "commit": "617b1137991d7ea1cf33031393ec1ca1736c7938",
+        "tree_hash": "sha256:d297357fd8898e408f50c2a79dbfe1672ddea3323d895707fb79ed186e8a08f8",
+        "files": [
+          {
+            "path": "artifacts/prds/archived/PRD-BPG-CLAUDE-ADAPTER-001_claude-adapter_v0.2_2026-08-20/PRD-BPG-CLAUDE-ADAPTER-001_claude-adapter_v0.2_2026-08-20.md",
+            "hash": "sha256:ba6dca43e0f58fdc8fc0f05334fba80ac7edb2bfe1f8d947ea81766f03e5030e",
+            "git_blob_oid": "b206f5f7725835a56278592b62741981113145e1",
+            "mode": "100644"
+          },
+          {
+            "path": "artifacts/prds/archived/PRD-BPG-CLAUDE-ADAPTER-001_claude-adapter_v0.2_2026-08-20/PRD-BPG-CLAUDE-ADAPTER-001_claude-adapter_v0.2_2026-08-20.metadata.json",
+            "hash": "sha256:409a769fb109a10bc45700863b1a4799f2bf068b32e3312e231c64067eed0d21",
+            "git_blob_oid": "3e5d37c7da03d2ce182e52a1fa0a602c26783141",
+            "mode": "100644"
+          },
+          {
+            "path": "artifacts/prds/archived/PRD-BPG-CLAUDE-ADAPTER-001_claude-adapter_v0.2_2026-08-20/PRD-BPG-CLAUDE-ADAPTER-001_claude-adapter_v0.2_2026-08-20.review.json",
+            "hash": "sha256:fabbc0b8db6a73bc5725c19a2fa82f227ffa9be3f9dc5b9075b8144f5a7a11be",
+            "git_blob_oid": "f157ed8dbb3ce10e525b65fb26ae1db960b31057",
+            "mode": "100644"
+          }
+        ]
+      },
+      "message_zh": "检测到当前 Candidate 目录缺失，但状态记录与指定 Git 提交中的三个文件完全一致。系统会只恢复这组精确文件，退休旧聚合派发，并在同一个 Run 中重新执行当前并行审查。"
+    },
+    {
+      "recovery_id": "review-parallel-pre-writing-v05-v1",
+      "from_graph": {
+        "version": "0.1.0-alpha.3",
+        "hash": "sha256:ff88db51639186fb688d013fff19f22cf1af18588ad11814b29e6c0e9e423229"
+      },
+      "status": "ACTIVE",
+      "current_node": "review.parallel",
+      "state_fingerprint": "sha256:abbb6c7bab943b8dc4a601b91a2a233a0f7f2f8e9a83f04b0ce18dfabab9904a",
+      "retire_dispatches": [
+        {
+          "node_id": "review.parallel",
+          "instruction_hash": "sha256:ede0efeed0da5e54043a5eab56558002f7e0ce84959aec06cb87ceb0fb4e18c0",
+          "status": "DISPATCHED",
+          "count": 1,
+          "result_authority": "ABSENT"
+        }
+      ],
+      "resume_node": "review.parallel",
+      "resume_last_completed_node": "prd.optimize",
+      "clear_ready_receipts": false,
+      "git_restore": null,
+      "message_zh": "检测到旧版并行审查已经启动，但尚未形成 Controller 接受的结果。旧派发会保留并退休；同一 Run 将按当前 Reviewer 合同重新派发，旧审查不能继承当前权限。"
+    }
+  ]
+}

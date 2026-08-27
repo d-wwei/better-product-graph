@@ -14,7 +14,7 @@ from scripts.package_plugin import package_plugin
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_RUNNER = REPO_ROOT / "evals" / "plugin-contract" / "run_contract.py"
-CANDIDATE_VERSION = "0.2.18"
+CANDIDATE_VERSION = "0.2.19"
 
 
 def _safe_extract(package: Path, destination: Path) -> None:

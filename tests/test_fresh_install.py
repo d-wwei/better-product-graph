@@ -10,7 +10,7 @@ from scripts.package_plugin import package_plugin
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CODEX = Path("/Applications/ChatGPT.app/Contents/Resources/codex")
-CANDIDATE_VERSION = "0.2.18"
+CANDIDATE_VERSION = "0.2.19"
 
 
 class FreshInstallTests(unittest.TestCase):

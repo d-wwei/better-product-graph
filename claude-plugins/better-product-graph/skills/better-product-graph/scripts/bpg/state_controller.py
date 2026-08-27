@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import shutil
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -56,6 +57,13 @@ from .storage import (
     sha256_bytes,
     sha256_file,
     verify_event_chain,
+)
+from .stale_recovery import (
+    StaleRecoveryError,
+    find_stale_recovery_contract,
+    load_stale_recovery_contracts,
+    prepare_git_restoration,
+    validate_restored_tree,
 )
 from .reference_catalog import ReferenceCatalog, ReferenceCatalogError
 from .templates import (
@@ -112,6 +120,7 @@ STATE_COMMIT_EVENT_VERSION_FIELDS = {
     "PRD_RELEASE_COMMITTED": "state_version",
     "HANDOFF_LOCAL_COMMITTED": "state_version",
     "GRAPH_COMPATIBILITY_UPGRADED": "state_version",
+    "STALE_RUN_RECOVERY_COMMITTED": "state_version",
     "EVALS_FULFILLMENT_REQUIRED": "state_version",
     "EVALS_PREPARATION_BLOCKED": "state_version",
     "EVAL_PACK_STAGED": "state_version",
@@ -208,8 +217,117 @@ class StateController:
                 self.project_root, metadata.get("template_profile")
             )
         except TemplateContractError as error:
-            raise TransitionRejected(f"Archived Template selection invalid: {error}") from error
+            legacy = metadata.get("template_profile")
+            if legacy != {
+                "id": "fallback",
+                "path": "references/templates/fallback/product-prd-template.md",
+                "sha256": "sha256:9b44949ce9080dbfe56e192984cde9d50d289981ea9087c4f4c19e5efebf2629",
+                "status": "EXACT_UPSTREAM_FALLBACK",
+                "version": "upstream-frozen",
+            }:
+                raise TransitionRejected(
+                    f"Archived Template selection invalid: {error}"
+                ) from error
+            selection = registry._find("fallback", "upstream-frozen")
         return self._template_selection_payload(selection)
+
+    def _legacy_writing_review_overlay(
+        self,
+        state: dict[str, Any],
+        resources: dict[str, dict[str, Any]],
+        metadata: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Authorize current Writing Review over two exact pre-profile Candidates."""
+
+        try:
+            events = verify_event_chain(self._events_path(state["run_id"]))
+        except (IntegrityError, OSError, KeyError):
+            return None
+        recovery = next(
+            (
+                event
+                for event in reversed(events)
+                if event.get("event_type") == "STALE_RUN_RECOVERY_COMMITTED"
+            ),
+            None,
+        )
+        if (
+            not isinstance(recovery, dict)
+            or recovery.get("recovery_id")
+            not in {
+                "ready-alpha1-rereview-v1",
+                "claude-adapter-candidate-git-restore-v1",
+            }
+            or recovery.get("to_graph") != state.get("graph_manifest")
+            or state.get("current_node")
+            not in {
+                "review.parallel",
+                "review.aggregate",
+                "review.finalize",
+                "prd.ready.gate",
+            }
+            or metadata.get("template_profile")
+            != {
+                "id": "fallback",
+                "path": "references/templates/fallback/product-prd-template.md",
+                "sha256": "sha256:9b44949ce9080dbfe56e192984cde9d50d289981ea9087c4f4c19e5efebf2629",
+                "status": "EXACT_UPSTREAM_FALLBACK",
+                "version": "upstream-frozen",
+            }
+        ):
+            return None
+        required = (
+            "prd-writing-profile-v0.5",
+            "prd-writing-guide-v0.5",
+            "prd-writing-reader-review-v3.2",
+        )
+        if any(item not in resources for item in required):
+            return None
+        selection = self._template_registry()._find("fallback", "upstream-frozen")
+        return {
+            "profile_ref": {
+                key: resources[required[0]][key]
+                for key in ("path", "hash", "version")
+            },
+            "guide_ref": {
+                key: resources[required[1]][key]
+                for key in ("path", "hash", "version")
+            },
+            "output_contract_ref": {
+                "path": selection.output_contract_reference_path,
+                "hash": selection.output_contract_sha256,
+                "version": selection.output_contract_version,
+            },
+            "recovery_ref": {
+                "recovery_id": recovery["recovery_id"],
+                "event_hash": recovery["event_hash"],
+            },
+        }
+
+    def _stale_finalized_companion_reset_authorized(
+        self, state: dict[str, Any]
+    ) -> bool:
+        """Permit replacement only after the exact old-Ready recovery reset."""
+
+        try:
+            events = verify_event_chain(self._events_path(state["run_id"]))
+        except (IntegrityError, OSError, KeyError):
+            return False
+        recovery = next(
+            (
+                event
+                for event in reversed(events)
+                if event.get("event_type") == "STALE_RUN_RECOVERY_COMMITTED"
+            ),
+            None,
+        )
+        return (
+            isinstance(recovery, dict)
+            and recovery.get("recovery_id") == "ready-alpha1-rereview-v1"
+            and recovery.get("to_graph") == state.get("graph_manifest")
+            and recovery.get("retired_ready_receipts")
+            and state.get("ready_receipts") == []
+        )
 
     def _template_selection_from_candidate(
         self, candidate_ref: dict[str, Any]
@@ -243,37 +361,82 @@ class StateController:
     ) -> dict[str, Any] | None:
         """Recover exact reviewed-Candidate authority from durable review dispatches."""
 
-        if kind != "review_finalize":
+        if kind not in {"review_finalize", "document_experience"}:
             return None
-        writing_ref = next(
-            (
-                item
-                for item in normalized_subjects
-                if item.get("role") == "writing_coverage"
-            ),
-            None,
-        )
-        if not isinstance(writing_ref, dict):
-            raise ReceiptError("review_finalize Writing Review subject is missing")
-        try:
-            writing_review = read_json(self.project_root / writing_ref["path"])
-        except (KeyError, OSError, IntegrityError) as error:
-            raise ReceiptError("review_finalize Writing Review subject is invalid") from error
-        if (
-            writing_review.get("schema_version")
-            != "document-experience-reader-review.v3"
-        ):
-            return None
-        aggregate_ref = next(
-            (
-                item
-                for item in normalized_subjects
-                if item.get("role") == "review_aggregate"
-            ),
-            None,
-        )
+        if kind == "review_finalize":
+            writing_ref = next(
+                (
+                    item
+                    for item in normalized_subjects
+                    if item.get("role") == "writing_coverage"
+                ),
+                None,
+            )
+            if not isinstance(writing_ref, dict):
+                raise ReceiptError("review_finalize Writing Review subject is missing")
+            try:
+                writing_review = read_json(self.project_root / writing_ref["path"])
+            except (KeyError, OSError, IntegrityError) as error:
+                raise ReceiptError("review_finalize Writing Review subject is invalid") from error
+            if (
+                writing_review.get("schema_version")
+                != "document-experience-reader-review.v3"
+            ):
+                return None
+            aggregate_ref = next(
+                (
+                    item
+                    for item in normalized_subjects
+                    if item.get("role") == "review_aggregate"
+                ),
+                None,
+            )
+        else:
+            try:
+                candidate = self._current_candidate_artifact(state)
+                metadata_paths = list(candidate.path.glob("*.metadata.json"))
+                metadata = read_json(metadata_paths[0]) if len(metadata_paths) == 1 else {}
+                resources = {
+                    item.get("resource_id"): item
+                    for item in ReferenceCatalog(self.skill_root).review_resources()
+                    if isinstance(item, dict)
+                }
+                recovery_overlay = self._legacy_writing_review_overlay(
+                    state, resources, metadata
+                )
+            except (
+                IntegrityError,
+                OSError,
+                ReferenceCatalogError,
+                TransitionRejected,
+            ) as error:
+                raise ReceiptError(
+                    "document_experience recovery authority is invalid"
+                ) from error
+            # Ordinary Candidates keep the pre-0.2.19 receipt contract. Only
+            # the two exact stale-Run recovery overlays require this additional
+            # durable Writing Review binding.
+            if recovery_overlay is None:
+                return None
+            companion_ref = next(
+                (
+                    item
+                    for item in normalized_subjects
+                    if item.get("role") == "review_companion"
+                ),
+                None,
+            )
+            if not isinstance(companion_ref, dict):
+                raise ReceiptError("document_experience companion subject is missing")
+            try:
+                companion = read_json(self.project_root / companion_ref["path"])
+                aggregate_ref = companion.get("aggregate_ref")
+            except (KeyError, OSError, IntegrityError) as error:
+                raise ReceiptError(
+                    "document_experience companion subject is invalid"
+                ) from error
         if not isinstance(aggregate_ref, dict):
-            raise ReceiptError("review_finalize aggregate subject is missing")
+            raise ReceiptError(f"{kind} aggregate subject is missing")
         try:
             aggregate = read_json(self.project_root / aggregate_ref["path"])
         except (KeyError, OSError, IntegrityError) as error:
@@ -453,6 +616,17 @@ class StateController:
                 journal.get("after_state_hash"),
             }:
                 raise StateConflict(f"state transaction cannot reconcile: {path.name}")
+            stale_publish = journal.get("stale_recovery_publish")
+            if isinstance(stale_publish, dict):
+                artifact_lock = assert_managed_path(
+                    self.project_root,
+                    self.project_root
+                    / ".better-product-graph"
+                    / "locks"
+                    / "prd-artifacts.lock",
+                )
+                with exclusive_file_lock(artifact_lock):
+                    self._validate_stale_recovery_publish(stale_publish)
             release_publish = journal.get("release_publish")
             if isinstance(release_publish, dict):
                 self._validate_release_transaction(journal)
@@ -462,6 +636,11 @@ class StateController:
             if current_hash == journal.get("before_state_hash"):
                 append_event(self._events_path(run_id), journal["event"])
                 atomic_write_json(state_path, after_state)
+                recovered += 1
+                current_hash = journal.get("after_state_hash")
+            if isinstance(stale_publish, dict):
+                with exclusive_file_lock(artifact_lock):
+                    self._publish_stale_recovery(stale_publish)
                 recovered += 1
             release_publish = journal.get("release_publish")
             if isinstance(release_publish, dict):
@@ -475,6 +654,68 @@ class StateController:
                     recovered += 1
             atomic_write_json(path, {**journal, "status": "COMMITTED"})
         return recovered
+
+    def _validate_stale_recovery_publish(self, publish: dict[str, Any]) -> None:
+        if (
+            publish.get("schema_version") != "stale-recovery-publish.v1"
+            or not isinstance(publish.get("entries"), list)
+            or not isinstance(publish.get("git_restore"), dict)
+        ):
+            raise StateConflict("stale recovery publish journal is invalid")
+        for entry in publish["entries"]:
+            if not isinstance(entry, dict) or set(entry) != {
+                "target_path",
+                "staged_path",
+                "hash",
+                "mode",
+            }:
+                raise StateConflict("stale recovery publish entry is invalid")
+            staged = assert_managed_path(
+                self.project_root, self.project_root / entry["staged_path"]
+            )
+            target = assert_managed_path(
+                self.project_root, self.project_root / entry["target_path"]
+            )
+            if (
+                not staged.is_file()
+                or staged.is_symlink()
+                or sha256_file(staged) != entry["hash"]
+                or entry["mode"] not in {"100644", "100755"}
+                or stat.S_IMODE(staged.stat().st_mode)
+                != (0o755 if entry["mode"] == "100755" else 0o644)
+            ):
+                raise StateConflict("stale recovery staged Git blob is invalid")
+            if target.exists() or target.is_symlink():
+                if (
+                    not target.is_file()
+                    or target.is_symlink()
+                    or sha256_file(target) != entry["hash"]
+                    or stat.S_IMODE(target.stat().st_mode)
+                    != (0o755 if entry["mode"] == "100755" else 0o644)
+                    or not os.path.samestat(staged.stat(), target.stat())
+                ):
+                    raise StateConflict(
+                        "stale recovery target is not the exact journal-published Git blob"
+                    )
+
+    def _publish_stale_recovery(self, publish: dict[str, Any]) -> None:
+        self._validate_stale_recovery_publish(publish)
+        for entry in publish["entries"]:
+            staged = assert_managed_path(
+                self.project_root, self.project_root / entry["staged_path"]
+            )
+            target = assert_managed_path(
+                self.project_root, self.project_root / entry["target_path"]
+            )
+            if not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    os.link(staged, target, follow_symlinks=False)
+                except FileExistsError as error:
+                    raise StateConflict(
+                        "stale recovery target appeared during no-overwrite publish"
+                    ) from error
+        validate_restored_tree(self.project_root, publish["git_restore"])
 
     def _result_path(self, run_id: str, attempt_id: str) -> Path:
         if not attempt_id or "/" in attempt_id or ".." in attempt_id:
@@ -845,6 +1086,8 @@ class StateController:
         run_id: str,
         state: dict[str, Any],
         events: list[dict[str, Any]],
+        *,
+        validate_current_contracts: bool = True,
     ) -> list[str]:
         """Compare one schema-valid snapshot with Controller event authority."""
 
@@ -854,6 +1097,10 @@ class StateController:
         expected_state_version = 0
         attempt_events: dict[str, dict[str, Any]] = {}
         wait_trigger_events: list[dict[str, Any]] = []
+        ready_receipt_events: list[dict[str, Any]] = []
+        stale_ready_reset_seen = False
+        recovery_last_completed: str | None = None
+        recovery_last_completed_tracked = False
         for event in events:
             event_type = event.get("event_type")
             version_field = STATE_COMMIT_EVENT_VERSION_FIELDS.get(event_type)
@@ -867,6 +1114,8 @@ class StateController:
                     expected_state_version = version
             if event_type == "NODE_TRANSITION_COMMITTED":
                 expected_node = event.get("to_node", expected_node)
+                if recovery_last_completed_tracked:
+                    recovery_last_completed = event.get("from_node")
             elif event_type == "PLAN_RECONCILE_REQUIRED":
                 expected_node, expected_status = "product.planning", "ACTIVE"
             elif event_type == "OWNER_CHOICE_RECORDED":
@@ -884,6 +1133,8 @@ class StateController:
                     expected_node, expected_status = "product.decision", "ROADMAP_ONLY"
             elif event_type == "REVIEW_FINALIZE_COMMITTED":
                 expected_node, expected_status = "prd.ready.gate", "ACTIVE"
+                if recovery_last_completed_tracked:
+                    recovery_last_completed = "review.finalize"
             elif event_type == "WAIT_TRIGGER_CONSUMED":
                 expected_node, expected_status = "evidence.collect", "ACTIVE"
                 consumed_ref = event.get("consumed_ref")
@@ -893,11 +1144,40 @@ class StateController:
                     wait_trigger_events.append(consumed_ref)
             elif event_type == "PRD_RELEASE_COMMITTED":
                 expected_node, expected_status = "handoff.prepare", "RELEASED"
+                if recovery_last_completed_tracked:
+                    recovery_last_completed = "prd.ready.gate"
             elif event_type == "HANDOFF_LOCAL_COMMITTED":
                 expected_node, expected_status = "handoff.dispatch", "COMPLETED"
+                if recovery_last_completed_tracked:
+                    recovery_last_completed = "handoff.prepare"
             elif event_type == "GRAPH_COMPATIBILITY_UPGRADED":
                 expected_node = event.get("current_node", expected_node)
                 expected_status = event.get("status", expected_status)
+            elif event_type == "STALE_RUN_RECOVERY_COMMITTED":
+                expected_node = event.get("resume_node", expected_node)
+                expected_status = event.get("status", expected_status)
+                recovery_last_completed = event.get("resume_last_completed_node")
+                recovery_last_completed_tracked = True
+                if recovery_last_completed is not None and not isinstance(
+                    recovery_last_completed, str
+                ):
+                    blockers.append(
+                        "stale recovery last-completed authority is invalid"
+                    )
+                retired_receipts = event.get("retired_ready_receipts")
+                if retired_receipts != ready_receipt_events:
+                    blockers.append(
+                        "stale recovery Ready receipt invalidation differs from event authority"
+                    )
+                ready_receipt_events = []
+                stale_ready_reset_seen = True
+                for attempt_id in event.get("retired_attempt_ids", []):
+                    if attempt_id not in attempt_events:
+                        blockers.append(
+                            f"event authority retired unknown dispatch {attempt_id}"
+                        )
+                    else:
+                        attempt_events[attempt_id]["status"] = "RETIRED_STALE"
             elif event_type == "EVALS_FULFILLMENT_REQUIRED":
                 expected_node, expected_status = "prd.ready.gate", "ACTIVE"
             elif event_type == "EVALS_FULFILLMENT_BOUND":
@@ -927,6 +1207,12 @@ class StateController:
                         if event_type == "NODE_CALL_STARTED"
                         else "UNKNOWN_SIDE_EFFECT"
                     )
+            elif event_type == "CONTROLLER_RECEIPT_ISSUED":
+                receipt_ref = event.get("receipt_ref")
+                if not isinstance(receipt_ref, dict):
+                    blockers.append("event authority Ready receipt ref is missing")
+                else:
+                    ready_receipt_events.append(receipt_ref)
         if state.get("state_version") != expected_state_version:
             blockers.append(
                 "snapshot state version differs from event authority: "
@@ -942,6 +1228,13 @@ class StateController:
                 "snapshot lifecycle differs from event authority: "
                 f"{state.get('status')} != {expected_status}"
             )
+        if (
+            recovery_last_completed_tracked
+            and state.get("last_completed_node") != recovery_last_completed
+        ):
+            blockers.append(
+                "snapshot last-completed node differs after stale recovery"
+            )
         if state.get("consumed_wait_triggers", []) != wait_trigger_events:
             blockers.append("snapshot WAIT trigger ledger differs from event authority")
         for consumed_ref in wait_trigger_events:
@@ -952,6 +1245,8 @@ class StateController:
             }
             if state.get("artifact_refs", {}).get(f"wait-trigger:{trigger_id}") != exact_evidence:
                 blockers.append(f"snapshot WAIT trigger artifact {trigger_id} differs from event authority")
+        if stale_ready_reset_seen and state.get("ready_receipts", []) != ready_receipt_events:
+            blockers.append("snapshot Ready receipts differ after stale recovery invalidation")
 
         attempts = state.get("dispatch_attempts", [])
         consumed_attempts = frozenset(state.get("consumed_attempts", []))
@@ -1002,7 +1297,12 @@ class StateController:
                 or not isinstance(contract.get("resource_refs", []), list)
             )
             current_contract_invalid = False
-            if attempt_id not in consumed_attempts:
+            if (
+                validate_current_contracts
+                and attempt_id not in consumed_attempts
+                and attempt.get("status") != "RETIRED_STALE"
+                and node_id == state.get("current_node")
+            ):
                 try:
                     compatibility = self.registry.attempt_instruction_compatibility(
                         node_id,
@@ -1043,6 +1343,422 @@ class StateController:
                     ):
                         blockers.append(f"result {attempt_id} receipt differs from exact result")
         return blockers
+
+    def _stale_recovery_contracts(self) -> list[dict[str, Any]]:
+        try:
+            return load_stale_recovery_contracts(
+                self.skill_root, self.graph, self.graph_path
+            )
+        except (IntegrityError, OSError, StaleRecoveryError) as error:
+            raise TransitionRejected(
+                f"stale recovery registry is invalid: {error}"
+            ) from error
+
+    def _validate_stale_recovery_artifacts(
+        self,
+        state: dict[str, Any],
+        contract: dict[str, Any],
+    ) -> None:
+        restore = contract.get("git_restore")
+        restore_by_path = {
+            item["path"]: item
+            for item in restore.get("files", [])
+        } if isinstance(restore, dict) else {}
+        candidate = state.get("current_candidate_ref")
+        if isinstance(restore, dict):
+            if not isinstance(candidate, dict):
+                raise TransitionRejected(
+                    "Git restoration requires one exact current Candidate"
+                )
+            artifact_path = candidate.get("artifact_path")
+            if (
+                not isinstance(artifact_path, str)
+                or not artifact_path.startswith("artifacts/prds/archived/")
+                or Path(artifact_path).is_absolute()
+                or ".." in Path(artifact_path).parts
+                or {
+                    str(Path(item["path"]).parent)
+                    for item in restore_by_path.values()
+                }
+                != {artifact_path}
+            ):
+                raise TransitionRejected(
+                    "Git restoration is not limited to the exact archived Candidate"
+                )
+            root = assert_managed_path(
+                self.project_root, self.project_root / artifact_path
+            )
+            if root.exists() or root.is_symlink():
+                raise TransitionRejected(
+                    "Git restoration Candidate root is not exactly missing"
+                )
+            candidate_state_refs = {
+                ref["path"]: ref["hash"]
+                for ref in state.get("artifact_refs", {}).values()
+                if isinstance(ref, dict)
+                and isinstance(ref.get("path"), str)
+                and str(Path(ref["path"]).parent) == artifact_path
+            }
+            for path, expected_hash in candidate_state_refs.items():
+                if (
+                    path not in restore_by_path
+                    or restore_by_path[path].get("hash") != expected_hash
+                ):
+                    raise TransitionRejected(
+                        "Git restoration inventory differs from Candidate state refs"
+                    )
+        for name, ref in state.get("artifact_refs", {}).items():
+            try:
+                self._validate_single_artifact_ref(ref)
+            except TransitionRejected as error:
+                item = restore_by_path.get(ref.get("path")) if isinstance(ref, dict) else None
+                superseded_candidate = (
+                    isinstance(ref, dict)
+                    and ref.get("role") == "prd_candidate"
+                    and isinstance(candidate, dict)
+                    and ref.get("hash") != candidate.get("hash")
+                )
+                if superseded_candidate:
+                    continue
+                if item is None or item.get("hash") != ref.get("hash"):
+                    raise TransitionRejected(
+                        f"stale recovery artifact {name} is invalid: {error}"
+                    ) from error
+        if isinstance(candidate, dict):
+            try:
+                self._current_candidate_artifact(state)
+            except TransitionRejected as error:
+                if not isinstance(restore, dict):
+                    raise TransitionRejected(
+                        f"stale recovery Candidate is invalid: {error}"
+                    ) from error
+                candidate_paths = {
+                    candidate.get("path"): candidate.get("hash"),
+                    candidate.get("review_path"): candidate.get("review_hash"),
+                }
+                if (
+                    candidate.get("tree_hash") != restore.get("tree_hash")
+                    or any(
+                        path not in restore_by_path
+                        or restore_by_path[path].get("hash") != expected_hash
+                        for path, expected_hash in candidate_paths.items()
+                    )
+                    or {
+                        str(Path(item["path"]).parent)
+                        for item in restore_by_path.values()
+                    }
+                    != {candidate.get("artifact_path")}
+                ):
+                    raise TransitionRejected(
+                        f"stale recovery Candidate cannot be restored exactly: {error}"
+                    ) from error
+        for plan in state.get("fanout_plans", []):
+            path = self.project_root / plan.get("path", "")
+            if (
+                not path.is_file()
+                or path.is_symlink()
+                or sha256_file(path) != plan.get("hash")
+                or not path.with_name("status.json").is_file()
+            ):
+                raise TransitionRejected("stale recovery fanout authority is invalid")
+
+    def _retirement_attempts(
+        self,
+        run_id: str,
+        state: dict[str, Any],
+        contract: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        consumed = set(state.get("consumed_attempts", []))
+        eligible = [
+            item
+            for item in state.get("dispatch_attempts", [])
+            if isinstance(item, dict)
+            and item.get("node_id") == state.get("current_node")
+            and item.get("attempt_id") not in consumed
+            and item.get("status") != "RETIRED_STALE"
+        ]
+        selected: list[dict[str, Any]] = []
+        for spec in contract["retire_dispatches"]:
+            matches = [
+                item
+                for item in eligible
+                if item.get("node_id") == spec["node_id"]
+                and item.get("status") == spec["status"]
+                and isinstance(item.get("contract"), dict)
+                and item["contract"].get("instruction_hash")
+                == spec["instruction_hash"]
+            ]
+            if len(matches) != spec["count"]:
+                raise TransitionRejected("stale recovery dispatch lifecycle differs")
+            selected.extend(matches)
+        if len(selected) != len(eligible) or len({item["attempt_id"] for item in selected}) != len(selected):
+            raise TransitionRejected("stale recovery leaves ambiguous current dispatch authority")
+        for attempt in selected:
+            if attempt.get("side_effect") != "NONE":
+                raise TransitionRejected("stale recovery cannot retire a side-effecting dispatch")
+            attempt_root = self.run_path(run_id) / "attempts" / attempt["attempt_id"]
+            result = attempt_root / "node-result.json"
+            receipt = attempt_root / "result-receipt.json"
+            host_result = attempt_root / "host-node-result.json"
+            if result.exists() or result.is_symlink() or receipt.exists() or receipt.is_symlink() or host_result.exists() or host_result.is_symlink():
+                raise TransitionRejected("stale recovery dispatch already has result authority")
+            if attempt_root.exists():
+                unexpected = [
+                    path.name
+                    for path in attempt_root.iterdir()
+                    if path.name != "submission.json"
+                ]
+                submission = attempt_root / "submission.json"
+                if unexpected or (
+                    submission.exists()
+                    and (not submission.is_file() or submission.is_symlink())
+                ):
+                    raise TransitionRejected("stale recovery dispatch has unexplained files")
+        return selected
+
+    def stale_recovery_context(self, run_id: str) -> dict[str, Any] | None:
+        """Inspect one stale Run without mutating it; return only an exact allowlist match."""
+
+        state = self.load_state(run_id)
+        try:
+            events = verify_event_chain(self._events_path(run_id))
+        except Exception as error:
+            raise TransitionRejected(
+                f"stale recovery audit integrity failed: {error}"
+            ) from error
+        blockers = self._full_state_commitment_blockers(state, events)
+        blockers.extend(
+            self._event_authority_blockers(
+                run_id,
+                state,
+                events,
+                validate_current_contracts=False,
+            )
+        )
+        if blockers:
+            raise TransitionRejected(
+                "stale recovery event authority barrier: " + "; ".join(blockers)
+            )
+        try:
+            contract = find_stale_recovery_contract(
+                self.project_root,
+                state,
+                self._stale_recovery_contracts(),
+            )
+        except StaleRecoveryError as error:
+            raise TransitionRejected(f"stale recovery match is invalid: {error}") from error
+        if contract is None:
+            return None
+        self._validate_stale_recovery_artifacts(state, contract)
+        retired = self._retirement_attempts(run_id, state, contract)
+        try:
+            prepared = prepare_git_restoration(
+                self.project_root, contract.get("git_restore")
+            )
+        except (IntegrityError, StaleRecoveryError) as error:
+            raise TransitionRejected(f"stale recovery Git preflight failed: {error}") from error
+        return {
+            "schema_version": "stale-run-recovery-context.v1",
+            "recovery_id": contract["recovery_id"],
+            "run_id": run_id,
+            "state_version": state["state_version"],
+            "from_graph": contract["from_graph"],
+            "to_graph": {
+                "version": self.graph.get("version"),
+                "hash": sha256_file(self.graph_path),
+            },
+            "resume_node": contract["resume_node"],
+            "retired_attempt_ids": [item["attempt_id"] for item in retired],
+            "restored_paths": [item["path"] for item in prepared],
+            "message_zh": contract["message_zh"],
+            "contract": contract,
+        }
+
+    def _commit_stale_recovery_transaction(
+        self,
+        run_id: str,
+        before: dict[str, Any],
+        after: dict[str, Any],
+        event: dict[str, Any],
+        *,
+        transaction_id: str,
+        restore: dict[str, Any] | None,
+        prepared: list[dict[str, Any]],
+        failpoint: Callable[[str], None] | None,
+    ) -> dict[str, Any]:
+        if not prepared:
+            return self._commit_state_event(
+                run_id,
+                before,
+                after,
+                event,
+                transaction_id=transaction_id,
+                failpoint=failpoint,
+            )
+        staging_root = assert_managed_path(
+            self.project_root,
+            self.run_path(run_id) / "transactions" / f".{transaction_id}.staging",
+        )
+        entries: list[dict[str, Any]] = []
+        for index, item in enumerate(prepared, start=1):
+            staged = assert_managed_path(
+                self.project_root, staging_root / f"blob-{index:03d}"
+            )
+            if staged.exists():
+                if not staged.is_file() or staged.is_symlink() or sha256_file(staged) != item["hash"]:
+                    raise StateConflict("stale recovery staged blob identity conflict")
+            else:
+                atomic_write_bytes(
+                    staged,
+                    item["content"],
+                    mode=0o755 if item["mode"] == "100755" else 0o644,
+                )
+            entries.append(
+                {
+                    "target_path": item["path"],
+                    "staged_path": staged.relative_to(self.project_root).as_posix(),
+                    "hash": item["hash"],
+                    "mode": item["mode"],
+                }
+            )
+        committed_event = self._state_commit_event(
+            {"event_id": f"state-transaction:{run_id}:{transaction_id}", **event},
+            before,
+            after,
+        )
+        publish = {
+            "schema_version": "stale-recovery-publish.v1",
+            "entries": entries,
+            "git_restore": restore,
+        }
+        expected = {
+            "schema_version": "state-transaction.v1",
+            "transaction_id": transaction_id,
+            "run_id": run_id,
+            "status": "PREPARED",
+            "before_state_hash": self._state_hash(before),
+            "after_state_hash": self._state_hash(after),
+            "after_state": after,
+            "event": committed_event,
+            "stale_recovery_publish": publish,
+        }
+        journal_path = self._transaction_path(run_id, transaction_id)
+        if journal_path.exists():
+            journal = read_json(journal_path)
+            if {**journal, "status": "PREPARED"} != expected:
+                raise StateConflict(f"state transaction identity conflict: {transaction_id}")
+        else:
+            atomic_write_json(journal_path, expected)
+        if failpoint is not None:
+            failpoint("after_recovery_staged")
+        append_event(self._events_path(run_id), committed_event)
+        if failpoint is not None:
+            failpoint("after_state_event")
+        atomic_write_json(self._state_path(run_id), after)
+        if failpoint is not None:
+            failpoint("after_recovery_state")
+        self._publish_stale_recovery(publish)
+        if failpoint is not None:
+            failpoint("after_recovery_publish")
+        atomic_write_json(journal_path, {**expected, "status": "COMMITTED"})
+        return after
+
+    @serialized_run_mutation
+    def recover_stale_run(
+        self,
+        run_id: str,
+        *,
+        recovery_id: str,
+        expected_state_version: int,
+        failpoint: Callable[[str], None] | None = None,
+    ) -> dict[str, Any]:
+        """Retire one exact legacy dispatch set and repin the same durable Run."""
+
+        state = self.load_state(run_id)
+        if state["state_version"] != expected_state_version:
+            raise StateConflict(
+                f"expected state version {expected_state_version}, current is {state['state_version']}"
+            )
+        artifact_lock = assert_managed_path(
+            self.project_root,
+            self.project_root / ".better-product-graph" / "locks" / "prd-artifacts.lock",
+        )
+        with exclusive_file_lock(artifact_lock):
+            state = self.load_state(run_id)
+            if state["state_version"] != expected_state_version:
+                raise StateConflict(
+                    f"expected state version {expected_state_version}, current is {state['state_version']}"
+                )
+            context = self.stale_recovery_context(run_id)
+            if context is None or context["recovery_id"] != recovery_id:
+                raise TransitionRejected("stale recovery authority is unavailable or changed")
+            contract = context["contract"]
+            retired_ids = set(context["retired_attempt_ids"])
+            try:
+                prepared = prepare_git_restoration(
+                    self.project_root, contract.get("git_restore")
+                )
+            except (IntegrityError, StaleRecoveryError) as error:
+                raise TransitionRejected(f"stale recovery Git preflight failed: {error}") from error
+            next_state = json.loads(canonical_json_bytes(state))
+            next_state["state_version"] += 1
+            next_state["graph_manifest"] = context["to_graph"]
+            next_state["current_node"] = contract["resume_node"]
+            next_state["last_completed_node"] = contract[
+                "resume_last_completed_node"
+            ]
+            next_state["next_allowed_nodes"] = self.edges.get(contract["resume_node"], [])
+            if contract["clear_ready_receipts"]:
+                next_state["ready_receipts"] = []
+            for attempt in next_state["dispatch_attempts"]:
+                if attempt.get("attempt_id") in retired_ids:
+                    attempt["status"] = "RETIRED_STALE"
+                    attempt["retirement"] = {
+                        "recovery_id": recovery_id,
+                        "state_version": next_state["state_version"],
+                        "reason": "ALLOWLISTED_CONTRACT_SUPERSEDED",
+                    }
+            event = {
+            "event_type": "STALE_RUN_RECOVERY_COMMITTED",
+            "actor": "state-controller",
+            "run_id": run_id,
+            "state_version": next_state["state_version"],
+            "recovery_id": recovery_id,
+            "from_graph": context["from_graph"],
+            "to_graph": context["to_graph"],
+            "resume_node": contract["resume_node"],
+            "resume_last_completed_node": contract[
+                "resume_last_completed_node"
+            ],
+            "status": next_state["status"],
+            "retired_attempt_ids": context["retired_attempt_ids"],
+            "retired_ready_receipts": state.get("ready_receipts", [])
+            if contract["clear_ready_receipts"]
+            else [],
+            "restored_paths": context["restored_paths"],
+            }
+            transaction_id = (
+                f"stale-recovery-{recovery_id}-v{state['state_version']}"
+            )
+            recovered = self._commit_stale_recovery_transaction(
+                run_id,
+                state,
+                next_state,
+                event,
+                transaction_id=transaction_id,
+                restore=contract.get("git_restore"),
+                prepared=prepared,
+                failpoint=failpoint,
+            )
+        return {
+            "schema_version": "stale-run-recovery-result.v1",
+            "recovery_id": recovery_id,
+            "run_id": run_id,
+            "state": recovered,
+            "retired_attempt_ids": context["retired_attempt_ids"],
+            "restored_paths": context["restored_paths"],
+            "message_zh": context["message_zh"],
+        }
 
     def _upgrade_compatible_graph_state(
         self,
@@ -1170,6 +1886,10 @@ class StateController:
             except TransitionRejected as error:
                 if self._is_completed_legacy_planning_source(state, ref):
                     continue
+                if self._is_superseded_candidate_source(state, ref):
+                    continue
+                if self._is_superseded_candidate_companion(state, ref):
+                    continue
                 blockers.append(f"event authority artifact {name}: {error}")
         candidate = state.get("current_candidate_ref")
         if isinstance(candidate, dict):
@@ -1271,6 +1991,40 @@ class StateController:
             and result.get("attempt_id") == attempt_id
             and source_ref in result.get("artifact_refs", [])
             and receipt.get("result_hash") == sha256_file(result_path)
+        )
+
+    @staticmethod
+    def _is_superseded_candidate_source(
+        state: dict[str, Any], ref: dict[str, Any]
+    ) -> bool:
+        """A prior Candidate is retained history, not current Review authority."""
+
+        current = state.get("current_candidate_ref")
+        return (
+            state.get("current_node") == "review.parallel"
+            and isinstance(current, dict)
+            and isinstance(ref, dict)
+            and ref.get("role") == "prd_candidate"
+            and ref.get("hash") != current.get("hash")
+            and isinstance(ref.get("origin_attempt_id"), str)
+            and ref.get("origin_attempt_id") in state.get("consumed_attempts", [])
+        )
+
+    @staticmethod
+    def _is_superseded_candidate_companion(
+        state: dict[str, Any], ref: dict[str, Any]
+    ) -> bool:
+        """Old companion hashes stay in history after a new Candidate generation."""
+
+        current = state.get("current_candidate_ref")
+        return (
+            isinstance(current, dict)
+            and isinstance(ref, dict)
+            and ref.get("role") == "review_companion"
+            and ref.get("path") == current.get("review_path")
+            and ref.get("hash") != current.get("review_hash")
+            and isinstance(current.get("generation"), int)
+            and current["generation"] > 1
         )
 
     def historical_source_warnings(
@@ -1545,6 +2299,129 @@ class StateController:
             },
             transaction_id=f"ready-retry-reauthorize-{attempt['attempt_id']}",
         )
+
+    def exact_concurrent_recovered_resume(
+        self,
+        run_id: str,
+        *,
+        resume_basis_state: dict[str, Any],
+        expected_recovery_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Read back only the exact Resume effect that won a recovery CAS race."""
+
+        if (
+            resume_basis_state.get("run_id") != run_id
+            or resume_basis_state.get("status") != "PAUSED"
+            or not isinstance(resume_basis_state.get("pause"), dict)
+            or not isinstance(resume_basis_state.get("state_version"), int)
+        ):
+            return None
+        current = self.authoritative_read_barrier(run_id)
+        if (
+            current.get("status") != "ACTIVE"
+            or current.get("pause") is not None
+            or current.get("current_node") != resume_basis_state.get("current_node")
+            or current.get("last_completed_node")
+            != resume_basis_state.get("last_completed_node")
+            or current.get("graph_manifest") != resume_basis_state.get("graph_manifest")
+        ):
+            return None
+
+        recovered_version = resume_basis_state["state_version"]
+        current_version = current.get("state_version")
+        if not isinstance(current_version, int) or current_version <= recovered_version:
+            return None
+        events = verify_event_chain(self._events_path(run_id))
+        recovery_events = [
+            event
+            for event in events
+            if event.get("event_type") == "STALE_RUN_RECOVERY_COMMITTED"
+            and event.get("state_version") == recovered_version
+        ]
+        if (
+            len(recovery_events) != 1
+            or (
+                expected_recovery_id is not None
+                and recovery_events[0].get("recovery_id") != expected_recovery_id
+            )
+            or recovery_events[0].get("run_id") != run_id
+            or recovery_events[0].get("after_state_hash")
+            != self._state_hash(resume_basis_state)
+        ):
+            return None
+
+        suffix: list[tuple[int, dict[str, Any]]] = []
+        for event in events:
+            version_field = STATE_COMMIT_EVENT_VERSION_FIELDS.get(
+                event.get("event_type")
+            )
+            version = event.get(version_field) if version_field is not None else None
+            if isinstance(version, int) and version > recovered_version:
+                suffix.append((version, event))
+        if [version for version, _event in suffix] != list(
+            range(recovered_version + 1, current_version + 1)
+        ):
+            return None
+
+        resumed = json.loads(canonical_json_bytes(resume_basis_state))
+        resumed["state_version"] += 1
+        resumed["status"] = "ACTIVE"
+        resumed["pause"] = None
+        if not suffix:
+            return None
+        resume_version, resume_event = suffix[0]
+        if (
+            resume_version != resumed["state_version"]
+            or resume_event.get("event_type") != "RUN_RESUMED"
+            or resume_event.get("actor") != "state-controller"
+            or resume_event.get("run_id") != run_id
+            or resume_event.get("before_state_hash")
+            != self._state_hash(resume_basis_state)
+            or resume_event.get("after_state_hash") != self._state_hash(resumed)
+        ):
+            return None
+
+        if len(suffix) == 1:
+            return current if current == resumed else None
+        if len(suffix) != 3:
+            return None
+        (_plan_version, plan_event), (_start_version, start_event) = suffix[1:]
+        if (
+            plan_event.get("event_type") != "NODE_DISPATCH_PLANNED"
+            or start_event.get("event_type") != "NODE_CALL_STARTED"
+            or plan_event.get("actor") != "state-controller"
+            or start_event.get("actor") != "state-controller"
+            or plan_event.get("run_id") != run_id
+            or start_event.get("run_id") != run_id
+            or plan_event.get("node_id") != resume_basis_state.get("current_node")
+            or not isinstance(plan_event.get("attempt_id"), str)
+            or start_event.get("attempt_id") != plan_event.get("attempt_id")
+        ):
+            return None
+
+        recovered_attempts = resume_basis_state.get("dispatch_attempts")
+        current_attempts = current.get("dispatch_attempts")
+        if (
+            not isinstance(recovered_attempts, list)
+            or not isinstance(current_attempts, list)
+            or current_attempts[: len(recovered_attempts)] != recovered_attempts
+            or len(current_attempts) != len(recovered_attempts) + 1
+        ):
+            return None
+        attempt = current_attempts[-1]
+        if (
+            attempt.get("attempt_id") != plan_event["attempt_id"]
+            or attempt.get("node_id") != resume_basis_state.get("current_node")
+            or attempt.get("status") != "DISPATCHED"
+            or attempt.get("authorized_state_version") != current_version
+            or attempt.get("authority_hash") != self._dispatch_authority_hash(current)
+        ):
+            return None
+
+        normalized = json.loads(canonical_json_bytes(current))
+        normalized["state_version"] = resumed["state_version"]
+        normalized["dispatch_attempts"] = resumed["dispatch_attempts"]
+        return current if normalized == resumed else None
 
     @serialized_run_mutation
     def set_run_activity(
@@ -2401,27 +3278,38 @@ class StateController:
         experience = metadata.get("document_experience")
         template = metadata.get("template_profile")
         provenance = metadata.get("provenance")
-        if not all(isinstance(item, dict) for item in (experience, template, provenance)):
-            raise TransitionRejected("Writing Review Candidate authority is incomplete")
         resources = {
             item.get("resource_id"): item
             for item in resource_refs
             if isinstance(item, dict) and isinstance(item.get("resource_id"), str)
         }
+        recovery_overlay = self._legacy_writing_review_overlay(
+            state, resources, metadata
+        )
+        if not isinstance(template, dict) or not isinstance(provenance, dict) or (
+            not isinstance(experience, dict) and recovery_overlay is None
+        ):
+            raise TransitionRejected("Writing Review Candidate authority is incomplete")
         try:
-            metadata_profile = {
-                key: experience["profile_ref"][key] for key in ("path", "hash", "version")
-            }
-            metadata_guide = {
-                key: experience["writing_guide_ref"][key]
-                for key in ("path", "hash", "version")
-            }
-            output = template["output_contract"]
-            output_contract_ref = {
-                "path": output["path"],
-                "hash": output["sha256"],
-                "version": output["version"],
-            }
+            if recovery_overlay is None:
+                metadata_profile = {
+                    key: experience["profile_ref"][key]
+                    for key in ("path", "hash", "version")
+                }
+                metadata_guide = {
+                    key: experience["writing_guide_ref"][key]
+                    for key in ("path", "hash", "version")
+                }
+                output = template["output_contract"]
+                output_contract_ref = {
+                    "path": output["path"],
+                    "hash": output["sha256"],
+                    "version": output["version"],
+                }
+            else:
+                metadata_profile = recovery_overlay["profile_ref"]
+                metadata_guide = recovery_overlay["guide_ref"]
+                output_contract_ref = recovery_overlay["output_contract_ref"]
             author_attempt_id = provenance["attempt_id"]
         except (KeyError, TypeError) as error:
             raise TransitionRejected("Writing Review exact Candidate bindings are incomplete") from error
@@ -2536,6 +3424,8 @@ class StateController:
                 "RECORDED_DISTINCT_DURABLE_ATTEMPTS_NOT_EXTERNAL_IDENTITY_PROOF"
             ),
         }
+        if recovery_overlay is not None:
+            context["recovery_review_authority"] = recovery_overlay["recovery_ref"]
         if selected["review_schema"] == "document-experience-coverage.v1":
             required_rule_ids = profile.get("required_expression_rules")
             delivery_checks = review_contract.get("delivery_checks")
@@ -2855,6 +3745,17 @@ class StateController:
                 )
 
         evidence_root = self.run_path(run_id) / "ready-evidence"
+        prior_audit = evidence_root / "audit-snapshot.json"
+        if prior_audit.exists() or prior_audit.is_symlink():
+            if not prior_audit.is_file() or prior_audit.is_symlink():
+                raise StateConflict("Ready evidence identity conflict: audit_snapshot")
+            prior_payload = read_json(prior_audit)
+            if (
+                prior_payload.get("attempt_id") != attempt_id
+                or prior_payload.get("candidate_hash") != archived.document_hash
+                or prior_payload.get("candidate_version") != archived.version
+            ):
+                evidence_root = evidence_root / "generations" / attempt_id
         selection = self._template_selection_from_metadata(metadata)
         evidence_payloads = {
             "template_profile": (
@@ -4344,7 +5245,10 @@ class StateController:
             raise TransitionRejected("review finalize requires ACTIVE review.finalize lifecycle")
         archived = self._current_candidate_artifact(state)
         current_companion = read_json(archived.review_path)
-        if current_companion.get("status") != "NOT_RUN":
+        if current_companion.get("status") != "NOT_RUN" and not (
+            current_companion.get("status") == "FINALIZED"
+            and self._stale_finalized_companion_reset_authorized(state)
+        ):
             raise TransitionRejected("review finalize requires the current NOT_RUN companion generation")
         prior, aggregate_ref, dispositions_ref, aggregate = self._review_finalize_inputs(
             run_id, state
@@ -5112,12 +6016,29 @@ class StateController:
             )
         except ReceiptError as error:
             raise TransitionRejected(str(error)) from error
-        path = self.run_path(run_id) / "receipts" / f"{receipt_id}.json"
+        receipt_root = self.run_path(run_id) / "receipts"
+        base_path = receipt_root / f"{receipt_id}.json"
+        effective_receipt_id = receipt_id
+        if base_path.exists() or base_path.is_symlink():
+            if not base_path.is_file() or base_path.is_symlink():
+                raise StateConflict(f"receipt path is unsafe: {receipt_id}")
+            base = read_json(base_path)
+            if (
+                base.get("attempt_id") != attempt["attempt_id"]
+                or base.get("candidate_hash") != candidate_ref["hash"]
+                or base.get("candidate_version") != candidate_ref["version"]
+            ):
+                effective_receipt_id = f"{receipt_id}--{attempt['attempt_id']}"
+        path = receipt_root / f"{effective_receipt_id}.json"
         if path.exists():
+            if not path.is_file() or path.is_symlink():
+                raise StateConflict(
+                    f"receipt path is unsafe: {effective_receipt_id}"
+                )
             existing = read_json(path)
             expected_existing = {
                 "schema_version": "controller-receipt.v1",
-                "receipt_id": receipt_id,
+                "receipt_id": effective_receipt_id,
                 "run_id": run_id,
                 "kind": kind,
                 "issuer": "state-controller",
@@ -5136,10 +6057,12 @@ class StateController:
                 or not isinstance(existing.get("state_version"), int)
                 or existing["state_version"] > state["state_version"]
             ):
-                raise StateConflict(f"receipt identity conflict: {receipt_id}")
+                raise StateConflict(
+                    f"receipt identity conflict: {effective_receipt_id}"
+                )
         else:
             payload = build_receipt_payload(
-                receipt_id,
+                effective_receipt_id,
                 run_id,
                 kind,
                 normalized,
@@ -5167,7 +6090,9 @@ class StateController:
         append_event(
             self.run_path(run_id) / "receipt-ledger.jsonl",
             {
-                "event_id": f"controller-receipt-ledger:{run_id}:{receipt_id}",
+                "event_id": (
+                    f"controller-receipt-ledger:{run_id}:{effective_receipt_id}"
+                ),
                 "event_type": "CONTROLLER_RECEIPT_ISSUED",
                 "actor": "state-controller",
                 "run_id": run_id,
@@ -5183,7 +6108,9 @@ class StateController:
         ]
         if exact:
             if len(exact) != 1 or exact[0] != receipt_ref:
-                raise StateConflict(f"receipt state identity conflict: {receipt_id}")
+                raise StateConflict(
+                    f"receipt state identity conflict: {effective_receipt_id}"
+                )
             return exact[0]
         next_state = json.loads(canonical_json_bytes(state))
         next_state["state_version"] += 1
@@ -5203,7 +6130,7 @@ class StateController:
                 "state_version": next_state["state_version"],
                 "receipt_ref": receipt_ref,
             },
-            transaction_id=f"receipt-{receipt_id}",
+            transaction_id=f"receipt-{effective_receipt_id}",
         )
         return receipt_ref
 

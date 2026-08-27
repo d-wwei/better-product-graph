@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.19 — 2026-08-27 — Exact stale-Run recovery hotfix
+
+- Add five exact, fail-closed recovery contracts for known `0.2.18` predecessor Runs while preserving the original Run ID, append-only attempts, events, receipts, and artifacts. Unknown stale combinations remain read-only `BLOCKED_STALE`.
+- Retire only unconsumed, side-effect-free legacy dispatches and re-dispatch the current contract. Review/Ready recoveries return to a fresh isolated `review.parallel`; old findings and Ready receipts remain historical and cannot regain current authority.
+- Restore one missing legacy Candidate only from an exact Git commit/tree/blob inventory under `artifacts/prds/archived`, with cooperative global locking, no-overwrite publication, exact mode/hash checks, and crash recovery.
+- Make Ready receipts append-only across Ready attempts, and make natural-language Resume return the current Host work order after transaction reconciliation.
+- Make concurrent Resume of an exact recovered `PAUSED` Run symmetric and idempotent for either winner: every caller binds the exact PAUSED basis before writing, and a CAS loser converges only when that basis is hash-bound to one Recovery event followed solely by the legal `PAUSED → ACTIVE` transition and, optionally, one complete current dispatch. Ordinary pauses and unrelated concurrent mutations still raise the original CAS conflict.
+- Advance the durable Graph identity to `0.1.0-alpha.4`. The Writing Profile, Guide, Reviewer Instruction, Reviewer schemas, and frozen semantic Eval suites are byte-unchanged from `0.2.18`; no new Writing semantic claim is made by this compatibility hotfix.
+
 ## 0.2.18 — 2026-08-27 — PRD Writing Profile v0.5 source promotion
 
 - Complete both preregistered semantic phases on the frozen v0.8 contract: RC5 `27/27 PASS` and the exact final public-candidate artifact `27/27 PASS`. The supported multi-root aggregator rederived both terminal results without rescoring, proved 54 fresh Reviewer identities with zero protected-identity overlap, and returned no cross-phase issue. Human-reader observation remains `NOT_RUN`.

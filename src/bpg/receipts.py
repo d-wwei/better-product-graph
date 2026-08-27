@@ -373,10 +373,72 @@ def evaluate_receipt_subjects(
         changelog = (root / subjects["document_changelog"]["path"]).read_text(encoding="utf-8")
         if experience.status != "PASS":
             raise ReceiptError("document_experience Candidate failed: " + ", ".join(experience.issues))
-        if metadata.get("document_experience") != expected_document_experience:
+        recovery_review = (
+            writing_review_context.get("recovery_review_authority")
+            if isinstance(writing_review_context, dict)
+            else None
+        )
+        recovery_profile_binding = (
+            isinstance(recovery_review, dict)
+            and recovery_review.get("recovery_id")
+            in {
+                "ready-alpha1-rereview-v1",
+                "claude-adapter-candidate-git-restore-v1",
+            }
+            and writing_review_context.get("profile_ref")
+            == {
+                key: expected_document_experience["profile_ref"][key]
+                for key in ("path", "hash", "version")
+            }
+            and writing_review_context.get("guide_ref")
+            == expected_document_experience["writing_guide_ref"]
+        )
+        if (
+            metadata.get("document_experience") != expected_document_experience
+            and not recovery_profile_binding
+        ):
             raise ReceiptError(
                 "document_experience Candidate does not bind the exact released writing profile"
             )
+        if recovery_profile_binding and metadata.get("template_profile") == {
+            "id": "fallback",
+            "path": "references/templates/fallback/product-prd-template.md",
+            "sha256": "sha256:9b44949ce9080dbfe56e192984cde9d50d289981ea9087c4f4c19e5efebf2629",
+            "status": "EXACT_UPSTREAM_FALLBACK",
+            "version": "upstream-frozen",
+        }:
+            metadata = dict(metadata)
+            metadata["template_profile"] = {
+                "id": template_selection.get("profile_id"),
+                "version": template_selection.get("version"),
+                "source_kind": template_selection.get("source_kind"),
+                "path": (
+                    f"references/templates/{template_selection.get('relative_path')}"
+                    if template_selection.get("source_kind") == "BUILTIN"
+                    else template_selection.get("relative_path")
+                ),
+                "sha256": template_selection.get("sha256"),
+                "selection_source": template_selection.get("selection_source"),
+                "fallback_reason": template_selection.get("fallback_reason"),
+                "requested_profile_id": template_selection.get(
+                    "requested_profile_id"
+                ),
+                "requested_version": template_selection.get("requested_version"),
+                "output_contract": {
+                    "path": (
+                        "references/templates/"
+                        + str(
+                            template_selection.get(
+                                "output_contract_relative_path"
+                            )
+                        )
+                        if template_selection.get("source_kind") == "BUILTIN"
+                        else template_selection.get("output_contract_relative_path")
+                    ),
+                    "sha256": template_selection.get("output_contract_sha256"),
+                    "version": template_selection.get("output_contract_version"),
+                },
+            }
         if (
             companion.get("status") != "FINALIZED"
             or companion.get("candidate_hash") != candidate_ref.get("hash")

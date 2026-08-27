@@ -16,7 +16,7 @@ Better Product Graph（BPG）是一个运行在 Codex 和 Claude Code 里的本�
 
 它不会把每个 Signal 都强行写成 PRD。合理的结果也可以是：立即处理线上事故、提交 Bug 核查包、继续研究、做可逆实验、等待条件成熟，或者明确停止。
 
-> **当前版本：`0.2.18` Developer Alpha。** 核心 Product Loop、双 Host Adapter、本地版本/审计/恢复和 Handoff 已可运行；本版新增经过双阶段 Agent Eval 的 PRD Writing Reviewer。陌生项目的完整共享知识仍需要后续 Knowledge Maintenance Graph。
+> **当前版本：`0.2.19` Developer Alpha。** 核心 Product Loop、双 Host Adapter、本地版本/审计/恢复和 Handoff 已可运行；本版为 `0.2.18` 的兼容性热修复，让已审计的旧 Run 能在原 Run ID 上安全恢复。PRD Writing Reviewer 语义合同未改。陌生项目的完整共享知识仍需要后续 Knowledge Maintenance Graph。
 
 ### 来自对 eli 的蒸馏
 
@@ -87,12 +87,12 @@ Idea / 用户反馈 / 线上 Issue
 
 ### 安装
 
-完整步骤与精确校验值见 [0.2.18 安装指南](docs/release/INSTALL_v0.2.18.md)。最快方式：
+完整步骤与精确校验方法见 [0.2.19 安装指南](docs/release/INSTALL_v0.2.19.md)。最快方式：
 
 Codex：
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.18
+codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.19
 codex plugin add better-product-graph@better-product-graph
 ```
 
@@ -122,7 +122,8 @@ $better-product-graph new <产品想法、用户反馈或 Issue>
 
 ### 当前证据
 
-- 最终开发树测试为 `761/761 PASS`；冻结 RC5 与最终公开候选包的 PRD Writing Reviewer Agent Eval 均为 `27/27 PASS`。
+- `0.2.19` 最终开发树测试为 `773/773 PASS`；四种并发 Resume 时序各独立重复 `50/50 PASS`，六个历史 Run 均在完整临时副本中到达当前合法工作单。
+- Writing Profile、Guide、Reviewer Instruction 和评测合同与 `0.2.18` 字节一致；冻结 RC5 与最终公开候选包的 PRD Writing Reviewer Agent Eval 均为 `27/27 PASS`，本热修复没有重跑或扩大该语义声明。
 - 4 个独立 Reviewer 对 Evals Generator PRD v0.6 完成普通 Review 并记录 6 项关注；Ready 随后因 raw inline SVG 在零 receipt 状态 fail closed，因此该 PRD 不是 Ready、Released、已实现或已测试。
 - 两个 Host 的确定性包、installed identity、隔离安装和共享 Core 一致性均进入发行检查；观察式真人读者验证仍为 `NOT_RUN`。
 - Codex 的历史真实 Host Run 已从 Signal 走到本地 Release、Handoff 和 `COMPLETED`。
@@ -149,7 +150,7 @@ Better Product Graph (BPG) is a local product workflow for Codex and Claude Code
 
 It does not force every signal into a PRD. A valid outcome may be an incident brief, a bug investigation packet, more research, a reversible experiment, a deliberate wait, or a recorded stop.
 
-> **Current release: `0.2.18` Developer Alpha.** The core Product Loop, both Host Adapters, local versioning, audit, recovery, and Handoff are available. This release adds a PRD Writing Reviewer evaluated in two frozen Agent phases. Complete shared context for an unfamiliar project remains future Knowledge Maintenance Graph work.
+> **Current release: `0.2.19` Developer Alpha.** The core Product Loop, both Host Adapters, local versioning, audit, recovery, and Handoff are available. This compatibility hotfix lets audited legacy Runs resume safely under the same Run ID. The PRD Writing Reviewer semantic contract is unchanged from `0.2.18`. Complete shared context for an unfamiliar project remains future Knowledge Maintenance Graph work.
 
 ### Distilled from eli
 
@@ -220,12 +221,12 @@ It is not yet a fit if you need:
 
 ### Install
 
-See the [0.2.18 installation guide](docs/release/INSTALL_v0.2.18.md) for exact checksums. The shortest path is:
+See the [0.2.19 installation guide](docs/release/INSTALL_v0.2.19.md) for checksum verification. The shortest path is:
 
 Codex:
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.18
+codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.19
 codex plugin add better-product-graph@better-product-graph
 ```
 
@@ -255,7 +256,8 @@ Both Hosts expose the same eleven intents: `new`, `capture`, `inbox`, `status`, 
 
 ### Current evidence
 
-- The final development tree passed `761/761` tests. The frozen RC5 and final public-candidate PRD Writing Reviewer Agent Eval phases both passed `27/27`.
+- The final `0.2.19` development tree passed `773/773` tests. Four concurrent Resume interleavings each passed `50/50` independent repetitions, and all six audited historical Runs reached a current legal work order in full temporary copies.
+- The Writing Profile, Guide, Reviewer Instruction, and evaluation contracts are byte-identical to `0.2.18`. The frozen RC5 and final public-candidate Writing Reviewer Agent Eval phases remain `27/27 PASS`; this hotfix did not rerun or broaden that semantic claim.
 - Four independent reviewers completed an ordinary Review of Evals Generator PRD v0.6 and recorded six concerns. Ready then failed closed on raw inline SVG with zero receipts, so that PRD is not Ready, Released, implemented, or tested.
 - Deterministic dual-Host packages, installed identity, isolated installation, and shared-Core consistency are release-gated. Observed human-reader validation remains `NOT_RUN`.
 - A historical real Codex Host Run completed the local path from Signal to Release, Handoff, and `COMPLETED`.

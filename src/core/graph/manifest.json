@@ -1,6 +1,6 @@
 {
   "graph_id": "better-product-graph",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "compatible_predecessors": [
     {
       "version": "0.1.0-alpha.1",
@@ -11,8 +11,18 @@
       "version": "0.1.0-alpha.2",
       "hash": "sha256:b79b5446349996a2bcc7a128b60364cb4d1d1732224886f52a330bc25cea7dff",
       "migration": "planning-context-preparation.v1"
+    },
+    {
+      "version": "0.1.0-alpha.3",
+      "hash": "sha256:ff88db51639186fb688d013fff19f22cf1af18588ad11814b29e6c0e9e423229",
+      "migration": "stale-run-recovery.v1"
     }
   ],
+  "stale_recovery_contracts_ref": {
+    "path": "references/graph/stale-recovery-contracts.json",
+    "schema_version": "stale-run-recovery-registry.v1",
+    "hash": "sha256:db29351f084e32a500ffa37215d55f1f06ea1c5841c101bbf32dfb34d5ae5980"
+  },
   "state_controller": "deterministic-local-v0alpha",
   "nodes": [
     {"id": "signal.ingest", "type": "deterministic_validator"},

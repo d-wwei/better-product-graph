@@ -41,6 +41,61 @@ class HostRuntime:
         self.engine = HostEngine(project_root, self.controller)
         self.registry = NodeRegistry(skill_root, graph_manifest)
 
+    @staticmethod
+    def _dispatch_artifact_refs(state: dict[str, Any]) -> list[dict[str, Any]]:
+        """Project current work without leaking superseded Review authority."""
+
+        current = state.get("current_candidate_ref")
+        current_hash = current.get("hash") if isinstance(current, dict) else None
+        current_review_path = (
+            current.get("review_path") if isinstance(current, dict) else None
+        )
+        current_review_hash = (
+            current.get("review_hash") if isinstance(current, dict) else None
+        )
+        refs = [
+            ref
+            for ref in state.get("artifact_refs", {}).values()
+            if not (
+                isinstance(ref, dict)
+                and (
+                    (
+                        ref.get("role") == "prd_candidate"
+                        and current_hash is not None
+                        and ref.get("hash") != current_hash
+                    )
+                    or (
+                        ref.get("role") == "review_companion"
+                        and ref.get("path") == current_review_path
+                        and ref.get("hash") != current_review_hash
+                    )
+                )
+            )
+        ]
+        if state.get("current_node") != "review.parallel":
+            return refs
+        forbidden_roles = {
+            "audit_snapshot",
+            "document_changelog",
+            "mechanical_validation",
+            "node_result",
+            "review_aggregate",
+            "review_companion",
+            "review_dispositions",
+            "template_profile",
+            "version_record",
+            "writing_coverage",
+        }
+        candidate_hash = current_hash
+        projected: list[dict[str, Any]] = []
+        for ref in refs:
+            if not isinstance(ref, dict) or ref.get("role") in forbidden_roles:
+                continue
+            if ref.get("role") == "prd_candidate" and ref.get("hash") != candidate_hash:
+                continue
+            projected.append(ref)
+        return projected
+
     def _plan_dispatch(self, run_id: str) -> dict[str, Any]:
         with self.controller.mutation_lock(run_id):
             state = self.controller.load_state(run_id)
@@ -88,7 +143,7 @@ class HostRuntime:
                 return durable_contract
             attempt_id = f"attempt-{uuid4().hex}"
             hashes: dict[str, str] = {}
-            for ref in state.get("artifact_refs", {}).values():
+            for ref in self._dispatch_artifact_refs(state):
                 path = ref["path"]
                 if path in hashes and hashes[path] != ref["hash"]:
                     raise TransitionRejected(
@@ -1543,4 +1598,18 @@ class HostRuntime:
             dispatch = self._complete_ingest(result["run_id"])
             result["state"] = self.controller.load_state(result["run_id"])
             result["dispatch"] = dispatch
+        elif result.get("status") == "STALE_RUN_RECOVERED":
+            state = result["state"]
+            if state.get("status") == "ACTIVE":
+                contract = self.registry.contracts[state["current_node"]]
+                if contract["producer_kind"] == "HOST_AGENT":
+                    result["dispatch"] = self.dispatch_current(result["run_id"])
+                    result["state"] = self.controller.load_state(result["run_id"])
+        elif result.get("status") == "RESUMED":
+            state = result["state"]
+            if state.get("status") == "ACTIVE":
+                contract = self.registry.contracts[state["current_node"]]
+                if contract["producer_kind"] == "HOST_AGENT":
+                    result["dispatch"] = self.dispatch_current(state["run_id"])
+                    result["state"] = self.controller.load_state(state["run_id"])
         return result

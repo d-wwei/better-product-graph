@@ -17,7 +17,7 @@ from .product_navigation import (
 )
 from .resume import inspect_resume
 from .signals import record_signal_occurrence
-from .state_controller import StateController, TransitionRejected
+from .state_controller import StateConflict, StateController, TransitionRejected
 from .storage import assert_managed_path, atomic_write_json, read_json, sha256_file, verify_event_chain
 
 
@@ -333,17 +333,38 @@ class HostEngine:
         if parsed.activation == "GUIDED_HELP" or parsed.core_intent == "host.help":
             return dict(HELP)
         authoritative_state: dict[str, Any] | None = None
+        stale_recovery: dict[str, Any] | None = None
         if parsed.run_id:
             try:
                 authoritative_state = self.controller.authoritative_read_barrier(
                     parsed.run_id
                 )
             except TransitionRejected as error:
-                return {
-                    "status": "BLOCKED_STALE",
-                    "run_id": parsed.run_id,
-                    "blockers": [str(error)],
-                }
+                if parsed.core_intent == "run.resume":
+                    try:
+                        stale_recovery = self.controller.stale_recovery_context(
+                            parsed.run_id
+                        )
+                    except TransitionRejected as recovery_error:
+                        return {
+                            "status": "BLOCKED_STALE",
+                            "run_id": parsed.run_id,
+                            "blockers": [str(error), str(recovery_error)],
+                        }
+                    if stale_recovery is not None:
+                        authoritative_state = self.controller.load_state(parsed.run_id)
+                    else:
+                        return {
+                            "status": "BLOCKED_STALE",
+                            "run_id": parsed.run_id,
+                            "blockers": [str(error)],
+                        }
+                else:
+                    return {
+                        "status": "BLOCKED_STALE",
+                        "run_id": parsed.run_id,
+                        "blockers": [str(error)],
+                    }
         preflight = preflight_project(self.project_root) if parsed.write_allowed else None
 
         def finish(payload: dict[str, Any]) -> dict[str, Any]:
@@ -403,20 +424,76 @@ class HostEngine:
                     },
                 )
                 return finish({"status": "TRIGGER_CONSUMED", "state": state})
-            inspection = inspect_resume(self.controller, parsed.run_id or "")
-            if inspection.status != "READY_TO_RESUME":
-                return finish({"status": inspection.status, "blockers": inspection.blockers})
-            state = self.controller.load_state(parsed.run_id or "")
+            recovery_result: dict[str, Any] | None = None
+            if stale_recovery is not None:
+                try:
+                    recovery_result = self.controller.recover_stale_run(
+                        parsed.run_id or "",
+                        recovery_id=stale_recovery["recovery_id"],
+                        expected_state_version=stale_recovery["state_version"],
+                    )
+                    state = recovery_result["state"]
+                except StateConflict:
+                    # A concurrent Resume may have committed this exact recovery
+                    # after our read-only preflight. Only the full current
+                    # authority barrier may turn that CAS loss into an ordinary
+                    # idempotent Resume; every other change remains fail-closed.
+                    state = self.controller.authoritative_read_barrier(
+                        parsed.run_id or ""
+                    )
+            else:
+                inspection = inspect_resume(self.controller, parsed.run_id or "")
+                if inspection.status != "READY_TO_RESUME":
+                    return finish({"status": inspection.status, "blockers": inspection.blockers})
+                state = self.controller.load_state(parsed.run_id or "")
             if parsed.interaction_policy == "NO_PM_INTERVIEW" and state["interaction_policy"] != "NO_PM_INTERVIEW":
                 state = self.controller.set_interview_policy(
                     parsed.run_id or "", "skip", expected_state_version=state["state_version"]
                 )
-            state = self.controller.set_run_activity(
-                parsed.run_id or "", "resume", expected_state_version=state["state_version"]
-            )
+            # ACTIVE without a pause is already resumed. Do not turn this
+            # read-back into a stale CAS write: another Host may have safely
+            # dispatched the recovered node after our authority read. The
+            # HostRuntime will re-lock and read the current state before it
+            # returns or creates the idempotent work order.
+            if state.get("status") != "ACTIVE" or state.get("pause") is not None:
+                resume_basis_state = state
+                try:
+                    state = self.controller.set_run_activity(
+                        parsed.run_id or "",
+                        "resume",
+                        expected_state_version=state["state_version"],
+                    )
+                except StateConflict:
+                    concurrent = self.controller.exact_concurrent_recovered_resume(
+                        parsed.run_id or "",
+                        resume_basis_state=resume_basis_state,
+                        expected_recovery_id=(
+                            recovery_result["recovery_id"]
+                            if recovery_result is not None
+                            else None
+                        ),
+                    )
+                    if concurrent is None:
+                        raise
+                    state = concurrent
             repair = self._required_evals_repair_response(parsed.run_id or "")
             if repair is not None:
                 return finish(repair)
+            if recovery_result is not None:
+                return finish(
+                    {
+                        "status": "STALE_RUN_RECOVERED",
+                        "run_id": parsed.run_id,
+                        "state": state,
+                        "recovery_operation": "recover-stale-run",
+                        "recovery_id": recovery_result["recovery_id"],
+                        "retired_attempt_ids": recovery_result[
+                            "retired_attempt_ids"
+                        ],
+                        "restored_paths": recovery_result["restored_paths"],
+                        "message_zh": recovery_result["message_zh"],
+                    }
+                )
             return finish({"status": "RESUMED", "state": state})
         if parsed.core_intent == "handoff.prepare":
             return finish(self._prepare_handoff(parsed.run_id or ""))

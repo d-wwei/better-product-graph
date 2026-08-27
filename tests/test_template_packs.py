@@ -291,7 +291,7 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(result["configuration_action"], "PROJECT_TEMPLATE_CONFIGURE")
         self.assertEqual(result["graph_run_created"], False)
-        self.assertEqual(result["bpg_version"], "0.2.18")
+        self.assertEqual(result["bpg_version"], "0.2.19")
         self.assertFalse((self.project / ".better-product-graph/runs").exists())
 
     def test_legacy_install_operation_is_not_a_user_facing_entry(self) -> None:

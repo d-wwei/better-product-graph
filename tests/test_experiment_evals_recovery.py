@@ -124,7 +124,7 @@ class ExperimentEvalsRecoveryTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "EVALS_FULFILLMENT_REQUIRED")
         self.assertEqual(migrated["next_allowed_nodes"], ["review.parallel"])
-        self.assertEqual(migrated["graph_manifest"]["version"], "0.1.0-alpha.3")
+        self.assertEqual(migrated["graph_manifest"]["version"], "0.1.0-alpha.4")
         self.assertEqual(migrated["current_candidate_ref"], legacy_state["current_candidate_ref"])
         self.assertEqual(migrated["ready_receipts"], [])
         self.assertIsNone(migrated["release_ref"])

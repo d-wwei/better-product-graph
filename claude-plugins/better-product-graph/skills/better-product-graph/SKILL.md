@@ -34,6 +34,14 @@ Map explicit `/better-product-graph:better-product-graph <intent>` entries and e
 
 No intent means guided help with no mutation. Do not register or accept `$bpg`, `$prd-graph`, `review.gate`, legacy aliases, or internal node IDs as public entry points.
 
+For `resume`, the user never needs to remember a repair command. If the
+Controller returns `STALE_RUN_RECOVERED`, it has matched one exact legacy
+Run contract, retired only its unconsumed side-effect-free dispatch, preserved
+the original Run ID and history, and returned a fresh current work order. Tell
+the user in plain language what was recovered and continue that work order.
+Unknown or ambiguous drift remains `BLOCKED_STALE`; never invent a force or
+ignore-stale bypass.
+
 ## Project Template configuration
 
 Natural-language requests such as “为这个项目启用内部产品模板” are the complete user-facing interaction. Treat them as project configuration, not a Graph intent or Node. Do not ask the user to run a command, calculate hashes, copy files, or edit `template-profile.json`. Resolve the independently distributed Pack root from the available project/workspace context; ask one targeted location question only when no unique Pack can be resolved.
