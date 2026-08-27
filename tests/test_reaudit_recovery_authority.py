@@ -7,7 +7,13 @@ import unittest
 from pathlib import Path
 
 from src.bpg.engine import HostEngine
-from src.bpg.failpoints import InjectedCrash, begin_node_call, crash_at, persist_node_dispatch
+from src.bpg.failpoints import (
+    InjectedCrash,
+    begin_node_call,
+    crash_at,
+    mark_dispatch_unknown,
+    persist_node_dispatch,
+)
 from src.bpg.host_runtime import HostRuntime
 from src.bpg.node_registry import NodeRegistry
 from src.bpg.product_memory import persist_decision_proposal
@@ -22,6 +28,7 @@ from src.bpg.storage import (
     sha256_file,
     verify_event_chain,
 )
+from tests.controller_fixtures import position_run_internal
 from tests.test_owner_choice_routes import agent_draft, agent_submission, place_at_decision
 
 
@@ -38,6 +45,233 @@ class PublicResumeAuthorityTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    def _planning_context_result(
+        self,
+        dispatch: dict,
+        source_ref: dict,
+    ) -> dict:
+        return {
+            "schema_version": "node-result.v1",
+            "node_id": "planning.context.prepare",
+            "attempt_id": dispatch["attempt_id"],
+            "producer": {"kind": "HOST_AGENT"},
+            "instruction_ref": dispatch["instruction_ref"],
+            "instruction_hash": dispatch["instruction_hash"],
+            "input_refs": dispatch["input_refs"],
+            "input_hashes": dispatch["input_hashes"],
+            "semantic_output": {
+                "schema_version": "planning-context-preparation.v1",
+                "status": "READY",
+                "project_identity": {
+                    "name": "source-freeze-test",
+                    "root": ".",
+                    "confidence": "HIGH",
+                    "ambiguities": [],
+                },
+                "materials": [
+                    {
+                        "ref": source_ref,
+                        "kind": "PROJECT_OVERVIEW",
+                        "decision": "INCLUDE",
+                        "reason": "提供当前项目方向",
+                    }
+                ],
+                "unavailable_sources": [],
+                "high_impact_gaps": [],
+                "context_summary": {
+                    "project_purpose": "验证规划来源冻结",
+                    "current_direction": "使用冻结副本继续 Run",
+                    "constraints": [],
+                    "unknowns": [],
+                },
+                "review": {
+                    "status": "CONFIRMED",
+                    "reviewed_by": {"kind": "OWNER", "id": "tester"},
+                },
+                "limitations": [],
+                "next_action": "evidence.collect",
+            },
+            "artifact_refs": [source_ref],
+        }
+
+    def test_planning_context_commit_freezes_live_source_for_following_nodes(self) -> None:
+        runtime = HostRuntime(self.project, GRAPH, REPO_ROOT / "src" / "core")
+        run_id = "run-planning-source-freeze"
+        runtime.controller.create_run(run_id, raw_signal="freeze planning context")
+        position_run_internal(
+            runtime.controller,
+            run_id,
+            "planning.context.prepare",
+            ["evidence.collect"],
+        )
+        source = self.project / "README.md"
+        source.write_text("original planning context\n", encoding="utf-8")
+        source_ref = {
+            "role": "planning_context_source",
+            "path": "README.md",
+            "hash": sha256_file(source),
+            "version": 1,
+        }
+        dispatch = runtime.dispatch_current(run_id)
+
+        advanced = runtime.submit_and_advance(
+            run_id,
+            self._planning_context_result(dispatch, source_ref),
+            requested_node="evidence.collect",
+        )
+
+        state = runtime.controller.load_state(run_id)
+        snapshots = [
+            ref
+            for ref in state["artifact_refs"].values()
+            if ref.get("role") == "planning_context_snapshot"
+        ]
+        self.assertEqual(len(snapshots), 1)
+        snapshot = snapshots[0]
+        self.assertNotEqual(snapshot["path"], source_ref["path"])
+        self.assertEqual(snapshot["hash"], source_ref["hash"])
+        self.assertEqual(snapshot["source_ref"], source_ref)
+        self.assertEqual(
+            (self.project / snapshot["path"]).read_bytes(),
+            b"original planning context\n",
+        )
+        self.assertIn(snapshot["path"], advanced["dispatch"]["input_refs"])
+        self.assertNotIn(source_ref["path"], advanced["dispatch"]["input_refs"])
+
+        source.write_text("later live project direction\n", encoding="utf-8")
+        self.assertEqual(
+            runtime.controller.authoritative_read_barrier(run_id)["status"],
+            "ACTIVE",
+        )
+
+    def test_frozen_planning_context_tamper_still_blocks_authoritative_reads(self) -> None:
+        runtime = HostRuntime(self.project, GRAPH, REPO_ROOT / "src" / "core")
+        run_id = "run-planning-snapshot-tamper"
+        runtime.controller.create_run(run_id, raw_signal="detect frozen source tamper")
+        position_run_internal(
+            runtime.controller,
+            run_id,
+            "planning.context.prepare",
+            ["evidence.collect"],
+        )
+        source = self.project / "README.md"
+        source.write_text("trusted planning context\n", encoding="utf-8")
+        source_ref = {
+            "role": "planning_context_source",
+            "path": "README.md",
+            "hash": sha256_file(source),
+            "version": 1,
+        }
+        dispatch = runtime.dispatch_current(run_id)
+        runtime.submit_and_advance(
+            run_id,
+            self._planning_context_result(dispatch, source_ref),
+            requested_node="evidence.collect",
+        )
+        snapshot = next(
+            ref
+            for ref in runtime.controller.load_state(run_id)["artifact_refs"].values()
+            if ref.get("role") == "planning_context_snapshot"
+        )
+        (self.project / snapshot["path"]).write_text(
+            "tampered snapshot\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(TransitionRejected, "planning_context_snapshot"):
+            runtime.controller.authoritative_read_barrier(run_id)
+
+    def test_completed_legacy_run_reports_source_drift_without_reopening_lifecycle(self) -> None:
+        runtime = HostRuntime(self.project, GRAPH, REPO_ROOT / "src" / "core")
+        run_id = "run-completed-legacy-source"
+        runtime.controller.create_run(run_id, raw_signal="legacy completed source drift")
+        position_run_internal(
+            runtime.controller,
+            run_id,
+            "planning.context.prepare",
+            ["evidence.collect"],
+        )
+        source = self.project / ".assistant" / "project.md"
+        source.parent.mkdir(parents=True)
+        source.write_text("historical planning direction\n", encoding="utf-8")
+        source_ref = {
+            "role": "planning_context_source",
+            "path": ".assistant/project.md",
+            "hash": sha256_file(source),
+            "version": 1,
+        }
+        planning_dispatch = runtime.dispatch_current(run_id)
+        runtime.submit_and_advance(
+            run_id,
+            self._planning_context_result(planning_dispatch, source_ref),
+            requested_node="evidence.collect",
+        )
+        active = runtime.controller.load_state(run_id)
+        artifact_refs = {
+            key: ref
+            for key, ref in active["artifact_refs"].items()
+            if ref.get("role") != "planning_context_snapshot"
+        }
+        legacy_ref = {
+            **source_ref,
+            "origin_node_id": "planning.context.prepare",
+            "origin_attempt_id": planning_dispatch["attempt_id"],
+        }
+        artifact_refs["legacy-planning-source"] = legacy_ref
+        position_run_internal(
+            runtime.controller,
+            run_id,
+            "bug.baseline.check",
+            ["handoff.prepare", "evidence.collect"],
+            artifact_refs=artifact_refs,
+        )
+        dispatch = runtime.dispatch_current(run_id)
+        baseline = self.project / "current-product-baseline.md"
+        baseline.write_text("结算后总额必须持续可见。\n", encoding="utf-8")
+        result = {
+            "schema_version": "node-result.v1",
+            "node_id": "bug.baseline.check",
+            "attempt_id": dispatch["attempt_id"],
+            "producer": {"kind": "HOST_AGENT"},
+            "instruction_ref": dispatch["instruction_ref"],
+            "instruction_hash": dispatch["instruction_hash"],
+            "input_refs": dispatch["input_refs"],
+            "input_hashes": dispatch["input_hashes"],
+            "semantic_output": {
+                "classification": "IMPLEMENTATION_DEVIATION",
+                "baseline_ref": {
+                    "path": str(baseline),
+                    "hash": sha256_file(baseline),
+                    "version": 1,
+                },
+                "expected": "结算后总额持续可见",
+                "actual": "刷新后总额消失",
+                "new_rule_required": False,
+                "acceptance_criteria_decidable": True,
+                "material_conflict": False,
+                "next_action": "按已有基线修复并回归",
+            },
+            "artifact_refs": [],
+        }
+        completed = runtime.submit_and_advance(
+            run_id,
+            result,
+            requested_node="handoff.prepare",
+        )
+        self.assertEqual(completed["status"], "COMPLETED")
+        source.write_text("new unrelated project direction\n", encoding="utf-8")
+
+        status = runtime.engine.handle(f"$better-product-graph status {run_id}")
+
+        self.assertEqual(status["status"], "OK")
+        self.assertEqual(status["state"]["status"], "COMPLETED")
+        self.assertEqual(status["historical_source_status"], "DEGRADED_SOURCE_DRIFT")
+        self.assertEqual(
+            status["historical_source_warnings"][0]["path"],
+            legacy_ref["path"],
+        )
+        self.assertNotIn("resubmit", json.dumps(status["historical_source_warnings"]))
 
     def test_waiting_trigger_cannot_be_escaped_by_plain_public_resume(self) -> None:
         run_id = "run-wait-trigger"
@@ -212,6 +446,36 @@ class PublicResumeAuthorityTests(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(TransitionRejected, "contract drifted"):
+            upgraded.dispatch_current(run_id)
+
+        after = {
+            path.relative_to(self.project).as_posix(): path.read_bytes()
+            for path in self.project.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_started_unknown_side_effect_with_undeclared_instruction_drift_is_zero_write_blocked(self) -> None:
+        upgraded, run_id, _ = self._runtime_across_instruction_upgrade(
+            declare_compatible_successor=False
+        )
+        state = upgraded.controller.load_state(run_id)
+        current = next(
+            item
+            for item in state["dispatch_attempts"]
+            if item["node_id"] == state["current_node"]
+            and item["status"] == "DISPATCHED"
+        )
+        mark_dispatch_unknown(upgraded.controller, run_id, current["attempt_id"])
+        before = {
+            path.relative_to(self.project).as_posix(): path.read_bytes()
+            for path in self.project.rglob("*")
+            if path.is_file()
+        }
+
+        with self.assertRaisesRegex(
+            TransitionRejected, "UNKNOWN_SIDE_EFFECT|contract drifted"
+        ):
             upgraded.dispatch_current(run_id)
 
         after = {

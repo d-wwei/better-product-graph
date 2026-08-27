@@ -10,7 +10,11 @@ from src.bpg.host_runtime import HostRuntime
 from src.bpg.documents import archive_prd_candidate
 from src.bpg.prd_contract import assemble_prd
 from src.bpg.node_registry import NodeRegistry
-from src.bpg.reference_catalog import ReferenceCatalog, ReferenceCatalogError
+from src.bpg.reference_catalog import (
+    EXPECTED_REFERENCE_RESOURCE_IDS,
+    ReferenceCatalog,
+    ReferenceCatalogError,
+)
 from src.bpg.state_controller import TransitionRejected
 from src.bpg.storage import atomic_write_json, read_json, sha256_file
 from src.bpg.templates import TemplateRegistry
@@ -29,6 +33,57 @@ class InternalReferenceCatalogTests(unittest.TestCase):
         self.assertIn("writing-standard-coverage-contract", resources)
         self.assertIn("prd-writing-profile-v0.2", resources)
         self.assertIn("prd-writing-guide-v0.2", resources)
+
+    def test_review_resources_keep_v04_as_non_default_with_distinct_v3_contract(self) -> None:
+        catalog = ReferenceCatalog(REPO_ROOT / "src" / "core")
+        resources = {item["resource_id"]: item for item in catalog.review_resources()}
+
+        self.assertEqual(resources["prd-writing-profile-v0.4"]["version"], "0.4.0")
+        self.assertEqual(resources["prd-writing-guide-v0.4"]["version"], "0.4.0")
+        self.assertEqual(resources["prd-writing-reader-review-v3"]["version"], "v3")
+        contract = read_json(
+            catalog.resolve(resources["prd-writing-reader-review-v3"]["path"])
+        )
+        self.assertEqual(
+            contract["reader_readback_contract"]["required_fields"],
+            [
+                "problem_and_outcome",
+                "primary_relationships",
+                "mental_model",
+                "main_path_and_recovery",
+                "decision_conditions_and_risks",
+                "navigation_map",
+            ],
+        )
+        self.assertEqual(
+            contract["finding_union_rule"],
+            "TOP_LEVEL_FINDING_REFS_EQUAL_OUTCOME_AND_ASSESSMENT_FINDING_UNION",
+        )
+        registry = read_json(
+            REPO_ROOT / "src" / "core" / "policies" / "document-experience-profiles.json"
+        )
+        self.assertEqual(
+            registry["default_profiles"]["prd"],
+            {"id": "prd-plain-language-zh-CN", "version": "0.5.0"},
+        )
+
+    def test_review_resources_stage_v05_with_distinct_v31_ordinary_contract(self) -> None:
+        catalog = ReferenceCatalog(REPO_ROOT / "src" / "core")
+        resources = {item["resource_id"]: item for item in catalog.review_resources()}
+
+        self.assertIn("prd-writing-profile-v0.5", resources)
+        self.assertIn("prd-writing-guide-v0.5", resources)
+        self.assertIn("prd-writing-reader-review-v3.1", resources)
+        self.assertEqual(resources["prd-writing-profile-v0.5"]["version"], "0.5.0")
+        self.assertEqual(resources["prd-writing-guide-v0.5"]["version"], "0.5.0")
+        self.assertEqual(resources["prd-writing-reader-review-v3.1"]["version"], "v3.1")
+        contract = read_json(
+            catalog.resolve(resources["prd-writing-reader-review-v3.1"]["path"])
+        )
+        self.assertEqual(contract["review_schema"], "document-experience-reader-review.v3")
+        self.assertEqual(contract["authority"], "ADVISORY_ONLY")
+        self.assertEqual(contract["supported_profile_version"], "0.5.0")
+        self.assertNotIn("primary_objective", contract)
 
     def test_source_extraction_manifest_rehashes_all_twenty_declared_cognitive_bases(self) -> None:
         upstream = Path("/Users/example/Documents/AI/认知基座")
@@ -60,7 +115,47 @@ class InternalReferenceCatalogTests(unittest.TestCase):
             {"better-question", "cognitive-router", "cognitive-base-catalog"},
         )
         self.assertTrue(all("SKILL.md" not in item["path"] for item in catalog.all_resource_refs()))
-        self.assertEqual(len({item["resource_id"] for item in catalog.all_resource_refs()}), 29)
+        self.assertEqual(
+            {item["resource_id"] for item in catalog.all_resource_refs()},
+            EXPECTED_REFERENCE_RESOURCE_IDS,
+        )
+
+    def test_writing_eval_resource_is_dedicated_and_not_in_ordinary_review(self) -> None:
+        catalog = ReferenceCatalog(REPO_ROOT / "src" / "core")
+        ordinary = {item["resource_id"] for item in catalog.review_resources()}
+        evaluation = {item["resource_id"] for item in catalog.writing_eval_resources()}
+
+        self.assertNotIn("prd-writing-eval-reader-review-v3.1", ordinary)
+        self.assertNotIn("prd-writing-eval-reader-review-v3.2", ordinary)
+        self.assertEqual(
+            evaluation,
+            {
+                "prd-writing-profile-v0.4",
+                "prd-writing-guide-v0.4",
+                "prd-writing-eval-reader-review-v3.1",
+                "prd-writing-profile-v0.5",
+                "prd-writing-guide-v0.5",
+                "prd-writing-eval-reader-review-v3.2",
+            },
+        )
+        v32 = next(
+            item
+            for item in catalog.writing_eval_resources()
+            if item["resource_id"] == "prd-writing-eval-reader-review-v3.2"
+        )
+        contract = read_json(catalog.resolve(v32["path"]))
+        self.assertEqual(
+            contract["result_schema"], "document-experience-reader-eval.v3.1"
+        )
+        self.assertEqual(contract["supported_profile_version"], "0.5.0")
+        self.assertEqual(contract["authority"], "EVALUATION_ONLY_ADVISORY")
+        for hidden in (
+            "primary_objective",
+            "allowed_primary_pairs",
+            "expected",
+            "threshold",
+        ):
+            self.assertNotIn(hidden, contract)
 
     def test_problem_learning_and_review_dispatch_bind_installed_reference_hashes(self) -> None:
         registry = NodeRegistry(REPO_ROOT / "src" / "core", GRAPH)
@@ -77,6 +172,13 @@ class InternalReferenceCatalogTests(unittest.TestCase):
                 "writing-standard-coverage-contract",
                 "prd-writing-profile-v0.2",
                 "prd-writing-guide-v0.2",
+                "prd-writing-reader-review-v3",
+                "prd-writing-profile-v0.4",
+                "prd-writing-guide-v0.4",
+                "prd-writing-reader-review-v3.1",
+                "prd-writing-reader-review-v3.2",
+                "prd-writing-profile-v0.5",
+                "prd-writing-guide-v0.5",
             },
         )
         self.assertTrue(all(item["hash"].startswith("sha256:") for item in learning["resource_refs"] + review["resource_refs"]))
@@ -140,23 +242,17 @@ class InternalReferenceCatalogTests(unittest.TestCase):
                 }
 
             writing = dispatch["writing_review_context"]
-            basis = [
-                {
-                    "path": writing["candidate_ref"]["path"],
-                    "hash": writing["candidate_ref"]["hash"],
-                    "start_line": 1,
-                    "end_line": 1,
-                }
-            ]
             writing_path = project / "writing-coverage.json"
             atomic_write_json(
                 writing_path,
                 {
-                    "schema_version": "document-experience-coverage.v1",
+                    "schema_version": "document-experience-reader-review.v3",
+                    "authority": "ADVISORY_ONLY",
                     "candidate_ref": writing["candidate_ref"],
                     "candidate_tree_hash": writing["candidate_tree_hash"],
                     "profile_ref": writing["profile_ref"],
                     "guide_ref": writing["guide_ref"],
+                    "review_contract_ref": writing["review_contract_ref"],
                     "output_contract_ref": writing["output_contract_ref"],
                     "author_execution_ref": writing["author_execution_ref"],
                     "reviewer_execution_ref": {
@@ -165,25 +261,53 @@ class InternalReferenceCatalogTests(unittest.TestCase):
                     },
                     "reviewer_role": "writing_standard",
                     "isolated_input_refs": writing["isolated_input_refs"],
-                    "required_rule_results": [
-                        {
-                            "rule_id": item,
-                            "verdict": "PASS",
-                            "basis_refs": basis,
-                            "reason": "候选稿提供了直接依据。",
-                        }
-                        for item in writing["required_rule_ids"]
-                    ],
-                    "delivery_check_results": [
-                        {
-                            "check_id": item,
-                            "verdict": "PASS",
-                            "basis_refs": basis,
-                            "reason": "普通产品经理可以直接理解。",
-                        }
-                        for item in writing["required_check_ids"]
-                    ],
+                    "reader_readback": {
+                        "problem_and_outcome": "用户需要稳定完成任务，产品要降低失败风险。",
+                        "primary_relationships": "输入经过规则处理后形成可验收结果。",
+                        "mental_model": [
+                            {"name": "输入", "role": "提供待处理信息"},
+                            {"name": "规则", "role": "约束产品行为"},
+                            {"name": "结果", "role": "形成可验收输出"},
+                        ],
+                        "main_path_and_recovery": "系统处理输入并返回结果；失败时保留输入并允许重试。",
+                        "decision_conditions_and_risks": "仅在规则明确时采用；主要风险是结果与输入不一致。",
+                        "navigation_map": [
+                            {"target": "PRODUCT_RULES", "location": "产品规则"},
+                            {"target": "ACCEPTANCE", "location": "验收标准"},
+                            {"target": "RISKS_UNKNOWNS_NEXT", "location": "风险与未知"},
+                        ],
+                    },
+                    "reader_outcome_failures": [],
+                    "verbosity_assessment": {
+                        "verdict": "PASS",
+                        "issue_types": [],
+                        "repair_techniques": [],
+                        "basis_refs": [],
+                        "finding_refs": [],
+                        "reason": "主路径没有重复合同。",
+                    },
+                    "checklist_assessment": {
+                        "verdict": "PASS",
+                        "issue_types": [],
+                        "repair_techniques": [],
+                        "basis_refs": [],
+                        "finding_refs": [],
+                        "reason": "交付检查功能保持完整。",
+                    },
+                    "visual_assessment": {
+                        "verdict": "NOT_NEEDED",
+                        "observation_status": "NOT_NEEDED",
+                        "visual_pair_refs": [],
+                        "issue_types": [],
+                        "repair_techniques": [],
+                        "basis_refs": [],
+                        "finding_refs": [],
+                        "reason": "关系简单，文字足够表达。",
+                    },
                     "finding_refs": [],
+                    "claim_boundary": (
+                        "AGENT_REVIEW_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN"
+                    ),
                 },
             )
             writing_ref = {

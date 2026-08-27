@@ -6,6 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from .evals_authority import EvalsAuthorityError, validate_reviewed_evals
+from .evals_generator import (
+    EvalsGeneratorError,
+    validate_product_eval_pack,
+    validate_product_eval_review,
+)
 from .storage import assert_managed_path, read_json, sha256_file
 
 
@@ -61,6 +66,7 @@ def validate_evals_fulfillment_submission(
     *,
     expected_candidate_ref: dict[str, Any],
     artifact_refs: dict[str, Any],
+    expected_staging: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return REVIEWED/NOT_RUN metadata only after exact independent validation."""
 
@@ -86,6 +92,44 @@ def validate_evals_fulfillment_submission(
         raise EvalsFulfillmentError("Eval Pack producer differs from build_attempt")
     if review.get("reviewer") != submission["review_attempt"]:
         raise EvalsFulfillmentError("Eval review identity differs from review_attempt")
+    if pack.get("schema_version") == "product-eval-pack.v1":
+        if not isinstance(expected_staging, dict):
+            raise EvalsFulfillmentError(
+                "product-eval-pack.v1 must be staged before independent fulfillment"
+            )
+        if (
+            expected_staging.get("fulfillment") != "GENERATED_PENDING_REVIEW"
+            or expected_staging.get("candidate_ref") != expected_candidate_ref
+            or expected_staging.get("current_pack_ref") != pack_ref
+            or expected_staging.get("current_fixtures_ref") != fixtures_ref
+            or expected_staging.get("build_attempt") != submission["build_attempt"]
+        ):
+            raise EvalsFulfillmentError(
+                "Eval fulfillment differs from the exact staged Pack"
+            )
+        try:
+            validate_product_eval_pack(
+                project_root,
+                pack,
+                expected_candidate_ref=expected_candidate_ref,
+                expected_fixtures_ref=fixtures_ref,
+                previous_pack_ref=(
+                    pack.get("revision", {}).get("supersedes_pack_ref")
+                    if pack.get("version", 1) > 1
+                    else None
+                ),
+                previous_version=(pack.get("version") - 1 if pack.get("version", 1) > 1 else None),
+            )
+            validate_product_eval_review(
+                project_root,
+                review,
+                expected_candidate_ref=expected_candidate_ref,
+                expected_fixtures_ref=fixtures_ref,
+                expected_pack_ref=pack_ref,
+                producer=pack["producer"],
+            )
+        except (EvalsGeneratorError, KeyError, TypeError) as error:
+            raise EvalsFulfillmentError(str(error)) from error
 
     build_attempt_id = f"evals-build:{build_identity[0]}:{build_identity[1]}"
     review_attempt_id = f"evals-review:{review_identity[0]}:{review_identity[1]}"
@@ -125,7 +169,7 @@ def validate_evals_fulfillment_submission(
         and isinstance(ref.get("hash"), str)
     }
     evals = {
-        "applicability": "REQUIRED",
+        "applicability": pack.get("applicability"),
         "fulfillment": "REVIEWED",
         "execution_status": "NOT_RUN",
         "pack_ref": pack_ref,
@@ -146,6 +190,7 @@ def validate_evals_fulfillment_submission(
         raise EvalsFulfillmentError(str(error)) from error
     return {
         "evals": evals,
+        "pack_schema_version": pack.get("schema_version"),
         "pack_ref": pack_ref,
         "fixtures_ref": fixtures_ref,
         "review_ref": review_ref,

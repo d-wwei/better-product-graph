@@ -24,6 +24,7 @@ from .engine import HostEngine
 from .failpoints import begin_node_call, persist_node_dispatch
 from .node_registry import NodeRegistry
 from .prd_contract import PRDContractError, assemble_prd, markdown_h2_section
+from .prd_assets import PRDAssetChangeError, apply_prd_asset_change_set
 from .planning_contract import derive_prd_run_specs
 from .planning_context import discover_planning_context
 from .ready import PRDNotReady, ready_and_release
@@ -31,6 +32,7 @@ from .product_memory import persist_decision_proposal
 from .state_controller import StateConflict, StateController, TransitionRejected
 from .storage import canonical_json_bytes, read_json, sha256_bytes, sha256_file
 from .templates import TemplateRegistry
+from .writing_eval import WritingEvalRuntime
 
 
 class HostRuntime:
@@ -128,9 +130,15 @@ class HostRuntime:
                     self.controller.project_root
                 )
             elif state["current_node"] == "review.parallel":
-                envelope["writing_review_context"] = self.controller.writing_review_context(
+                writing_context = self.controller.writing_review_context(
                     state, envelope["resource_refs"]
                 )
+                envelope["resource_refs"] = (
+                    self.controller.exact_writing_review_resources(
+                        envelope["resource_refs"], writing_context
+                    )
+                )
+                envelope["writing_review_context"] = writing_context
             persist_node_dispatch(self.controller, run_id, attempt_id, contract=envelope)
             begin_node_call(self.controller, run_id, attempt_id)
             return envelope
@@ -188,6 +196,97 @@ class HostRuntime:
             "receipt_ref": fulfilled["receipt_ref"],
             "dispatch": dispatch,
         }
+
+    def _evals_instruction_ref(self, name: str) -> dict[str, Any]:
+        relative = Path("references") / "atomic-skills" / name / "INSTRUCTIONS.md"
+        path = (self.controller.skill_root / relative).resolve()
+        if not path.is_file():
+            path = (self.controller.skill_root / Path(*relative.parts[1:])).resolve()
+        try:
+            path.relative_to(self.controller.skill_root)
+        except ValueError as error:
+            raise TransitionRejected(f"Product Evals instruction escapes Skill root: {name}") from error
+        if not path.is_file() or path.is_symlink():
+            raise TransitionRejected(f"Product Evals instruction is missing: {name}")
+        return {
+            "path": relative.as_posix(),
+            "hash": sha256_file(path),
+            "version": 1,
+        }
+
+    def prepare_evals(self, run_id: str) -> dict[str, Any]:
+        """Expose the bounded Host/Reviewer work order for one exact Candidate."""
+
+        context = self.controller.product_evals_context(run_id)
+        fulfillment = context["evals_status"]["fulfillment"]
+        applicability = context["evals_status"]["applicability"]
+        if applicability == "NOT_NEEDED":
+            status = "EVALS_NOT_NEEDED"
+        elif fulfillment == "BLOCKED_MISSING_INPUT":
+            status = "EVALS_BLOCKED_MISSING_INPUT"
+        elif fulfillment == "REVIEWED":
+            status = "EVALS_REVIEWED"
+        else:
+            status = "EVALS_PREPARATION_REQUIRED"
+        return {
+            "status": status,
+            "run_id": run_id,
+            **context,
+            "build_instruction_ref": self._evals_instruction_ref("evals-build"),
+            "review_instruction_ref": self._evals_instruction_ref("evals-review"),
+            "next_operation": (
+                "stage-evals"
+                if applicability in {"RECOMMENDED", "REQUIRED"}
+                and fulfillment in {"NOT_STARTED", "GENERATING", "GENERATED_PENDING_REVIEW"}
+                else None
+            ),
+        }
+
+    def stage_evals(self, run_id: str, submission: dict[str, Any]) -> dict[str, Any]:
+        """Persist one generated Pack version while execution remains NOT_RUN."""
+
+        state = self.controller.authoritative_read_barrier(run_id)
+        staged = self.controller.stage_product_eval_pack(
+            run_id,
+            submission,
+            expected_state_version=state["state_version"],
+        )
+        blocked = staged["evals_status"]["fulfillment"] == "BLOCKED_MISSING_INPUT"
+        return {
+            "status": (
+                "EVALS_BLOCKED_MISSING_INPUT"
+                if blocked
+                else "EVAL_PACK_STAGED_REVIEW_REQUIRED"
+            ),
+            "run_id": run_id,
+            "state": staged["state"],
+            "evals_status": staged["evals_status"],
+            "execution_status": "NOT_RUN",
+            "ready_status": "NOT_READY",
+            "release_status": "NOT_RELEASED",
+            "review_instruction_ref": (
+                None if blocked else self._evals_instruction_ref("evals-review")
+            ),
+            "next_operation": None if blocked else "fulfill-evals",
+        }
+
+    def prepare_writing_eval(
+        self, run_id: str, submission: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Create or resume one isolated evaluation-only Writing Review."""
+
+        return WritingEvalRuntime(
+            self.controller.project_root, self.controller.skill_root
+        ).prepare(run_id, submission)
+
+    def review_writing_eval(
+        self, run_id: str, submission: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Validate one Writer-Eval result and close only that Eval Run."""
+
+        return WritingEvalRuntime(
+            self.controller.project_root, self.controller.skill_root
+        ).review(run_id, submission)
 
     def _complete_review_finalize(self, run_id: str) -> dict[str, Any]:
         dispatch = self._plan_dispatch(run_id)
@@ -1137,11 +1236,19 @@ class HostRuntime:
             raise TransitionRejected(f"Agent PRD contract invalid: {error}") from error
         exact_inputs = result["input_hashes"]
         metadata = assembled.metadata
-        assets = (
+        base_assets = (
             self._validate_optimize_submission(run_id, result, metadata)
             if result["node_id"] == "prd.optimize"
             else {}
         )
+        try:
+            assets = apply_prd_asset_change_set(
+                self.controller.project_root,
+                base_assets,
+                result["semantic_output"].get("asset_change_set"),
+            )
+        except PRDAssetChangeError as error:
+            raise TransitionRejected(f"PRD asset change contract invalid: {error}") from error
         upstream_refs = [
             *metadata["decision_refs"],
             metadata["roadmap_snapshot_ref"],

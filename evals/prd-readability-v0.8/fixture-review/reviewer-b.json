@@ -1,0 +1,215 @@
+{
+  "schema_version": "prd-readability-v0.8-blind-calibration-review-result.v1",
+  "suite_id": "better-product-graph-prd-readability-v0.8",
+  "reviewer_id": "fixture-review-v08-b2-20260826",
+  "claim_boundary": {
+    "fixture_calibration_only": true,
+    "agent_product_eval": "NOT_RUN",
+    "ordinary_product_review": "NOT_RUN",
+    "human_reader_validation": "NOT_RUN"
+  },
+  "reviews": [
+    {
+      "document_id": "document-001",
+      "result": "FINDING",
+      "observed_reader_outcome": "DECIDE",
+      "primary_diagnosis": "ARTIFACT_MATURITY_OVERCLAIM",
+      "primary_repair_technique": "BOUNDARY",
+      "exact_basis": [
+        {
+          "path": "documents/document-001.md",
+          "hash": "sha256:4cc4b84977f02851ead635fc8b505afe2b55b9ed6233dfa2d6f9315c3178f624",
+          "start_line": 7,
+          "end_line": 9
+        },
+        {
+          "path": "documents/document-001.md",
+          "hash": "sha256:4cc4b84977f02851ead635fc8b505afe2b55b9ed6233dfa2d6f9315c3178f624",
+          "start_line": 36,
+          "end_line": 45
+        }
+      ],
+      "reason": "“当前能力”把策略引擎写成已在线并可直接发布，但证据边界又明确标记为 PROPOSED_NOT_IMPLEMENTED，且实现、联调、测试和发布均为 NOT_RUN。读者无法据此判断真实成熟度；最小修复是统一状态边界，删除未经证据支持的已上线与可发布表述。"
+    },
+    {
+      "document_id": "document-002",
+      "result": "FINDING",
+      "observed_reader_outcome": "RETELL",
+      "primary_diagnosis": "SEMANTIC_REPETITION",
+      "primary_repair_technique": "MERGE",
+      "exact_basis": [
+        {
+          "path": "documents/document-002.md",
+          "hash": "sha256:f266cd0ef1602a5f2421699494abe366987be1e0c0d67418975ee2d226963c22",
+          "start_line": 7,
+          "end_line": 11
+        },
+        {
+          "path": "documents/document-002.md",
+          "hash": "sha256:f266cd0ef1602a5f2421699494abe366987be1e0c0d67418975ee2d226963c22",
+          "start_line": 21,
+          "end_line": 29
+        }
+      ],
+      "reason": "三个章节都自称完整正式排序合同，却对贵宾等级、事件号方向和决胜字段给出互相冲突的定义，读者无法唯一复述同一组通知的排序。最小修复是处置冲突并合并为一个正式合同，其他章节只引用它。"
+    },
+    {
+      "document_id": "document-003",
+      "result": "PASS",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-003.md",
+          "hash": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+          "start_line": 7,
+          "end_line": 20
+        },
+        {
+          "path": "documents/document-003.md",
+          "hash": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+          "start_line": 45,
+          "end_line": 90
+        }
+      ],
+      "reason": "正文先完整交代改期主路径和正式产品规则，再以明确链接把兼容、本地化与分析口径分层放入附录；附录虽长，但字段稳定、用途清楚且未形成第二份主规则合同，读者无需修复即可定位和交接。"
+    },
+    {
+      "document_id": "document-004",
+      "result": "PASS",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-004.md",
+          "hash": "sha256:b451fcd03dd20ee5e4f449f27ec822b00d965837abd8b64d4d8b1ec237df750d",
+          "start_line": 7,
+          "end_line": 24
+        },
+        {
+          "path": "documents/document-004.md",
+          "hash": "sha256:b451fcd03dd20ee5e4f449f27ec822b00d965837abd8b64d4d8b1ec237df750d",
+          "start_line": 26,
+          "end_line": 41
+        }
+      ],
+      "reason": "文档明确把产品规则设为唯一规范来源，概览、流程和验收分别承担摘要、引用和验证功能，没有复制第二份排序合同；等级、例外、失败路径、验收、风险和下一步均能快速定位，无需修复。"
+    },
+    {
+      "document_id": "document-005",
+      "result": "FINDING",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": "FLAT_PEER_OVERLOAD",
+      "primary_repair_technique": "GROUP",
+      "exact_basis": [
+        {
+          "path": "documents/document-005.md",
+          "hash": "sha256:a4ddce5b0fe9a9e584449f2e77ed47d682694ebe6f13fd9d6f44542e047d3cc6",
+          "start_line": 16,
+          "end_line": 37
+        }
+      ],
+      "reason": "二十条验收以同一层级连续铺开，资格与权限、状态确认、失败恢复、幂等、通知和审计彼此混排，读者难以快速定位某类产品结果。最小修复是按这些可命名结果分组，同时保留每条精确验收语义。"
+    },
+    {
+      "document_id": "document-006",
+      "result": "PASS",
+      "observed_reader_outcome": "SEE",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-006.md",
+          "hash": "sha256:1e505a4bd4044d7e6f2bcf87e619133b60dbbd2211657b3a2261928363781032",
+          "start_line": 7,
+          "end_line": 27
+        }
+      ],
+      "reason": "实际渲染的流程图清楚呈现三条恢复路径汇入服务端确认，以及超时、人工拒绝和确认失败的停止支路；标题说明图回答的问题，文字替代保留完整语义，正文产品规则补充边界而未逐节点复制图，因此无需修复。"
+    },
+    {
+      "document_id": "document-007",
+      "result": "FINDING",
+      "observed_reader_outcome": "DECIDE",
+      "primary_diagnosis": "CHECKLIST_FUNCTION_LOSS",
+      "primary_repair_technique": "RESTORE_FUNCTION",
+      "exact_basis": [
+        {
+          "path": "documents/document-007.md",
+          "hash": "sha256:ddea764c0df839c50aae4a46c7fd0afdd7001555f5a5d445b2e2241746912e7b",
+          "start_line": 16,
+          "end_line": 18
+        },
+        {
+          "path": "documents/document-007.md",
+          "hash": "sha256:ddea764c0df839c50aae4a46c7fd0afdd7001555f5a5d445b2e2241746912e7b",
+          "start_line": 33,
+          "end_line": 35
+        }
+      ],
+      "reason": "上线材料把四项关键核对压成一句话，同时明确不保留逐项负责人、验证证据、未关闭事项或切换结论；这使读者无法据此判断是否具备进入迁移窗口的条件。最小修复是恢复四项核对的处置状态、负责人、证据位置和开放项。"
+    },
+    {
+      "document_id": "document-008",
+      "result": "PASS",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-008.md",
+          "hash": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+          "start_line": 7,
+          "end_line": 19
+        },
+        {
+          "path": "documents/document-008.md",
+          "hash": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+          "start_line": 21,
+          "end_line": 55
+        }
+      ],
+      "reason": "导航直接指向权限矩阵、风险和下一步；矩阵使用稳定字段完成身份、资料、动作、条件与可见结果的逐项映射，产品规则先解释组合判断和高影响边界。行数没有妨碍比较或定位，读者无需修复。"
+    },
+    {
+      "document_id": "document-009",
+      "result": "FINDING",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": "REPRESENTATION_COLLISION",
+      "primary_repair_technique": "TRIM",
+      "exact_basis": [
+        {
+          "path": "documents/document-009.md",
+          "hash": "sha256:6cf05b9834705e7a1d8fd378e0d20439ddb8b4da6e3409a216aaabaada2e3248",
+          "start_line": 14,
+          "end_line": 34
+        }
+      ],
+      "reason": "同一组三种身份与三种动作的权限关系连续以文字、字符图和矩阵完整重复，且没有声明哪一种是主要表达；读者需要在三份等价模型间反复核对。最小修复是选矩阵作为主要映射并裁掉重复的字符图或逐角色文字，仅保留必要解释。"
+    },
+    {
+      "document_id": "document-010",
+      "result": "FINDING",
+      "observed_reader_outcome": "DECIDE",
+      "primary_diagnosis": "COMPLETION_SEMANTICS_AMBIGUOUS",
+      "primary_repair_technique": "BOUNDARY",
+      "exact_basis": [
+        {
+          "path": "documents/document-010.md",
+          "hash": "sha256:c5bcab1a72d861c46349538416f9b624447f0af8d6e59fca0cceb22d79c66938",
+          "start_line": 15,
+          "end_line": 21
+        },
+        {
+          "path": "documents/document-010.md",
+          "hash": "sha256:c5bcab1a72d861c46349538416f9b624447f0af8d6e59fca0cceb22d79c66938",
+          "start_line": 32,
+          "end_line": 38
+        }
+      ],
+      "reason": "当前状态使用勾选、黄点和空框，却没有图例、证据边界或状态含义；读者无法判断这些符号代表已设计、已实现、已测试还是仅计划，尤其多币种仍是未知。最小修复是补充明确状态图例和证据边界，并让每项状态与风险、未知保持一致。"
+    }
+  ]
+}

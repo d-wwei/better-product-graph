@@ -1,0 +1,48 @@
+{
+  "schema_version": "prd-readability-preregistration.v0.4",
+  "suite_id": "better-product-graph-prd-readability-v0.4",
+  "status": "PREREGISTERED_BEFORE_RESULTS",
+  "registered_at": "2026-08-26T00:00:00+08:00",
+  "custody": "EVALUATOR_ONLY_DO_NOT_COPY_TO_AGENT_WORKSPACE",
+  "case_hashes": {
+    "flat-18-acceptance-rows": "sha256:5829dd13ad6368fe7ceaee1fa313fc7e599261d149453ce8297f80277b9366da",
+    "duplicate-eight-questions-and-blocks": "sha256:d87e88a56138e3a7d66b2e875cbff5a5a7c8aa618b379450e50f28e14e8798eb",
+    "list-diagram-table-same-model": "sha256:30a96ec8c08ecdca0ddfaec6e8b12ae7d6a72c9295707e17cd168d7fafb0c046",
+    "trim-removes-useful-checklist": "sha256:d2c05b39c43cb906820eb47eaf2127af026330ce6a4a324730bb2a3ef8fccb82",
+    "checked-boxes-without-legend": "sha256:32630110abe618cd212c3072e6b5a2c985a4de05b7f38cb6d2c43cd8612afd17",
+    "proposed-contract-looks-implemented": "sha256:1b600887465d760a1a3e022a248cf08a36aae515dc1259b904a271db3bdae1f5",
+    "large-necessary-state-table": "sha256:b10d4844b2400373383d5ef0aa4fb629581a8c1a9cc3cf37b5b6a69d9fe6e03f",
+    "long-appendix-short-main-path": "sha256:460024341618650bb72b5e026cfb3d75ccb12792d991ae2192210ad24f1fe463",
+    "reader-first-layered-prd": "sha256:c1b3a7f60e7ec6858a745600b7cb8067d22b8aa2de253ccc04faa201591ec825"
+  },
+  "expected_ref": {
+    "path": "evaluator/expected.json",
+    "hash": "sha256:5d0bb785d5ed0a569fef845bb2b5b40eb42e5074cdde97a7870357a7b9afcc0a",
+    "version": 1
+  },
+  "profile_ref": {
+    "path": "policies/document-experience/PRD_WRITING_PROFILE_v0.4.json",
+    "hash": "sha256:85d81248659d0fd0a74fd9fce679b4c5bda0445971a00329c379b76672705919",
+    "version": "0.4.0"
+  },
+  "guide_ref": {
+    "path": "policies/document-experience/PRD_WRITING_GUIDE_v0.4.md",
+    "hash": "sha256:b262531a455a31e9a5aa087808ca369f99ce65e488d17ff3af59998f649e3639",
+    "version": "0.4.0"
+  },
+  "runtime_checkpoint_required_refs": [
+    "suite_ref",
+    "case_ref",
+    "candidate_ref",
+    "profile_ref",
+    "guide_ref",
+    "instruction_ref",
+    "reviewer_resource_ref",
+    "output_contract_ref",
+    "installed_build_ref",
+    "dispatch_ref"
+  ],
+  "agent_runtime_status": "NOT_RUN",
+  "real_prd_review_status": "NOT_RUN",
+  "human_reader_validation": "NOT_RUN"
+}

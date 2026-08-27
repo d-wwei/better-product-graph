@@ -47,6 +47,43 @@ PROJECT_ACTIVE_FIELDS = {
 }
 
 
+def resolve_project_template_path(
+    project_root: Path, relative: str, label: str
+) -> Path:
+    """Resolve one project Template file inside the trusted, symlink-free area."""
+
+    root = project_root.resolve()
+    if not isinstance(relative, str) or not relative:
+        raise TemplateContractError(f"{label} path is required")
+    pure = PurePosixPath(relative)
+    trusted_parts = (".better-product-graph", "templates")
+    if (
+        pure.is_absolute()
+        or ".." in pure.parts
+        or tuple(pure.parts[:2]) != trusted_parts
+        or len(pure.parts) < 3
+    ):
+        raise TemplateContractError(
+            f"{label} must stay in the trusted project template area"
+        )
+    trusted = root / trusted_parts[0] / trusted_parts[1]
+    current = root
+    for part in pure.parts:
+        current = current / part
+        if current.is_symlink():
+            raise TemplateContractError(
+                f"{label} must stay in the trusted project template area without symlinks"
+            )
+    resolved = (root / Path(*pure.parts)).resolve(strict=False)
+    try:
+        resolved.relative_to(trusted.resolve(strict=False))
+    except ValueError as error:
+        raise TemplateContractError(
+            f"{label} must stay in the trusted project template area"
+        ) from error
+    return root / Path(*pure.parts)
+
+
 def _is_exact_sha256(value: Any) -> bool:
     return (
         isinstance(value, str)
@@ -163,6 +200,76 @@ def _validate_output_contract(path: Path, expected_hash: str, expected_version: 
             or set(shape["required_h2"]) & set(shape["forbidden_h2"])
         ):
             raise TemplateContractError("Output contract structure definition is invalid")
+        table_rules = shape.get("required_table_rows", {})
+        declared_headings = set(common_headings) | set(shape["required_h2"])
+        if not isinstance(table_rules, dict) or not set(table_rules).issubset(
+            declared_headings
+        ):
+            raise TemplateContractError(
+                "Output contract required table-row definition is invalid"
+            )
+        for heading, rule in table_rules.items():
+            if not isinstance(heading, str) or not isinstance(rule, dict) or set(
+                rule
+            ) != {"allowed_statuses", "reason_required_statuses", "rows"}:
+                raise TemplateContractError(
+                    "Output contract required table-row definition is invalid"
+                )
+            allowed_statuses = rule["allowed_statuses"]
+            reason_required = rule["reason_required_statuses"]
+            rows = rule["rows"]
+            if (
+                not isinstance(allowed_statuses, list)
+                or any(
+                    not isinstance(status, str) or not status
+                    for status in allowed_statuses
+                )
+                or len(set(allowed_statuses)) != len(allowed_statuses)
+                or not isinstance(reason_required, list)
+                or any(
+                    not isinstance(status, str) or status not in allowed_statuses
+                    for status in reason_required
+                )
+                or len(set(reason_required)) != len(reason_required)
+                or not isinstance(rows, list)
+                or not rows
+            ):
+                raise TemplateContractError(
+                    "Output contract required table-row definition is invalid"
+                )
+            labels: list[str] = []
+            has_status_column = False
+            for row in rows:
+                if not isinstance(row, dict) or set(row) not in (
+                    {"label"},
+                    {"label", "status_column_index"},
+                ):
+                    raise TemplateContractError(
+                        "Output contract required table-row definition is invalid"
+                    )
+                label = row.get("label")
+                if not isinstance(label, str) or not label:
+                    raise TemplateContractError(
+                        "Output contract required table-row definition is invalid"
+                    )
+                labels.append(label)
+                if "status_column_index" in row:
+                    status_column = row["status_column_index"]
+                    if (
+                        isinstance(status_column, bool)
+                        or not isinstance(status_column, int)
+                        or status_column < 1
+                    ):
+                        raise TemplateContractError(
+                            "Output contract required table-row definition is invalid"
+                        )
+                    has_status_column = True
+            if len(set(labels)) != len(labels) or (
+                has_status_column and not allowed_statuses
+            ):
+                raise TemplateContractError(
+                    "Output contract required table-row definition is invalid"
+                )
         semantic_groups.append(shape["required_semantics"])
     for semantics in semantic_groups:
         for key, headings in semantics.items():
@@ -403,34 +510,7 @@ class TemplateRegistry:
 
     @staticmethod
     def _project_path(project_root: Path, relative: str, label: str) -> Path:
-        root = project_root.resolve()
-        if not isinstance(relative, str) or not relative:
-            raise TemplateContractError(f"{label} path is required")
-        pure = PurePosixPath(relative)
-        trusted_parts = (".better-product-graph", "templates")
-        if (
-            pure.is_absolute()
-            or ".." in pure.parts
-            or tuple(pure.parts[:2]) != trusted_parts
-            or len(pure.parts) < 3
-        ):
-            raise TemplateContractError(f"{label} must stay in the trusted project template area")
-        trusted = root / trusted_parts[0] / trusted_parts[1]
-        current = root
-        for part in pure.parts:
-            current = current / part
-            if current.is_symlink():
-                raise TemplateContractError(
-                    f"{label} must stay in the trusted project template area without symlinks"
-                )
-        resolved = (root / Path(*pure.parts)).resolve(strict=False)
-        try:
-            resolved.relative_to(trusted.resolve(strict=False))
-        except ValueError as error:
-            raise TemplateContractError(
-                f"{label} must stay in the trusted project template area"
-            ) from error
-        return root / Path(*pure.parts)
+        return resolve_project_template_path(project_root, relative, label)
 
     def _fallback_or_raise(
         self,

@@ -2,6 +2,41 @@
 
 Run only through the public Skill and Controller after an exact activated+eligible Slice is created from a Ready Product Plan. Read the exact Decision, Plan, planning views, Slice, Knowledge/Evidence, Guardrails/shared contracts, Template Profile, and Document Experience binding. The current `prd.generate` dispatch includes a closed `prd_generation_context`. Its `metadata_authority.document_experience` identifies the exact base policy, PRD writing Profile, and writing guide by path, version, and hash. Read those exact files and apply them independently from the Template. Copy every field from `metadata_authority` into PRD metadata exactly; do not calculate a scope hash, select a competing upstream ref, infer an origin, or substitute a newer writing guide yourself. The Controller independently recomputes the packet and rejects any drift.
 
+## PRD_WRITING_PROFILE_V04_CANDIDATE
+
+Apply this section only when the exact dispatch explicitly binds Profile `0.4.0`;
+Profile `0.2.0` keeps its existing authored behavior. Do not choose or promote a
+Profile yourself. For an explicit v0.4 Candidate, preserve the complete product
+contract while making these eight writing rules visible in the authored result:
+
+- `ONE_SEMANTIC_ONE_CANONICAL_LOCATION`: define each semantic rule fully once;
+  summaries and visuals point to that canonical location.
+- `MAIN_PATH_CORE_PRODUCT_RESULTS_ONLY`: keep goals, scope, product flow, rules,
+  boundaries, core acceptance and next action in the main path; layer fixtures,
+  oracles, execution evidence and deep precision elsewhere.
+- `GROUP_TO_COMPRESS_WITHOUT_SEMANTIC_LOSS`: group peer details by reader-visible
+  outcomes instead of deleting permissions, exceptions, recovery or acceptance.
+- `ONE_PRIMARY_REPRESENTATION_PER_RELATIONSHIP`: choose one primary diagram,
+  table or list for a relationship; secondary forms add only missing information.
+- `TABLES_ONLY_FOR_COMPARISON_AND_MAPPING`: use tables for stable comparison or
+  mapping, not for narrative, reasoning or dense long sentences.
+- `PRESERVE_FUNCTION_NOT_REPETITION`: before trimming a Checklist, preserve its
+  explanation, location, decision, traceability and delivery-confirmation work.
+- `TRUTHFUL_PRECISE_STATUS`: `[x]` needs an explicit legend and evidence boundary;
+  proposed contracts say `PROPOSED_NOT_IMPLEMENTED`; unexecuted checks stay
+  `NOT_RUN`; a local Handoff is never described as remotely sent, received or
+  approved.
+- `PLAIN_LANGUAGE_BEFORE_MACHINE_NAME`: explain the product meaning before a
+  Machine Name. Keep product behavior and responsibility boundaries in the PRD;
+  move internal Schema, storage, algorithm and concurrency design to the
+  Engineering SPEC.
+
+Author so a zero-context reader can `UNDERSTAND`, `SEE`, `MODEL`, `RETELL`,
+`DECIDE`, and `LOCATE` the product contract. Group and layer rather than pursue
+shortness: the author and Reviewer must not use word, line, section, or table-row counts
+as automatic quality gates. A long necessary table or appendix is valid
+when the main path stays complete and navigation is clear.
+
 The Host Agent must author the full PRD product content. Begin with the independently deliverable user outcome and next action; preserve evidence, assumptions, Unknowns, authority and scope boundaries. Bind exact version/hash refs; never use `latest/current`, raw `TBD`, unfilled `{{...}}`, empty tables, or make up facts to fill a template. Apply the frozen PRD writing Profile's ELI5 rules: concrete event before abstraction, conclusion before explanation, one main point per paragraph, plain Chinese before the first technical term, and a meaningful visual when a non-trivial flow, branch, sequence, state, data path, module relationship, or responsibility boundary is otherwise hard to understand. If a conditional body section is truly not applicable and the Output Contract allows omission, omit its heading, empty table, and placeholder; keep the corresponding Checklist item as `不适用｜理由：具体原因`. Unknown, not designed, not executed, and mandatory semantics are not “not applicable” and must remain visible. Include observable acceptance, dependencies, abnormal/recovery paths, risk/rollback, version/change visibility, and conditional Eval applicability/fulfillment without claiming tests ran. Do not put mutable workflow claims such as current Review status, Eval fulfillment/execution result, or remote Handoff sent/received/approved status into the immutable PRD body; keep them in Controller-owned metadata, receipts, or status views so they cannot become a second stale authority. For the default general template, keep a visible Markdown heading named `## 附录 C：文档变更日志` and a concrete version row; a human-readable heading is the contract, so do not insert an internal filename merely to satisfy validation. In the current skills-only Host, REQUIRED Evals metadata must remain `REVIEW_PENDING`/`NOT_RUN`: the Host cannot prove independent fulfillment, so neither `prd.generate` nor `prd.optimize` may claim `REVIEWED`.
 
 Choose the PRD's human title in the user's working language: use an explicit
@@ -77,7 +112,45 @@ Legal standalone example:
 }
 ```
 
-Submit `document_markdown`, `template_mapping`, metadata, and exact provenance as a `HOST_AGENT` Node Result. The program may validate, archive, version, and release the supplied content; it must not write missing PRD semantics.
+### Managed PRD asset input
+
+When the Markdown references a reader-visible visual, do not embed raw inline
+`<svg>`. Produce a safe local `.svg` plus same-stem `@2x.png`, then declare the
+exact source bytes through the optional closed `asset_change_set`. The Host may
+omit this field when the Candidate has no asset changes. The Controller reads
+each source exactly once, rejects symlinks, traversal, hash drift, unknown
+fields, and non-SVG/PNG destinations, then archives the resulting self-contained
+asset tree. `destination` is relative to the Candidate `assets/` directory and
+must end in `.svg` or `@2x.png`; never prefix it with `assets/`. Every final
+visual asset must be one referenced safe `.svg` plus its exact same-stem
+`@2x.png`: the Controller rejects malicious or unreferenced orphan pairs,
+unpaired extras, plain/unknown PNG names, other visual formats, and missing
+partners even when Markdown does not reference the bad file. `remove` is exact
+and fails when its target does not already exist. `source_ref.version` accepts
+only a positive JSON integer or a non-blank string; JSON booleans are invalid.
+
+<!-- prd-asset-change-set-v1-contract -->
+```json
+{
+  "schema_version": "prd-asset-change-set.v1",
+  "upsert": [
+    {
+      "destination": "main-flow.svg",
+      "source_ref": {"path": ".better-product-graph/asset-inputs/main-flow.svg", "hash": "sha256:exact-svg-bytes", "version": 1}
+    },
+    {
+      "destination": "main-flow@2x.png",
+      "source_ref": {"path": ".better-product-graph/asset-inputs/main-flow@2x.png", "hash": "sha256:exact-png-bytes", "version": 1}
+    }
+  ],
+  "remove": []
+}
+```
+
+Submit `document_markdown`, `template_mapping`, metadata, optional
+`asset_change_set`, and exact provenance as a `HOST_AGENT` Node Result. The
+program may validate, archive, version, and release the supplied content; it
+must not write missing PRD semantics.
 
 Use the complete semantic shape below as the minimum assembly contract. The
 values are representative only: copy every exact ref, origin, stable PRD ID,
@@ -93,6 +166,7 @@ a structure so that the submitted shape remains visible and auditable.
 ```json
 {
   "structure_mode": "legacy",
+  "asset_change_set": {"schema_version": "prd-asset-change-set.v1", "upsert": [], "remove": []},
   "document_markdown": "# BPG-PRD-BOOTSTRAP-001_项目上下文快速理解_v0.1_2026-08-24\n\n版本：v0.1｜状态：CANDIDATE\n\n## 阅读摘要\n\n结论：交付一个安全、可恢复、可追溯的项目 Bootstrap 闭环。\n\n## 目标与成功边界\n\n目标是只读取允许的项目上下文并形成可审计结果；不得读取秘密或越出项目根目录。\n\n## 范围与交付切片\n\n本期只包含一个可独立验证和回滚的 Bootstrap 核心切片。\n\n## 验收标准\n\n- Given 一个隔离项目，When 运行 Bootstrap，Then 只读取允许文件并输出带来源的 Profile 与 Readiness。\n\n## 风险、未知与回滚\n\n未知包括代表性项目中的输出价值；出现秘密读取、路径越界或不可恢复状态时停止并回滚。\n\n## 版本与变更\n\nv0.1：首次形成候选；测试执行与远程交付均未在本步骤发生。\n",
   "template_mapping": {
     "summary": "阅读摘要",

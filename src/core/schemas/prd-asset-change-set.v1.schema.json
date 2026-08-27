@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph/prd-asset-change-set.v1",
+  "type": "object",
+  "required": ["schema_version", "upsert", "remove"],
+  "properties": {
+    "schema_version": {"const": "prd-asset-change-set.v1"},
+    "upsert": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["destination", "source_ref"],
+        "properties": {
+          "destination": {
+            "type": "string",
+            "pattern": "^(?!assets/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\%?#]+(?:\\.svg|@2x\\.png)$"
+          },
+          "source_ref": {
+            "type": "object",
+            "required": ["path", "hash", "version"],
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+              "version": {"oneOf": [{"type": "integer", "minimum": 1}, {"type": "string", "minLength": 1, "pattern": "\\S"}]}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "remove": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?!assets/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\%?#]+(?:\\.svg|@2x\\.png)$"
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

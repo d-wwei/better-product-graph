@@ -1,0 +1,374 @@
+{
+  "schema_version": "prd-readability-preregistration.v0.8",
+  "suite_id": "better-product-graph-prd-readability-v0.8",
+  "status": "PREREGISTERED_BEFORE_RESULTS",
+  "freeze_order_authority": "PREREGISTRATION_GIT_COMMIT_PRECEDES_ALL_AGENT_OUTPUTS",
+  "custody": "EVALUATOR_ONLY_DO_NOT_COPY_TO_AGENT_WORKSPACE_OR_REVIEWER_PROJECTION",
+  "fixture_tree": {
+    "schema_version": "prd-readability-v0.8-fixture-tree.v1",
+    "suite_id": "better-product-graph-prd-readability-v0.8",
+    "status": "BLIND_FIXTURE_CALIBRATION_PENDING",
+    "tree_hash": "sha256:da47036a8a805580542574f40d5c623ccd7a487aa15724a510001da840b69ef6",
+    "files": [
+      {
+        "path": "cases/case-001.md",
+        "hash": "sha256:a4ddce5b0fe9a9e584449f2e77ed47d682694ebe6f13fd9d6f44542e047d3cc6",
+        "size": 3243
+      },
+      {
+        "path": "cases/case-002.md",
+        "hash": "sha256:f266cd0ef1602a5f2421699494abe366987be1e0c0d67418975ee2d226963c22",
+        "size": 3681
+      },
+      {
+        "path": "cases/case-003.md",
+        "hash": "sha256:6cf05b9834705e7a1d8fd378e0d20439ddb8b4da6e3409a216aaabaada2e3248",
+        "size": 2300
+      },
+      {
+        "path": "cases/case-004.md",
+        "hash": "sha256:ddea764c0df839c50aae4a46c7fd0afdd7001555f5a5d445b2e2241746912e7b",
+        "size": 2210
+      },
+      {
+        "path": "cases/case-005.md",
+        "hash": "sha256:c5bcab1a72d861c46349538416f9b624447f0af8d6e59fca0cceb22d79c66938",
+        "size": 2004
+      },
+      {
+        "path": "cases/case-006.md",
+        "hash": "sha256:4cc4b84977f02851ead635fc8b505afe2b55b9ed6233dfa2d6f9315c3178f624",
+        "size": 2498
+      },
+      {
+        "path": "cases/case-007.md",
+        "hash": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+        "size": 4161
+      },
+      {
+        "path": "cases/case-008.md",
+        "hash": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+        "size": 7136
+      },
+      {
+        "path": "cases/case-009.md",
+        "hash": "sha256:1e505a4bd4044d7e6f2bcf87e619133b60dbbd2211657b3a2261928363781032",
+        "size": 3097
+      },
+      {
+        "path": "assets/case-009-recovery-flow.svg",
+        "hash": "sha256:907a6616c39c403f42279a376b7588df0725e0afd9d3688c759e844152f421f8",
+        "size": 8181
+      },
+      {
+        "path": "assets/case-009-recovery-flow@2x.png",
+        "hash": "sha256:f942437d992886c03c569e67a15630bac966949b54f90ce548c76b1076f27afb",
+        "size": 181573
+      },
+      {
+        "path": "calibration/notification-priority-positive.md",
+        "hash": "sha256:b451fcd03dd20ee5e4f449f27ec822b00d965837abd8b64d4d8b1ec237df750d",
+        "size": 2495
+      }
+    ]
+  },
+  "fixture_review_refs": [
+    {
+      "path": "fixture-review/reviewer-a.json",
+      "hash": "sha256:496d2250f8bbee379a9195cd9222d87474c723374dc3a53fae9f0c747005166a",
+      "version": 1
+    },
+    {
+      "path": "fixture-review/reviewer-b.json",
+      "hash": "sha256:b52e32fe827eeef784bc751f6b4b1543be47deb34dadaced504b3dbf26eb3a7a",
+      "version": 1
+    }
+  ],
+  "fixture_adjudication_ref": {
+    "path": "fixture-review/adjudication.json",
+    "hash": "sha256:cd4fb6eea6563bc6dd8b06ef4133a43cc96ec3a1390ef8c636e7a7c3a40d9294",
+    "version": 1
+  },
+  "suite_ref": {
+    "path": "suite.json",
+    "hash": "sha256:58254c6382a80775eb8c68db7fd409d536a62c4ba3de5732a31e872c762d5291",
+    "version": "0.8"
+  },
+  "expected_ref": {
+    "path": "evaluator/expected.json",
+    "hash": "sha256:43cc743e416781178639de35d1f84333b32d16b6734c3a2962820b218b2eaa75",
+    "version": 1
+  },
+  "scorer_ref": {
+    "path": "evaluator/score_results.py",
+    "hash": "sha256:c3a462ec0695c36899433e03ff971138d3a92ebef03b457b59bd3956b7a23175",
+    "version": 1
+  },
+  "run_contract_ref": {
+    "path": "run_contract.py",
+    "hash": "sha256:2c69d38fa86615baa4a7d26f49541f57eeb70b1c146d20f31fdf6a4e416e4410",
+    "version": 1
+  },
+  "evidence_reader_ref": {
+    "path": "evaluator/evidence_reader.py",
+      "hash": "sha256:4cbd6ab9d7a4492a649fb01fe900ab570ac811ab0915329731c9242d28f10a97",
+    "version": 1
+  },
+  "profile_ref": {
+    "path": "policies/document-experience/PRD_WRITING_PROFILE_v0.5.json",
+    "hash": "sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0",
+    "version": "0.5.0"
+  },
+  "guide_ref": {
+    "path": "policies/document-experience/PRD_WRITING_GUIDE_v0.5.md",
+    "hash": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962",
+    "version": "0.5.0"
+  },
+  "instruction_ref": {
+    "path": "src/core/atomic-skills/prd-writing-eval-review-v3.2/INSTRUCTIONS.md",
+    "hash": "sha256:2315d87afb0756fa1dee7bf242fdf01d117c44460b59a5dab13d4275272a0c30",
+    "version": "v3.2"
+  },
+  "reviewer_resource_ref": {
+    "path": "src/core/reviewer-profiles/prd-writing-eval-reader-review-v3.2.json",
+    "hash": "sha256:39de6937c1696d78432d3c46af7a9dbb4144e7f60d6bc85e70515a97cd7efce3",
+    "version": "v3.2"
+  },
+  "output_contract_ref": {
+    "path": "src/core/templates/contracts/prd-v0.2.json",
+    "hash": "sha256:33270d0d8c30bc384e5c6f9f2f9a5e59cacb06b2be27da2f3f5b20eeebfc08a0",
+    "version": "better-product-graph.prd.general.0.2"
+  },
+  "result_schema_ref": {
+    "path": "src/core/schemas/document-experience-reader-eval-v3.1.schema.json",
+    "hash": "sha256:6aa12505bf4e89b99a5d9d7693f03fde99cdfa50cd9514c4a8310165c176b366",
+    "version": "document-experience-reader-eval.v3.1"
+  },
+  "mandatory_phases": [
+    "RC_CANDIDATE",
+    "FINAL_PUBLIC_ARTIFACT"
+  ],
+  "phase_gate": {
+    "case_count": 9,
+    "repeats_per_case": 3,
+    "required_attempt_count": 27,
+    "required_passed_attempt_count": 27,
+    "required_passed_repeats_per_case": 3
+  },
+  "phase_installed_build_versions": {
+    "RC_CANDIDATE": "0.2.18-rc.5",
+    "FINAL_PUBLIC_ARTIFACT": "0.2.18"
+  },
+  "cross_phase_fresh_identity_fields": [
+    "run_id",
+    "attempt_id",
+    "reviewer_execution_ref.id",
+    "author_execution_ref.id",
+    "preregistration_checkpoint_ref",
+    "work_order_ref",
+    "output_target",
+    "state_ref",
+    "installed_build_ref"
+  ],
+  "cross_phase_policy": "BOTH_PHASES_PASS_NO_LATER_PHASE_RESCUE",
+  "selection_policy": "ALL_PRODUCED_ATTEMPTS_OCCUPY_DENOMINATOR_NO_BEST_OF_N_NO_REPLACEMENT",
+  "threshold_change_after_first_output": "FORBIDDEN_REQUIRES_SUITE_V0.9",
+  "negative_attempt_policy": "EXACTLY_ONE_FINDING_ASSESSMENT_REGISTERED_PRIMARY_PAIR_PRESENT_SECONDARY_ENUM_VALUES_ALLOWED_NO_SECOND_FINDING",
+  "positive_attempt_policy": "PASS_NULL_PRIMARY_ZERO_FAILURES_ZERO_FINDINGS",
+  "installed_build_policy": "ONE_EXACT_BUILD_REF_PER_PHASE_ALL_27_ATTEMPTS",
+  "manifest_policy": "ONE_CONTROLLER_BOUND_PHASE_MANIFEST_AFTER_27_PREPARES_AND_NULL_RESULTS_BEFORE_AGENT_OUTPUT",
+  "manifest_receipt_policy": "WRITE_ONCE_RECEIPT_PLUS_ALL_27_CONTROLLER_STATE_EVENT_TRANSACTION_BINDINGS_REQUIRED",
+  "batch_validation_receipt_policy": "ALL_27_ORIGINAL_RAW_BYTES_PUBLICLY_PREFLIGHTED_AND_ACCEPTED_RESULT_HASH_BOUND_BEFORE_FIRST_SUBMISSION",
+  "phase_score_contract": {
+    "schema_version": "prd-readability-v0.8-phase-score-contract.v1",
+    "invocation_schema": "prd-readability-v0.8-score-invocation.v1",
+    "invocation_fields": [
+      "schema_version",
+      "suite_id",
+      "phase",
+      "execution_manifest_ref",
+      "batch_validation_receipt_ref",
+      "scorer_ref",
+      "evidence_snapshot"
+    ],
+    "evidence_snapshot_schema": "prd-readability-v0.8-score-evidence-snapshot.v1",
+    "evidence_snapshot_attempt_fields": [
+      "ordinal",
+      "run_id",
+      "attempt_id",
+      "result_ref"
+    ],
+    "score_schema": "prd-readability-v0.8-phase-score.v1",
+    "score_fields": [
+      "schema_version",
+      "suite_id",
+      "phase",
+      "status",
+      "selection_policy",
+      "score",
+      "produced_output_count",
+      "installed_build_ref",
+      "issues",
+      "attempts",
+      "agent_runtime_status",
+      "human_reader_validation"
+    ],
+    "score_attempt_fields": [
+      "ordinal",
+      "semantic_case_id",
+      "repeat_index",
+      "run_id",
+      "attempt_id",
+      "produced_output",
+      "status",
+      "issues"
+    ],
+    "receipt_schema": "prd-readability-v0.8-phase-score-receipt.v1",
+    "receipt_fields": [
+      "schema_version",
+      "status",
+      "suite_id",
+      "phase",
+      "terminal_outcome",
+      "write_policy",
+      "score_ref",
+      "scorer_ref",
+      "execution_manifest_ref",
+      "batch_validation_receipt_ref",
+      "evidence_snapshot",
+      "evidence_snapshot_hash",
+      "controller_invocation_ref",
+      "terminal_transaction_id",
+      "validation_digest"
+    ],
+    "controller_invocation_schema": "prd-readability-v0.8-controller-score-invocation.v1",
+    "controller_invocation_fields": [
+      "schema_version",
+      "status",
+      "suite_id",
+      "phase",
+      "invocation",
+      "invocation_hash",
+      "frozen_contract_refs"
+    ],
+    "terminal_transaction_schema": "prd-readability-v0.8-controller-score-transaction.v1",
+    "terminal_transaction_fields": [
+      "schema_version",
+      "status",
+      "suite_id",
+      "phase",
+      "transaction_id",
+      "controller_invocation_ref",
+      "invocation_hash",
+      "frozen_contract_refs",
+      "execution_manifest_ref",
+      "batch_validation_receipt_ref",
+      "evidence_snapshot",
+      "evidence_snapshot_hash",
+      "validation_digest",
+      "score_ref",
+      "receipt_ref",
+      "controller_ledger_ref"
+    ],
+    "controller_ledger_schema": "prd-readability-v0.8-controller-score-ledger.v1",
+    "controller_ledger_fields": [
+      "schema_version",
+      "status",
+      "suite_id",
+      "phase",
+      "transaction_id",
+      "invocation_hash",
+      "frozen_contract_refs",
+      "validation_digest",
+      "score_hash"
+    ],
+    "frozen_contract_ref_fields": [
+      "preregistration_ref",
+      "expected_ref",
+      "run_contract_ref",
+      "scorer_ref",
+      "evidence_reader_ref"
+    ],
+    "terminal_paths": {
+      "score": ".better-product-graph/writing-evals/phase-scores/<PHASE>/score.json",
+      "receipt": ".better-product-graph/writing-evals/phase-scores/<PHASE>/receipt.json",
+      "controller_invocation": ".better-product-graph/writing-evals/phase-scores/<PHASE>/controller-invocation.json",
+      "controller_transaction": ".better-product-graph/writing-evals/phase-scores/<PHASE>/controller-transaction.json",
+      "controller_ledger": ".better-product-graph/writing-evals/score-ledger/<PHASE>.json"
+    },
+    "first_invocation_preconditions": [
+      "EXACT_EXECUTION_MANIFEST_AND_BATCH_RECEIPT_EXIST",
+      "ALL_27_DURABLE_RESULT_REFS_EXIST",
+      "EXACT_SCORER_HASH_MATCHES_PREREGISTRATION"
+    ],
+    "early_score_policy": "REJECT_WITHOUT_TERMINAL_ARTIFACT",
+    "first_completed_score_policy": "INTERNAL_DERIVATION_CAPABILITY_THEN_O_EXCL_LEDGER_INVOCATION_SCORE_RECEIPT_TRANSACTION_FIRST_FAIL_IS_TERMINAL",
+    "repeat_policy": "VALIDATE_CANONICAL_FREEZE_LEDGER_AND_TRANSACTION_THEN_READ_ONLY_RECOMPUTE_EVERY_SCORE_FIELD_FROM_EXACT_BOUND_EVIDENCE",
+    "partial_write_policy": "FAIL_CLOSED_NO_RECOMPUTE_MANUAL_AUDIT_REQUIRED",
+    "release_aggregation_policy": "READ_ONLY_REDERIVE_BOTH_EXACT_PHASES_VERIFY_LEDGER_AND_TRANSACTION_NEVER_CREATE_OR_UPDATE_PHASE_SCORE",
+    "trust_boundary": "FAIL_CLOSED_FOR_SUPPORTED_CODE_PATH_ACCIDENT_REPLAY_PARTIAL_AND_DIRECT_FABRICATION_NOT_CRYPTOGRAPHIC_RESISTANCE_TO_PRIVILEGED_LOCAL_CODE_AND_EVIDENCE_REWRITE"
+  },
+  "execution_manifest_schema": {
+    "schema_version": "prd-readability-v0.8-execution-manifest.v1",
+    "central_path_pattern": ".better-product-graph/writing-evals/execution-manifests/<PHASE>.json",
+    "write_once": true,
+    "controller_binding_transition": "bind_phase_manifest",
+    "freeze_preconditions": {
+      "prepared_runs": 27,
+      "result_ref_null": 27,
+      "agent_outputs": 0
+    },
+    "exact_entry_fields": [
+      "ordinal",
+      "suite_id",
+      "phase",
+      "semantic_case_id",
+      "agent_case_id",
+      "repeat_index",
+      "run_id",
+      "attempt_id",
+      "reviewer_execution_ref",
+      "author_execution_ref",
+      "preregistration_checkpoint_ref",
+      "work_order_ref",
+      "output_target",
+      "central_project_root",
+      "state_ref",
+      "installed_build_ref"
+    ]
+  },
+  "produced_output_policy": "PRODUCED_OUTPUT_OCCUPIES_BOUND_DENOMINATOR_EVEN_IF_CONTROLLER_VALIDATION_REJECTS",
+  "mechanical_correction_policy": "TWO_STAGE_PUBLIC_PREFLIGHT_SAME_ATTEMPT_AUTHORITY_COPY_FIELDS_ONLY_PRESERVE_ORIGINAL_RAW_BYTES_AND_IDENTICAL_SEMANTIC_PAYLOAD_HASH",
+  "mechanical_authority_copy_fields": [
+    "schema_version",
+    "evaluation_only",
+    "authority",
+    "suite_id",
+    "case_id",
+    "node_id",
+    "attempt_id",
+    "instruction_ref",
+    "instruction_hash",
+    "input_refs",
+    "input_hashes",
+    "preregistration_checkpoint_ref",
+    "candidate_ref",
+    "profile_ref",
+    "guide_ref",
+    "reviewer_resource_ref",
+    "output_contract_ref",
+    "author_execution_ref",
+    "reviewer_execution_ref",
+    "reviewer_role",
+    "isolated_input_refs",
+    "claim_boundary"
+  ],
+  "evaluator_leakage_policy": "FORBIDDEN_IN_ANONYMOUS_EXPORT_AND_REVIEWER_PROJECTIONS",
+  "agent_runtime_status": "NOT_RUN",
+  "phase_runtime_status": {
+    "RC_CANDIDATE": "NOT_RUN",
+    "FINAL_PUBLIC_ARTIFACT": "NOT_RUN"
+  },
+  "real_prd_review_status": "NOT_RUN",
+  "human_reader_validation": "NOT_RUN"
+}

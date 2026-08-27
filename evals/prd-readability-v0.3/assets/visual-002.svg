@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" role="img" aria-labelledby="title desc">
+  <title id="title">PRD 内审与交付流程</title>
+  <desc id="desc">Candidate 经过独立内审和建议处置；需要修改时返回形成新 Candidate，通过一致性检查后生成本地交付物。</desc>
+  <rect x="25" y="55" width="125" height="62" rx="12" fill="#e9f2ff" stroke="#1f5fae" stroke-width="3"/>
+  <rect x="190" y="55" width="125" height="62" rx="12" fill="#fff4d6" stroke="#8a6414" stroke-width="3"/>
+  <rect x="355" y="55" width="125" height="62" rx="12" fill="#f3ebff" stroke="#6542a6" stroke-width="3"/>
+  <rect x="510" y="55" width="105" height="62" rx="12" fill="#eaf8ee" stroke="#26723b" stroke-width="3"/>
+  <path d="M150 86 H180 M315 86 H345 M480 86 H500" fill="none" stroke="#263238" stroke-width="4"/>
+  <path d="M180 86 l-12 -8 v16 z M345 86 l-12 -8 v16 z M500 86 l-12 -8 v16 z" fill="#263238"/>
+  <path d="M418 117 V210 H88 V127" fill="none" stroke="#b6463a" stroke-width="4" stroke-dasharray="8 6"/>
+  <path d="M88 127 l-8 12 h16 z" fill="#b6463a"/>
+  <text x="88" y="92" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#102a43">Candidate</text>
+  <text x="252" y="80" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#4b3b13">独立内审</text>
+  <text x="252" y="102" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#4b3b13">只给建议</text>
+  <text x="418" y="80" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#3d2868">处置与</text>
+  <text x="418" y="102" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#3d2868">一致性检查</text>
+  <text x="562" y="80" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#164c29">本地</text>
+  <text x="562" y="102" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#164c29">交付物</text>
+  <text x="250" y="235" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#8a2f27">采纳修改 → 新 Candidate → 重新内审</text>
+  <text x="320" y="282" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#37474f">本地交付不等于外部团队已经批准</text>
+</svg>

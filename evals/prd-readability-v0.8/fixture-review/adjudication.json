@@ -1,0 +1,67 @@
+{
+  "schema_version": "prd-readability-v0.8-fixture-adjudication.v1",
+  "status": "APPROVED_FOR_PREREGISTRATION",
+  "suite_id": "better-product-graph-prd-readability-v0.8",
+  "fixture_tree": {
+    "manifest_path": "fixture-tree.json",
+    "manifest_file_sha256": "sha256:1efdd8bb1046f4b95cbdecc8a34f18c83df5e7a6650b83a04a57089f53fdc86a",
+    "tree_hash": "sha256:da47036a8a805580542574f40d5c623ccd7a487aa15724a510001da840b69ef6"
+  },
+  "review_refs": [
+    {
+      "path": "fixture-review/reviewer-a.json",
+      "hash": "sha256:496d2250f8bbee379a9195cd9222d87474c723374dc3a53fae9f0c747005166a",
+      "reviewer_id": "fixture-review-v08-a2-20260826"
+    },
+    {
+      "path": "fixture-review/reviewer-b.json",
+      "hash": "sha256:b52e32fe827eeef784bc751f6b4b1543be47deb34dadaced504b3dbf26eb3a7a",
+      "reviewer_id": "fixture-review-v08-b2-20260826"
+    }
+  ],
+  "independence": {
+    "reviewers_saw_each_others_result": false,
+    "reviewers_saw_expected_oracle": false,
+    "reviewers_saw_preregistration": false,
+    "reviewers_saw_scorer": false,
+    "reviewers_received_opaque_document_ids": true,
+    "both_reviewed_exact_current_tree": true
+  },
+  "agreement": {
+    "reviewers": 2,
+    "finding_documents": 6,
+    "pass_documents": 4,
+    "outcome_disagreements": []
+  },
+  "approved_scored_case_ids": [
+    "case-001",
+    "case-002",
+    "case-003",
+    "case-004",
+    "case-005",
+    "case-006",
+    "case-007",
+    "case-008",
+    "case-009"
+  ],
+  "calibration_only_document": {
+    "path": "calibration/notification-priority-positive.md",
+    "result": "PASS",
+    "included_in_scored_denominator": false
+  },
+  "superseded_calibration": {
+    "attempt": "v08-blind-fixture-calibration-2edac87",
+    "status": "SUPERSEDED_INVALID_FOR_CALIBRATION",
+    "review_output_hashes": [
+      "sha256:8ed0d634a7853d3acf9a40c46a3f41b8ea5c5c7f354f7ea3f52a8e1aea41c2fa",
+      "sha256:c7ddbc5ae47c9e88cadbc88554003722b5fa909851cfe32fdfdf761ee6f68c46"
+    ],
+    "reason": "Reviewer-visible positive guidance and non-case-002 scoring-oriented fixture drift made the first judgments inadmissible.",
+    "reused": false
+  },
+  "current_concern_dispositions": [],
+  "semantic_evaluation_status": "NOT_RUN",
+  "agent_runtime_status": "NOT_RUN",
+  "real_prd_review_status": "NOT_RUN",
+  "human_reader_validation": "NOT_RUN"
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": "prd-readability-v0.7-fixture-adjudication.v1",
+  "status": "APPROVED_FOR_PREREGISTRATION",
+  "suite_id": "better-product-graph-prd-readability-v0.7",
+  "fixture_tree": {
+    "manifest_path": "fixture-tree.json",
+    "manifest_file_sha256": "sha256:355935ab97ed44b84f23f6e6361e939735742c13cfcb607fc78c52ba9128938d",
+    "tree_hash": "sha256:26d3d4895de069d698eb4645beb40d4e464e1f08b34615c175fde03c076df83f"
+  },
+  "review_refs": [
+    {
+      "path": "fixture-review/reviewer-a.json",
+      "hash": "sha256:6b3ec82e66eacf611fff98634c67827e3351fdab4c9ecd7f6fd52efa89c972c8",
+      "reviewer_id": "fixture-review-v07-a2-20260826"
+    },
+    {
+      "path": "fixture-review/reviewer-b.json",
+      "hash": "sha256:46b8e69af7aa2b0575de681e3c75643a480ceea11b9b7bf8ea4d9c08625643d0",
+      "reviewer_id": "fixture-review-v07-b2-20260826"
+    }
+  ],
+  "independence": {
+    "reviewers_saw_each_others_result": false,
+    "reviewers_saw_expected_oracle": false,
+    "reviewers_saw_preregistration": false,
+    "reviewers_saw_scorer": false,
+    "both_reviewed_exact_replacement_tree": true
+  },
+  "superseded_tree": {
+    "tree_hash": "sha256:3bd097779ef748c4221352fca921ac624d1746dfcd1a7919e914145a59664005",
+    "status": "SUPERSEDED_BY_FIXTURE_CHANGE",
+    "concerns": [
+      {
+        "concern_id": "PNG_MARKER_END_ARROWHEADS_MISSING",
+        "summary": "PNG 丢失 marker-end 箭头，方向信息不完整。",
+        "disposition": "FIXED_BY_COMMIT_8316141",
+        "replacement_tree_verification": "A2_AND_B2_INDEPENDENTLY_APPROVED"
+      },
+      {
+        "concern_id": "UNMENTIONED_FOURTH_LOW_RISK_DIRECT_CONFIRM_PATH",
+        "summary": "图中存在正文未说明的第四条低风险直接确认路径。",
+        "disposition": "FIXED_BY_COMMIT_8316141",
+        "replacement_tree_verification": "A2_AND_B2_INDEPENDENTLY_APPROVED"
+      }
+    ]
+  },
+  "approved_case_ids": [
+    "case-001",
+    "case-002",
+    "case-003",
+    "case-004",
+    "case-005",
+    "case-006",
+    "case-007",
+    "case-008",
+    "case-009"
+  ],
+  "current_concern_dispositions": [],
+  "semantic_evaluation_status": "NOT_RUN",
+  "agent_runtime_status": "NOT_RUN",
+  "real_prd_review_status": "NOT_RUN",
+  "human_reader_validation": "NOT_RUN"
+}

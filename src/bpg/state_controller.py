@@ -15,10 +15,16 @@ from uuid import uuid4
 from .contracts import PolicyViolation, validate_node_result_producer
 from .bugs import validate_bug_assessment
 from .discovery_contract import build_problem_ready_output, validate_problem_ready
-from .evals_authority import EvalsAuthorityError, validate_reviewed_evals
+from .evals_authority import PROVENANCE_ROLES, EvalsAuthorityError, validate_reviewed_evals
 from .evals_fulfillment import (
     EvalsFulfillmentError,
     validate_evals_fulfillment_submission,
+)
+from .evals_generator import (
+    EvalsGeneratorError,
+    derive_evals_status,
+    validate_assessment_submission,
+    validate_pack_stage_submission,
 )
 from .node_registry import NodeRegistry
 from .node_validation import NodeValidationError, validate_node_output
@@ -52,8 +58,14 @@ from .storage import (
     verify_event_chain,
 )
 from .reference_catalog import ReferenceCatalog, ReferenceCatalogError
-from .templates import TemplateContractError, TemplateRegistry, TemplateSelection
+from .templates import (
+    TemplateContractError,
+    TemplateRegistry,
+    TemplateSelection,
+    resolve_project_template_path,
+)
 from .writing_review import WritingReviewError, load_and_validate_writing_coverage
+from .visual_assets import VisualAssetError, scan_reader_visible_visual_source
 
 
 class StateConflict(RuntimeError):
@@ -101,6 +113,8 @@ STATE_COMMIT_EVENT_VERSION_FIELDS = {
     "HANDOFF_LOCAL_COMMITTED": "state_version",
     "GRAPH_COMPATIBILITY_UPGRADED": "state_version",
     "EVALS_FULFILLMENT_REQUIRED": "state_version",
+    "EVALS_PREPARATION_BLOCKED": "state_version",
+    "EVAL_PACK_STAGED": "state_version",
     "EVALS_FULFILLMENT_BOUND": "state_version",
     "NODE_TRANSITION_COMMITTED": "after_state_version",
     "PLAN_RECONCILE_REQUIRED": "after_state_version",
@@ -220,6 +234,96 @@ class StateController:
         if isinstance(pin, dict) and pin:
             return pin
         return self._template_selection()
+
+    def _writing_review_context_for_receipt(
+        self,
+        kind: str,
+        state: dict[str, Any],
+        normalized_subjects: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        """Recover exact reviewed-Candidate authority from durable review dispatches."""
+
+        if kind != "review_finalize":
+            return None
+        writing_ref = next(
+            (
+                item
+                for item in normalized_subjects
+                if item.get("role") == "writing_coverage"
+            ),
+            None,
+        )
+        if not isinstance(writing_ref, dict):
+            raise ReceiptError("review_finalize Writing Review subject is missing")
+        try:
+            writing_review = read_json(self.project_root / writing_ref["path"])
+        except (KeyError, OSError, IntegrityError) as error:
+            raise ReceiptError("review_finalize Writing Review subject is invalid") from error
+        if (
+            writing_review.get("schema_version")
+            != "document-experience-reader-review.v3"
+        ):
+            return None
+        aggregate_ref = next(
+            (
+                item
+                for item in normalized_subjects
+                if item.get("role") == "review_aggregate"
+            ),
+            None,
+        )
+        if not isinstance(aggregate_ref, dict):
+            raise ReceiptError("review_finalize aggregate subject is missing")
+        try:
+            aggregate = read_json(self.project_root / aggregate_ref["path"])
+        except (KeyError, OSError, IntegrityError) as error:
+            raise ReceiptError("review_finalize aggregate subject is invalid") from error
+        completed_attempt_ids = {
+            item.get("attempt_id")
+            for item in aggregate.get("attempts", [])
+            if isinstance(item, dict)
+            and item.get("status") == "COMPLETED"
+            and isinstance(item.get("attempt_id"), str)
+        }
+        consumed = set(state.get("consumed_attempts", []))
+        durable_contexts = [
+            attempt["contract"]["writing_review_context"]
+            for attempt in state.get("dispatch_attempts", [])
+            if isinstance(attempt, dict)
+            and attempt.get("node_id") == "review.parallel"
+            and attempt.get("attempt_id") in completed_attempt_ids
+            and attempt.get("attempt_id") in consumed
+            and isinstance(attempt.get("contract"), dict)
+            and isinstance(attempt["contract"].get("writing_review_context"), dict)
+        ]
+        identities = {
+            canonical_json_bytes(context) for context in durable_contexts
+        }
+        if len(identities) != 1:
+            raise ReceiptError(
+                "review_finalize lacks one exact durable Writing Review context"
+            )
+        durable_context = json.loads(next(iter(identities)))
+        try:
+            current_context = self.writing_review_context(
+                state, ReferenceCatalog(self.skill_root).review_resources()
+            )
+        except (ReferenceCatalogError, TransitionRejected) as error:
+            raise ReceiptError(
+                f"review_finalize current Writing Review authority is invalid: {error}"
+            ) from error
+        # Review finalization updates the companion and therefore the Candidate
+        # tree. The Writing Review remains bound to the exact pre-finalize tree
+        # in its durable dispatch; every metadata/resource authority must still
+        # recompute identically against the current Candidate generation.
+        current_context["candidate_tree_hash"] = durable_context.get(
+            "candidate_tree_hash"
+        )
+        if current_context != durable_context:
+            raise ReceiptError(
+                "review_finalize durable Writing Review context differs from current authority"
+            )
+        return durable_context
 
     @contextmanager
     def mutation_lock(self, run_id: str) -> Iterator[None]:
@@ -448,6 +552,58 @@ class StateController:
             if input_hashes.get(commitment["path"]) != commitment["hash"]:
                 raise TransitionRejected("Goal Fidelity commitment ref is not an exact dispatch input")
 
+    @staticmethod
+    def exact_writing_review_resources(
+        resource_refs: list[dict[str, Any]],
+        context: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Keep only the Writing resources bound to this exact Candidate profile."""
+
+        writing_resource_ids = {
+            "writing-standard-coverage-contract",
+            "prd-writing-profile-v0.2",
+            "prd-writing-guide-v0.2",
+            "prd-writing-reader-review-v3",
+            "prd-writing-profile-v0.4",
+            "prd-writing-guide-v0.4",
+            "prd-writing-reader-review-v3.1",
+            "prd-writing-reader-review-v3.2",
+            "prd-writing-profile-v0.5",
+            "prd-writing-guide-v0.5",
+        }
+        contract_key = (
+            "coverage_contract_ref"
+            if context.get("schema_version") == "writing-review-dispatch.v1"
+            else "review_contract_ref"
+        )
+        selected = [
+            context.get("profile_ref"),
+            context.get("guide_ref"),
+            context.get(contract_key),
+        ]
+        if not all(isinstance(item, dict) for item in selected):
+            raise TransitionRejected("Writing Review exact resource selection is incomplete")
+        exact_fields = ("path", "hash", "version")
+        selected_identities = {
+            tuple(item.get(field) for field in exact_fields) for item in selected
+        }
+        if len(selected_identities) != 3 or any(None in item for item in selected_identities):
+            raise TransitionRejected("Writing Review exact resource selection is ambiguous")
+        filtered = [
+            item
+            for item in resource_refs
+            if item.get("resource_id") not in writing_resource_ids
+            or tuple(item.get(field) for field in exact_fields) in selected_identities
+        ]
+        retained = {
+            tuple(item.get(field) for field in exact_fields)
+            for item in filtered
+            if item.get("resource_id") in writing_resource_ids
+        }
+        if retained != selected_identities:
+            raise TransitionRejected("Writing Review exact resource selection differs from catalog")
+        return filtered
+
     def _validate_exact_dispatch_result(
         self,
         state: dict[str, Any],
@@ -478,8 +634,17 @@ class StateController:
             contract["input_refs"],
             contract["input_hashes"],
         )
-        compatibility = self.registry.instruction_compatibility(
-            state["current_node"], contract.get("instruction_hash")
+        if state["current_node"] == "review.parallel":
+            durable_writing_context = contract.get("writing_review_context")
+            if not isinstance(durable_writing_context, dict):
+                raise TransitionRejected("Writing Review dispatch context is missing")
+            current_contract["resource_refs"] = self.exact_writing_review_resources(
+                current_contract["resource_refs"], durable_writing_context
+            )
+        compatibility = self.registry.attempt_instruction_compatibility(
+            state["current_node"],
+            contract.get("instruction_hash"),
+            dispatch.get("status"),
         )
         if compatibility == "INCOMPATIBLE":
             raise TransitionRejected(
@@ -839,8 +1004,10 @@ class StateController:
             current_contract_invalid = False
             if attempt_id not in consumed_attempts:
                 try:
-                    compatibility = self.registry.instruction_compatibility(
-                        node_id, contract.get("instruction_hash")
+                    compatibility = self.registry.attempt_instruction_compatibility(
+                        node_id,
+                        contract.get("instruction_hash"),
+                        attempt.get("status"),
                     )
                 except (OSError, KeyError, ValueError) as error:
                     blockers.append(
@@ -1001,6 +1168,8 @@ class StateController:
             try:
                 self._validate_single_artifact_ref(ref)
             except TransitionRejected as error:
+                if self._is_completed_legacy_planning_source(state, ref):
+                    continue
                 blockers.append(f"event authority artifact {name}: {error}")
         candidate = state.get("current_candidate_ref")
         if isinstance(candidate, dict):
@@ -1061,6 +1230,76 @@ class StateController:
         if blockers:
             raise TransitionRejected("event authority barrier: " + "; ".join(blockers))
         return state
+
+    def _is_completed_legacy_planning_source(
+        self,
+        state: dict[str, Any],
+        ref: dict[str, Any],
+    ) -> bool:
+        """Identify pre-snapshot planning inputs that cannot affect a finished Run."""
+
+        if not (
+            state.get("status") == "COMPLETED"
+            and isinstance(ref, dict)
+            and ref.get("role") == "planning_context_source"
+            and ref.get("origin_node_id") == "planning.context.prepare"
+            and isinstance(ref.get("origin_attempt_id"), str)
+            and bool(ref["origin_attempt_id"])
+            and ref["origin_attempt_id"] in state.get("consumed_attempts", [])
+            and isinstance(ref.get("path"), str)
+            and bool(ref["path"])
+            and isinstance(ref.get("hash"), str)
+            and ref["hash"].startswith("sha256:")
+            and ref.get("version") is not None
+        ):
+            return False
+        attempt_id = ref["origin_attempt_id"]
+        try:
+            result_path = self._result_path(state["run_id"], attempt_id)
+            receipt_path = result_path.with_name("result-receipt.json")
+            result = read_json(result_path)
+            receipt = read_json(receipt_path)
+        except (IntegrityError, KeyError, OSError, ValueError):
+            return False
+        source_ref = {
+            key: value
+            for key, value in ref.items()
+            if key not in {"origin_node_id", "origin_attempt_id"}
+        }
+        return (
+            result.get("node_id") == "planning.context.prepare"
+            and result.get("attempt_id") == attempt_id
+            and source_ref in result.get("artifact_refs", [])
+            and receipt.get("result_hash") == sha256_file(result_path)
+        )
+
+    def historical_source_warnings(
+        self,
+        state: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Report drift in legacy live inputs without rewriting completed history."""
+
+        warnings: list[dict[str, Any]] = []
+        for name, ref in state.get("artifact_refs", {}).items():
+            if not self._is_completed_legacy_planning_source(state, ref):
+                continue
+            try:
+                self._validate_single_artifact_ref(ref)
+            except TransitionRejected:
+                warnings.append(
+                    {
+                        "status": "DEGRADED_SOURCE_DRIFT",
+                        "artifact_key": name,
+                        "path": ref["path"],
+                        "expected_hash": ref["hash"],
+                        "reason": "LIVE_SOURCE_NO_LONGER_MATCHES_COMMITTED_HISTORY",
+                        "lifecycle_impact": "NONE_COMPLETED_RUN_REMAINS_COMPLETED",
+                        "next_action": (
+                            "Keep the completed Run immutable; use a new Run for new work."
+                        ),
+                    }
+                )
+        return warnings
 
     def _validated_partial_ready_retry_attempt(
         self,
@@ -2170,18 +2409,6 @@ class StateController:
             if isinstance(item, dict) and isinstance(item.get("resource_id"), str)
         }
         try:
-            profile_resource = resources["prd-writing-profile-v0.2"]
-            guide_resource = resources["prd-writing-guide-v0.2"]
-            coverage_resource = resources["writing-standard-coverage-contract"]
-            profile_ref = {
-                key: profile_resource[key] for key in ("path", "hash", "version")
-            }
-            guide_ref = {
-                key: guide_resource[key] for key in ("path", "hash", "version")
-            }
-            coverage_contract_ref = {
-                key: coverage_resource[key] for key in ("path", "hash", "version")
-            }
             metadata_profile = {
                 key: experience["profile_ref"][key] for key in ("path", "hash", "version")
             }
@@ -2198,61 +2425,206 @@ class StateController:
             author_attempt_id = provenance["attempt_id"]
         except (KeyError, TypeError) as error:
             raise TransitionRejected("Writing Review exact Candidate bindings are incomplete") from error
-        if metadata_profile != profile_ref or metadata_guide != guide_ref:
-            raise TransitionRejected("Writing Review Profile/Guide differs from Candidate binding")
+        variants = (
+            {
+                "profile_id": "prd-writing-profile-v0.2",
+                "guide_id": "prd-writing-guide-v0.2",
+                "contract_id": "writing-standard-coverage-contract",
+                "dispatch_schema": "writing-review-dispatch.v1",
+                "review_schema": "document-experience-coverage.v1",
+            },
+            {
+                "profile_id": "prd-writing-profile-v0.4",
+                "guide_id": "prd-writing-guide-v0.4",
+                "contract_id": "prd-writing-reader-review-v3",
+                "dispatch_schema": "writing-review-dispatch.v3",
+                "review_schema": "document-experience-reader-review.v3",
+            },
+            {
+                "profile_id": "prd-writing-profile-v0.5",
+                "guide_id": "prd-writing-guide-v0.5",
+                "contract_id": "prd-writing-reader-review-v3.2",
+                "profile_contract_id": "prd-writing-reader-review-v3.1",
+                "diagnostic_count": 11,
+                "dispatch_schema": "writing-review-dispatch.v3",
+                "review_schema": "document-experience-reader-review.v3",
+            },
+        )
+        selected: dict[str, str] | None = None
+        profile_ref: dict[str, Any] | None = None
+        guide_ref: dict[str, Any] | None = None
+        review_contract_ref: dict[str, Any] | None = None
+        for variant in variants:
+            try:
+                candidate_profile_ref = {
+                    key: resources[variant["profile_id"]][key]
+                    for key in ("path", "hash", "version")
+                }
+                candidate_guide_ref = {
+                    key: resources[variant["guide_id"]][key]
+                    for key in ("path", "hash", "version")
+                }
+                candidate_contract_ref = {
+                    key: resources[variant["contract_id"]][key]
+                    for key in ("path", "hash", "version")
+                }
+            except (KeyError, TypeError):
+                continue
+            if (
+                metadata_profile == candidate_profile_ref
+                and metadata_guide == candidate_guide_ref
+            ):
+                selected = variant
+                profile_ref = candidate_profile_ref
+                guide_ref = candidate_guide_ref
+                review_contract_ref = candidate_contract_ref
+                break
+        if not all(
+            isinstance(item, dict)
+            for item in (selected, profile_ref, guide_ref, review_contract_ref)
+        ):
+            raise TransitionRejected(
+                "Writing Review Profile/Guide differs from every exact supported Candidate binding"
+            )
         if not isinstance(author_attempt_id, str) or not author_attempt_id:
             raise TransitionRejected("Writing Review author attempt provenance is missing")
         try:
             references = ReferenceCatalog(self.skill_root)
             profile = read_json(references.resolve(profile_ref["path"]))
-            coverage_contract = read_json(references.resolve(coverage_contract_ref["path"]))
-            output_path = references.resolve(output_contract_ref["path"])
-        except (ReferenceCatalogError, OSError, ValueError) as error:
+            review_contract = read_json(references.resolve(review_contract_ref["path"]))
+            output_contract_path = output_contract_ref["path"]
+            if not isinstance(output_contract_path, str):
+                raise TemplateContractError(
+                    "Writing Review output contract path is invalid"
+                )
+            if output_contract_path.startswith("references/"):
+                output_path = references.resolve(output_contract_path)
+            else:
+                output_path = resolve_project_template_path(
+                    self.project_root,
+                    output_contract_path,
+                    "Writing Review output contract",
+                )
+                if not output_path.is_file() or output_path.is_symlink():
+                    raise TemplateContractError(
+                        "Writing Review output contract is missing or is a symlink"
+                    )
+        except (
+            ReferenceCatalogError,
+            TemplateContractError,
+            OSError,
+            ValueError,
+        ) as error:
             raise TransitionRejected(f"Writing Review resource authority is invalid: {error}") from error
         if sha256_file(output_path) != output_contract_ref["hash"]:
             raise TransitionRejected("Writing Review Output Contract hash differs")
-        required_rule_ids = profile.get("required_expression_rules")
-        delivery_checks = coverage_contract.get("delivery_checks")
-        required_check_ids = [
-            item.get("check_id") for item in delivery_checks if isinstance(item, dict)
-        ] if isinstance(delivery_checks, list) else []
-        if (
-            not isinstance(required_rule_ids, list)
-            or len(required_rule_ids) != 13
-            or len(required_rule_ids) != len(set(required_rule_ids))
-            or len(required_check_ids) != 10
-            or len(required_check_ids) != len(set(required_check_ids))
-            or coverage_contract.get("profile_ref") != profile_ref
-            or coverage_contract.get("guide_ref") != guide_ref
-        ):
-            raise TransitionRejected("Writing Review coverage contract is incomplete")
         candidate_ref = {
             key: candidate[key] for key in ("path", "hash", "version")
         }
-        return {
-            "schema_version": "writing-review-dispatch.v1",
+        context = {
+            "schema_version": selected["dispatch_schema"],
             "candidate_ref": candidate_ref,
             "candidate_tree_hash": candidate["tree_hash"],
             "profile_ref": profile_ref,
             "guide_ref": guide_ref,
             "output_contract_ref": output_contract_ref,
-            "coverage_contract_ref": coverage_contract_ref,
             "author_execution_ref": {
                 "kind": "HOST_AGENT_ATTEMPT",
                 "id": author_attempt_id,
             },
-            "isolated_input_refs": [
-                candidate_ref,
-                profile_ref,
-                guide_ref,
-                output_contract_ref,
-            ],
-            "required_rule_ids": required_rule_ids,
-            "required_check_ids": required_check_ids,
             "claim_boundary": (
                 "RECORDED_DISTINCT_DURABLE_ATTEMPTS_NOT_EXTERNAL_IDENTITY_PROOF"
             ),
         }
+        if selected["review_schema"] == "document-experience-coverage.v1":
+            required_rule_ids = profile.get("required_expression_rules")
+            delivery_checks = review_contract.get("delivery_checks")
+            required_check_ids = [
+                item.get("check_id")
+                for item in delivery_checks
+                if isinstance(item, dict)
+            ] if isinstance(delivery_checks, list) else []
+            if (
+                not isinstance(required_rule_ids, list)
+                or len(required_rule_ids) != 13
+                or len(required_rule_ids) != len(set(required_rule_ids))
+                or len(required_check_ids) != 10
+                or len(required_check_ids) != len(set(required_check_ids))
+                or review_contract.get("profile_ref") != profile_ref
+                or review_contract.get("guide_ref") != guide_ref
+            ):
+                raise TransitionRejected("Writing Review coverage contract is incomplete")
+            context.update(
+                {
+                    "coverage_contract_ref": review_contract_ref,
+                    "isolated_input_refs": [
+                        candidate_ref,
+                        profile_ref,
+                        guide_ref,
+                        output_contract_ref,
+                    ],
+                    "required_rule_ids": required_rule_ids,
+                    "required_check_ids": required_check_ids,
+                }
+            )
+            return context
+
+        reader_outcomes = review_contract.get("reader_outcomes")
+        diagnostic_categories = review_contract.get("diagnostic_categories")
+        repair_techniques = review_contract.get("repair_techniques")
+        if (
+            profile.get("review_contract_id")
+            != selected.get("profile_contract_id", selected["contract_id"])
+            or review_contract.get("review_schema") != selected["review_schema"]
+            or review_contract.get("profile_ref") != profile_ref
+            or review_contract.get("guide_ref") != guide_ref
+            or reader_outcomes != [
+                "UNDERSTAND",
+                "SEE",
+                "MODEL",
+                "RETELL",
+                "DECIDE",
+                "LOCATE",
+            ]
+            or not isinstance(diagnostic_categories, list)
+            or len(diagnostic_categories) != int(selected.get("diagnostic_count", 9))
+            or len(diagnostic_categories) != len(set(diagnostic_categories))
+            or not isinstance(repair_techniques, list)
+            or len(repair_techniques) != 12
+            or len(repair_techniques) != len(set(repair_techniques))
+        ):
+            raise TransitionRejected("Writing Review reader contract is incomplete")
+        context.update(
+            {
+                "review_contract_ref": review_contract_ref,
+                "isolated_input_refs": [
+                    candidate_ref,
+                    profile_ref,
+                    guide_ref,
+                    review_contract_ref,
+                    output_contract_ref,
+                ],
+                "reader_outcomes": reader_outcomes,
+                "diagnostic_categories": diagnostic_categories,
+                "repair_techniques": repair_techniques,
+                "review_claim_boundary": review_contract.get("claim_boundary"),
+            }
+        )
+        try:
+            visual_source_scan = scan_reader_visible_visual_source(
+                self.project_root,
+                archived.document_path,
+                candidate_ref=candidate_ref,
+            )
+        except VisualAssetError as error:
+            raise TransitionRejected(
+                f"Writing Review Candidate source authority is invalid: {error}"
+            ) from error
+        context["visual_source_scan"] = visual_source_scan
+        context["reader_visible_visual_pairs"] = visual_source_scan[
+            "safe_visual_pairs"
+        ]
+        return context
 
     def _validate_writing_review_authority(
         self, state: dict[str, Any], result: dict[str, Any]
@@ -2357,6 +2729,14 @@ class StateController:
         ):
             raise TransitionRejected("Ready evidence requires one exact current Gate attempt")
         archived = self._current_candidate_artifact(state)
+        from .documents import ImmutableArtifactError, validate_archived_visual_delivery
+
+        try:
+            validate_archived_visual_delivery(self.project_root, archived)
+        except ImmutableArtifactError as error:
+            raise TransitionRejected(
+                f"Ready visual delivery contract is invalid: {error}"
+            ) from error
         candidate = state["current_candidate_ref"]
         companion = read_json(archived.review_path)
         if (
@@ -2777,6 +3157,279 @@ class StateController:
         except EvalsAuthorityError as error:
             raise TransitionRejected(f"REVIEWED Evals authority invalid: {error}") from error
 
+    def product_evals_context(self, run_id: str) -> dict[str, Any]:
+        """Return the exact Product Evals work context and four truth dimensions."""
+
+        state = self.load_state(run_id)
+        if state.get("status") not in {"ACTIVE", "RELEASED", "COMPLETED"}:
+            raise TransitionRejected("Product Evals require an active or completed PRD Run")
+        if not isinstance(state.get("current_candidate_ref"), dict):
+            raise TransitionRejected("Product Evals require one exact current PRD Candidate")
+        archived = self._current_candidate_artifact(state)
+        metadata_paths = list(archived.path.glob("*.metadata.json"))
+        if len(metadata_paths) != 1 or metadata_paths[0].is_symlink():
+            raise TransitionRejected("Product Evals require exact Candidate metadata")
+        metadata = read_json(metadata_paths[0])
+        candidate_ref = {
+            "path": archived.document_path.relative_to(self.project_root).as_posix(),
+            "hash": archived.document_hash,
+            "version": archived.version,
+        }
+        evals = metadata.get("evals")
+        if not isinstance(evals, dict) or evals.get("applicability") not in {
+            "NOT_NEEDED",
+            "RECOMMENDED",
+            "REQUIRED",
+        }:
+            raise TransitionRejected("Candidate lacks a valid Product Evals applicability decision")
+        preparation = state.get("evals_preparation")
+        if isinstance(preparation, dict):
+            try:
+                status = derive_evals_status(
+                    preparation,
+                    current_candidate_ref=candidate_ref,
+                )
+            except EvalsGeneratorError as error:
+                raise TransitionRejected(f"Product Evals preparation state is invalid: {error}") from error
+        else:
+            fulfillment = evals.get("fulfillment")
+            if fulfillment == "REVIEWED":
+                visible_fulfillment = "REVIEWED"
+            elif fulfillment == "BLOCKED_MISSING_INPUT":
+                visible_fulfillment = "BLOCKED_MISSING_INPUT"
+            else:
+                visible_fulfillment = "NOT_STARTED"
+            status = {
+                "applicability": evals["applicability"],
+                "fulfillment": visible_fulfillment,
+                "execution": "NOT_RUN",
+                "freshness": "CURRENT",
+                "delivery": "LOCAL_ONLY",
+            }
+        return {
+            "schema_version": "product-evals-preparation-context.v1",
+            "run_id": run_id,
+            "candidate_ref": candidate_ref,
+            "delivery_intent": metadata.get("delivery_intent"),
+            "candidate_evals": evals,
+            "evals_status": status,
+            "preparation": preparation,
+        }
+
+    @serialized_run_mutation
+    def stage_product_eval_pack(
+        self,
+        run_id: str,
+        submission: dict[str, Any],
+        *,
+        expected_state_version: int,
+    ) -> dict[str, Any]:
+        """Stage one immutable Pack version without claiming Review or execution."""
+
+        state = self.load_state(run_id)
+        if expected_state_version != state["state_version"]:
+            raise StateConflict(
+                f"expected state version {expected_state_version}, current is {state['state_version']}"
+            )
+        if state.get("ready_receipts") or state.get("release_ref") is not None:
+            raise TransitionRejected("Product Eval Pack cannot mutate a Ready or Released Candidate")
+        context = self.product_evals_context(run_id)
+        if context["evals_status"]["freshness"] != "CURRENT":
+            raise TransitionRejected("Product Eval Pack preparation is STALE for the current Candidate")
+        applicability = context["evals_status"]["applicability"]
+        if applicability == "NOT_NEEDED":
+            raise TransitionRejected("NOT_NEEDED must not generate an empty Product Eval Pack")
+        previous = state.get("evals_preparation")
+        previous_pack_ref = None
+        previous_version = None
+        history = []
+        if isinstance(previous, dict):
+            history = json.loads(canonical_json_bytes(previous.get("history", [])))
+            prior_versions = [entry for entry in history if isinstance(entry.get("pack_ref"), dict)]
+            if prior_versions:
+                previous_pack_ref = prior_versions[-1]["pack_ref"]
+                previous_version = prior_versions[-1]["version"]
+        if submission.get("schema_version") == "product-eval-assessment-submission.v1":
+            try:
+                blocked = validate_assessment_submission(
+                    submission,
+                    expected_candidate_ref=context["candidate_ref"],
+                    expected_applicability=applicability,
+                )
+            except EvalsGeneratorError as error:
+                raise TransitionRejected(f"Product Eval assessment staging invalid: {error}") from error
+            if (
+                isinstance(previous, dict)
+                and previous.get("candidate_ref") == context["candidate_ref"]
+                and previous.get("fulfillment") == "BLOCKED_MISSING_INPUT"
+                and previous.get("assessment") == blocked["assessment"]
+                and previous.get("build_attempt") == blocked["build_identity"]
+            ):
+                return {
+                    "state": state,
+                    "evals_status": derive_evals_status(
+                        previous,
+                        current_candidate_ref=context["candidate_ref"],
+                    ),
+                }
+            for entry in history:
+                if entry.get("freshness") == "CURRENT":
+                    entry["freshness"] = "STALE"
+            preparation = {
+                "schema_version": "product-evals-preparation-state.v1",
+                "candidate_ref": context["candidate_ref"],
+                "applicability": applicability,
+                "assessment": blocked["assessment"],
+                "fulfillment": "BLOCKED_MISSING_INPUT",
+                "execution_status": "NOT_RUN",
+                "freshness": "CURRENT",
+                "build_attempt": blocked["build_identity"],
+                "history": history,
+            }
+            next_state = json.loads(canonical_json_bytes(state))
+            next_state["state_version"] += 1
+            next_state["evals_preparation"] = preparation
+            committed = self._commit_state_event(
+                run_id,
+                state,
+                next_state,
+                {
+                    "event_type": "EVALS_PREPARATION_BLOCKED",
+                    "actor": "state-controller",
+                    "run_id": run_id,
+                    "state_version": next_state["state_version"],
+                    "candidate_ref": context["candidate_ref"],
+                    "missing_authority": blocked["assessment"]["missing_authority"],
+                    "execution_status": "NOT_RUN",
+                },
+                transaction_id=(
+                    "evals-preparation-blocked-"
+                    + context["candidate_ref"]["hash"].removeprefix("sha256:")[:16]
+                ),
+            )
+            return {
+                "state": committed,
+                "evals_status": derive_evals_status(
+                    preparation,
+                    current_candidate_ref=context["candidate_ref"],
+                ),
+            }
+        try:
+            validated = validate_pack_stage_submission(
+                self.project_root,
+                submission,
+                expected_candidate_ref=context["candidate_ref"],
+                expected_applicability=applicability,
+                previous_pack_ref=previous_pack_ref,
+                previous_version=previous_version,
+            )
+        except EvalsGeneratorError as error:
+            raise TransitionRejected(f"Product Eval Pack staging invalid: {error}") from error
+        artifact_values = [
+            ref for ref in state.get("artifact_refs", {}).values() if isinstance(ref, dict)
+        ]
+        for authority_ref in validated["pack"]["ground_truth_provenance"]["exact_refs"]:
+            matches = [
+                ref
+                for ref in artifact_values
+                if ref.get("role") in PROVENANCE_ROLES
+                and all(
+                    ref.get(field) == authority_ref.get(field)
+                    for field in ("path", "hash", "version")
+                )
+            ]
+            identities = {
+                (ref.get("path"), ref.get("hash"), ref.get("version"), ref.get("role"))
+                for ref in matches
+            }
+            if len(identities) != 1:
+                raise TransitionRejected(
+                    "Product Eval Pack Ground Truth requires one exact committed authority role"
+                )
+        if (
+            isinstance(previous, dict)
+            and previous.get("current_pack_ref") == validated["pack_ref"]
+            and previous.get("current_fixtures_ref") == validated["fixtures_ref"]
+            and previous.get("build_attempt") == validated["build_identity"]
+        ):
+            return {"state": state, "evals_status": context["evals_status"]}
+
+        if isinstance(previous, dict):
+            for entry in history:
+                if entry.get("freshness") == "CURRENT":
+                    entry["freshness"] = "STALE"
+        current_history = {
+            "version": validated["pack"]["version"],
+            "pack_ref": validated["pack_ref"],
+            "fixtures_ref": validated["fixtures_ref"],
+            "build_attempt": validated["build_identity"],
+            "freshness": "CURRENT",
+            "correction": validated["pack"]["revision"]["correction"],
+        }
+        history.append(current_history)
+        preparation = {
+            "schema_version": "product-evals-preparation-state.v1",
+            "candidate_ref": context["candidate_ref"],
+            "applicability": applicability,
+            "assessment": validated["assessment"],
+            "fulfillment": "GENERATED_PENDING_REVIEW",
+            "execution_status": "NOT_RUN",
+            "freshness": "CURRENT",
+            "version": validated["pack"]["version"],
+            "current_pack_ref": validated["pack_ref"],
+            "current_fixtures_ref": validated["fixtures_ref"],
+            "build_attempt": validated["build_identity"],
+            "review_ref": None,
+            "history": history,
+        }
+        next_state = json.loads(canonical_json_bytes(state))
+        next_state["state_version"] += 1
+        next_state["evals_preparation"] = preparation
+        pack_suffix = validated["pack_ref"]["hash"].removeprefix("sha256:")[:16]
+        fixture_suffix = validated["fixtures_ref"]["hash"].removeprefix("sha256:")[:16]
+        next_state["artifact_refs"][f"evals:staged-pack:{pack_suffix}"] = {
+            "role": "eval_pack_staged",
+            **validated["pack_ref"],
+            "origin_node_id": "evals.build",
+            "origin_attempt_id": (
+                f"evals-build:{validated['build_identity']['kind']}:"
+                f"{validated['build_identity']['id']}"
+            ),
+        }
+        next_state["artifact_refs"][f"evals:staged-fixtures:{fixture_suffix}"] = {
+            "role": "eval_fixtures_staged",
+            **validated["fixtures_ref"],
+            "origin_node_id": "evals.build",
+            "origin_attempt_id": (
+                f"evals-build:{validated['build_identity']['kind']}:"
+                f"{validated['build_identity']['id']}"
+            ),
+        }
+        committed = self._commit_state_event(
+            run_id,
+            state,
+            next_state,
+            {
+                "event_type": "EVAL_PACK_STAGED",
+                "actor": "state-controller",
+                "run_id": run_id,
+                "state_version": next_state["state_version"],
+                "candidate_ref": context["candidate_ref"],
+                "pack_ref": validated["pack_ref"],
+                "fixtures_ref": validated["fixtures_ref"],
+                "pack_version": validated["pack"]["version"],
+                "execution_status": "NOT_RUN",
+            },
+            transaction_id=f"eval-pack-staged-{pack_suffix}",
+        )
+        return {
+            "state": committed,
+            "evals_status": derive_evals_status(
+                preparation,
+                current_candidate_ref=context["candidate_ref"],
+            ),
+        }
+
     def required_evals_repair_context(self, run_id: str) -> dict[str, Any] | None:
         """Return exact pending Eval facts without claiming fulfillment or Ready."""
 
@@ -2808,6 +3461,39 @@ class StateController:
             },
         }
 
+    def pending_evals_fulfillment_context(self, run_id: str) -> dict[str, Any] | None:
+        """Return a staged RECOMMENDED/REQUIRED Pack or the legacy Ready blocker."""
+
+        required = self.required_evals_repair_context(run_id)
+        if required is not None:
+            return required
+        state = self.load_state(run_id)
+        if state.get("status") != "ACTIVE" or state.get("ready_receipts") or state.get("release_ref"):
+            return None
+        preparation = state.get("evals_preparation")
+        if (
+            not isinstance(preparation, dict)
+            or preparation.get("applicability") not in {"RECOMMENDED", "REQUIRED"}
+            or preparation.get("fulfillment") != "GENERATED_PENDING_REVIEW"
+            or not isinstance(preparation.get("current_pack_ref"), dict)
+        ):
+            return None
+        context = self.product_evals_context(run_id)
+        if context["evals_status"]["freshness"] != "CURRENT":
+            return None
+        return {
+            "schema_version": "evals-fulfillment-context.v1",
+            "candidate_ref": context["candidate_ref"],
+            "delivery_intent": context["delivery_intent"],
+            "experiment_contract": None,
+            "evals": context["candidate_evals"],
+            "required_origin_separation": {
+                "pack_producer": "HOST_AGENT",
+                "reviewer_role": "INDEPENDENT_TESTABILITY_REVIEWER",
+                "reviewer_must_differ": True,
+            },
+        }
+
     @serialized_run_mutation
     def mark_required_evals_repair(
         self, run_id: str, *, expected_state_version: int
@@ -2827,7 +3513,7 @@ class StateController:
             "status": "NOT_READY",
             "reason": "REQUIRED_EVALS_FULFILLMENT_PENDING",
             "execution_status": "NOT_RUN",
-            "repair_operation": "fulfill-evals",
+            "repair_operation": "prepare-evals",
             "candidate_ref": context["candidate_ref"],
         }
         if (
@@ -3331,9 +4017,9 @@ class StateController:
             raise StateConflict(
                 f"expected state version {expected_state_version}, current is {state['state_version']}"
             )
-        context = self.required_evals_repair_context(run_id)
+        context = self.pending_evals_fulfillment_context(run_id)
         if context is None:
-            raise TransitionRejected("Run has no pending REQUIRED Evals repair")
+            raise TransitionRejected("Run has no pending staged Product Evals fulfillment")
         if state.get("ready_receipts") or state.get("release_ref") is not None:
             raise TransitionRejected("Eval repair cannot mutate a Ready or Released Candidate")
         try:
@@ -3343,6 +4029,7 @@ class StateController:
                 submission,
                 expected_candidate_ref=context["candidate_ref"],
                 artifact_refs=state.get("artifact_refs", {}),
+                expected_staging=state.get("evals_preparation"),
             )
         except EvalsFulfillmentError as error:
             raise TransitionRejected(f"Eval fulfillment invalid: {error}") from error
@@ -3394,7 +4081,13 @@ class StateController:
             "review_ref": fulfillment["review_ref"],
             "execution_status": "NOT_RUN",
         }
-        receipt_path = self.run_path(run_id) / "evals-fulfillment" / "receipt.json"
+        if fulfillment["pack_schema_version"] == "product-eval-pack.v1":
+            candidate_suffix = context["candidate_ref"]["hash"].removeprefix("sha256:")[:12]
+            pack_suffix = fulfillment["pack_ref"]["hash"].removeprefix("sha256:")[:12]
+            receipt_name = f"receipt-{candidate_suffix}-{pack_suffix}.json"
+        else:
+            receipt_name = "receipt.json"
+        receipt_path = self.run_path(run_id) / "evals-fulfillment" / receipt_name
         if receipt_path.exists() and read_json(receipt_path) != receipt:
             raise StateConflict("Eval fulfillment receipt identity conflict")
         if not receipt_path.exists():
@@ -3474,11 +4167,45 @@ class StateController:
             "review_ref": fulfillment["review_ref"],
         }
         next_state["artifact_refs"]["evals:fulfillment-receipt"] = receipt_ref
+        if fulfillment["pack_schema_version"] == "product-eval-pack.v1":
+            next_state["artifact_refs"].pop("evals:fulfillment-receipt", None)
+            review_suffix = fulfillment["review_ref"]["hash"].removeprefix("sha256:")[:16]
+            receipt_suffix = receipt_ref["hash"].removeprefix("sha256:")[:16]
+            next_state["artifact_refs"][f"evals:review:{review_suffix}"] = {
+                "role": "eval_pack_review",
+                **fulfillment["review_ref"],
+                "origin_node_id": "evals.review",
+                "origin_attempt_id": fulfillment["review_attempt_id"],
+            }
+            next_state["artifact_refs"][f"evals:fulfillment-receipt:{receipt_suffix}"] = {
+                **receipt_ref
+            }
+        if isinstance(state.get("evals_preparation"), dict):
+            eval_history = json.loads(
+                canonical_json_bytes(state["evals_preparation"].get("history", []))
+            )
+            for entry in eval_history:
+                if entry.get("pack_ref") == fulfillment["pack_ref"]:
+                    entry["review_ref"] = fulfillment["review_ref"]
+                    entry["review_attempt"] = fulfillment["review_identity"]
+                    entry["fulfillment"] = "REVIEWED"
+                    entry["fulfillment_receipt_ref"] = receipt_ref
+            next_state["evals_preparation"] = {
+                **state["evals_preparation"],
+                "fulfillment": "REVIEWED",
+                "execution_status": "NOT_RUN",
+                "freshness": "CURRENT",
+                "review_ref": fulfillment["review_ref"],
+                "review_attempt": fulfillment["review_identity"],
+                "fulfillment_receipt_ref": receipt_ref,
+                "history": eval_history,
+            }
 
-        transaction_id = (
-            "evals-fulfillment-"
-            + context["candidate_ref"]["hash"].removeprefix("sha256:")[:16]
-        )
+        transaction_id = "evals-fulfillment-" + context["candidate_ref"]["hash"].removeprefix(
+            "sha256:"
+        )[:16]
+        if fulfillment["pack_schema_version"] == "product-eval-pack.v1":
+            transaction_id += "-" + fulfillment["pack_ref"]["hash"].removeprefix("sha256:")[:16]
         event = self._state_commit_event(
             {
                 "event_id": f"state-transaction:{run_id}:{transaction_id}",
@@ -3851,6 +4578,9 @@ class StateController:
                     candidate_ref=candidate,
                     template_selection=self._template_selection_for_receipt(
                         kind, candidate, state
+                    ),
+                    writing_review_context=self._writing_review_context_for_receipt(
+                        kind, state, verified["subject_refs"]
                     ),
                 )
             except ReceiptError as error:
@@ -4376,6 +5106,9 @@ class StateController:
                 template_selection=self._template_selection_for_receipt(
                     kind, candidate_ref, state
                 ),
+                writing_review_context=self._writing_review_context_for_receipt(
+                    kind, state, normalized
+                ),
             )
         except ReceiptError as error:
             raise TransitionRejected(str(error)) from error
@@ -4643,6 +5376,55 @@ class StateController:
             )
         return json.loads(canonical_json_bytes(ref))
 
+    def _freeze_planning_context_source(
+        self,
+        run_id: str,
+        ref: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Copy one validated live planning input into immutable Run-local storage."""
+
+        try:
+            source = assert_managed_path(
+                self.project_root,
+                self.project_root / ref["path"],
+            )
+            source_bytes = source.read_bytes()
+        except (IntegrityError, KeyError, OSError) as error:
+            raise TransitionRejected(
+                f"planning context source could not be frozen: {ref.get('path')}"
+            ) from error
+        exact_hash = sha256_bytes(source_bytes)
+        if exact_hash != ref.get("hash"):
+            raise TransitionRejected(
+                f"planning context source changed before commit: {ref.get('path')}"
+            )
+        digest = exact_hash.removeprefix("sha256:")
+        snapshot = (
+            self.run_path(run_id)
+            / "frozen-inputs"
+            / "planning-context"
+            / f"{digest}.source"
+        )
+        if snapshot.exists():
+            if (
+                snapshot.is_symlink()
+                or not snapshot.is_file()
+                or sha256_file(snapshot) != exact_hash
+            ):
+                raise TransitionRejected(
+                    f"planning context snapshot path is occupied or changed: {snapshot.name}"
+                )
+        else:
+            atomic_write_bytes(snapshot, source_bytes)
+        source_ref = json.loads(canonical_json_bytes(ref))
+        return {
+            "role": "planning_context_snapshot",
+            "path": snapshot.relative_to(self.project_root).as_posix(),
+            "hash": exact_hash,
+            "version": 1,
+            "source_ref": source_ref,
+        }
+
     def _bind_committed_outputs(
         self,
         state: dict[str, Any],
@@ -4663,7 +5445,13 @@ class StateController:
         }
         state["artifact_refs"][f"node-result:{attempt_id}"] = result_ref
         for index, ref in enumerate(result.get("artifact_refs", [])):
-            exact = json.loads(canonical_json_bytes(ref))
+            if (
+                result.get("node_id") == "planning.context.prepare"
+                and ref.get("role") == "planning_context_source"
+            ):
+                exact = self._freeze_planning_context_source(run_id, ref)
+            else:
+                exact = json.loads(canonical_json_bytes(ref))
             exact["origin_node_id"] = result["node_id"]
             exact["origin_attempt_id"] = attempt_id
             key = f"node-output:{attempt_id}:{index}:{exact.get('role', 'artifact')}"

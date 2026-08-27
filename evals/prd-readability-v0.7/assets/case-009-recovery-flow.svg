@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-labelledby="visual-title visual-desc">
+  <title id="visual-title">资料补交后的申请恢复路径</title>
+  <desc id="visual-desc">资料恢复路径：异常申请→识别恢复路径；识别恢复路径后进入自动重试、等待补齐或人工核查；自动重试→服务端确认；等待补齐时，按时补齐→服务端确认，补交超时→停止并告知；人工核查后，人工放行→服务端确认，人工拒绝→停止并告知；服务端确认→恢复成功，确认失败→停止并告知。</desc>
+
+  <rect x="0" y="0" width="1200" height="600" fill="#FFFFFF"/>
+
+  <rect id="node-start" x="25" y="265" width="150" height="70" rx="16" fill="#EEF4FF" stroke="#344054" stroke-width="2"/>
+  <text x="100" y="300" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">异常申请</text>
+
+  <path id="node-route-decision" d="M205 300 L300 220 L395 300 L300 380 Z" fill="#FFF6E8" stroke="#344054" stroke-width="2"/>
+  <text x="300" y="291" text-anchor="middle" font-size="17" font-family="sans-serif" font-weight="700" fill="#101828">识别</text>
+  <text x="300" y="315" text-anchor="middle" font-size="17" font-family="sans-serif" font-weight="700" fill="#101828">恢复路径</text>
+
+  <rect id="node-auto-retry" x="470" y="50" width="170" height="70" rx="16" fill="#E9F8F0" stroke="#344054" stroke-width="2"/>
+  <text x="555" y="85" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">自动重试</text>
+
+  <rect id="node-wait-supplement" x="470" y="265" width="170" height="70" rx="16" fill="#EEF4FF" stroke="#344054" stroke-width="2"/>
+  <text x="555" y="300" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">等待补齐</text>
+
+  <rect id="node-manual-review" x="470" y="480" width="170" height="70" rx="16" fill="#FFF0F0" stroke="#344054" stroke-width="2"/>
+  <text x="555" y="515" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">人工核查</text>
+
+  <rect id="node-server-confirmation" x="790" y="265" width="190" height="76" rx="16" fill="#E8F4FD" stroke="#175CD3" stroke-width="3"/>
+  <text x="885" y="295" text-anchor="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">服务端确认</text>
+  <text x="885" y="319" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#344054">恢复结果已落定</text>
+
+  <rect id="node-success" x="1020" y="265" width="160" height="76" rx="16" fill="#E9F8F0" stroke="#257A4B" stroke-width="3"/>
+  <text x="1100" y="303" text-anchor="middle" dominant-baseline="middle" font-size="19" font-family="sans-serif" font-weight="700" fill="#101828">恢复成功</text>
+
+  <rect id="node-stop" x="1020" y="50" width="160" height="76" rx="16" fill="#FFF0F0" stroke="#B42318" stroke-width="3"/>
+  <text x="1100" y="88" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">停止并告知</text>
+
+  <g id="edge-start-route" data-text="异常申请→识别恢复路径" aria-label="异常申请进入恢复路径识别">
+    <path id="edge-start-route-shaft" d="M175 300 H193" fill="none" stroke="#344054" stroke-width="3"/>
+    <polygon id="edge-start-route-arrowhead" points="205,300 193,293 193,307" fill="#344054"/>
+  </g>
+
+  <g id="edge-route-auto" data-text="识别恢复路径→自动重试" aria-label="识别为可安全自动重试">
+    <path id="edge-route-auto-shaft" d="M300 220 V170 H555 V134" fill="none" stroke="#344054" stroke-width="3"/>
+    <polygon id="edge-route-auto-arrowhead" points="555,120 548,134 562,134" fill="#344054"/>
+    <text x="330" y="158" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">可安全重试</text>
+  </g>
+
+  <g id="edge-route-wait" data-text="识别恢复路径→等待补齐" aria-label="识别为需要等待补齐资料">
+    <path id="edge-route-wait-shaft" d="M395 300 H456" fill="none" stroke="#344054" stroke-width="3"/>
+    <polygon id="edge-route-wait-arrowhead" points="470,300 456,293 456,307" fill="#344054"/>
+    <text x="405" y="288" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">缺资料</text>
+  </g>
+
+  <g id="edge-route-manual" data-text="识别恢复路径→人工核查" aria-label="识别为需要人工核查">
+    <path id="edge-route-manual-shaft" d="M300 380 V430 H555 V466" fill="none" stroke="#344054" stroke-width="3"/>
+    <polygon id="edge-route-manual-arrowhead" points="555,480 548,466 562,466" fill="#344054"/>
+    <text x="330" y="420" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">需人工</text>
+  </g>
+
+  <g id="edge-auto-confirm" data-text="自动重试→服务端确认" aria-label="自动重试完成后进入服务端确认">
+    <path id="edge-auto-confirm-shaft" d="M640 85 H730 V240 H820 V251" fill="none" stroke="#257A4B" stroke-width="3"/>
+    <polygon id="edge-auto-confirm-arrowhead" points="820,265 813,251 827,251" fill="#257A4B"/>
+    <text x="660" y="74" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">重试完成</text>
+  </g>
+
+  <g id="edge-wait-confirm" data-text="等待补齐→服务端确认" aria-label="按时补齐后进入服务端确认">
+    <path id="edge-wait-confirm-shaft" d="M640 300 H776" fill="none" stroke="#257A4B" stroke-width="3"/>
+    <polygon id="edge-wait-confirm-arrowhead" points="790,300 776,293 776,307" fill="#257A4B"/>
+    <text x="680" y="288" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">按时补齐</text>
+  </g>
+
+  <g id="edge-wait-stop" data-text="等待补齐→停止并告知" aria-label="补交超时后停止并告知">
+    <path id="edge-wait-stop-shaft" d="M555 265 V180 H1045 V140" fill="none" stroke="#B42318" stroke-width="3"/>
+    <polygon id="edge-wait-stop-arrowhead" points="1045,126 1038,140 1052,140" fill="#B42318"/>
+    <text x="820" y="168" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">补交超时</text>
+  </g>
+
+  <g id="edge-manual-confirm" data-text="人工核查→服务端确认" aria-label="人工放行后进入服务端确认">
+    <path id="edge-manual-confirm-shaft" d="M640 515 H730 V365 H850 V355" fill="none" stroke="#257A4B" stroke-width="3"/>
+    <polygon id="edge-manual-confirm-arrowhead" points="850,341 843,355 857,355" fill="#257A4B"/>
+    <text x="665" y="504" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">人工放行</text>
+  </g>
+
+  <g id="edge-manual-stop" data-text="人工核查→停止并告知" aria-label="人工拒绝后停止并告知">
+    <path id="edge-manual-stop-shaft" d="M640 535 H995 V88 H1006" fill="none" stroke="#B42318" stroke-width="3"/>
+    <polygon id="edge-manual-stop-arrowhead" points="1020,88 1006,81 1006,95" fill="#B42318"/>
+    <text x="800" y="524" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">人工拒绝</text>
+  </g>
+
+  <g id="edge-confirm-success" data-text="服务端确认→恢复成功" aria-label="服务端确认成功后恢复成功">
+    <path id="edge-confirm-success-shaft" d="M980 303 H1006" fill="none" stroke="#257A4B" stroke-width="3"/>
+    <polygon id="edge-confirm-success-arrowhead" points="1020,303 1006,296 1006,310" fill="#257A4B"/>
+    <text x="980" y="291" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">确认成功</text>
+  </g>
+
+  <g id="edge-confirm-stop" data-text="服务端确认→停止并告知" aria-label="服务端确认失败后停止并告知">
+    <path id="edge-confirm-stop-shaft" d="M940 265 V200 H1160 V140" fill="none" stroke="#B42318" stroke-width="3"/>
+    <polygon id="edge-confirm-stop-arrowhead" points="1160,126 1153,140 1167,140" fill="#B42318"/>
+    <text x="955" y="188" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">确认失败</text>
+  </g>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" role="img" aria-labelledby="title desc">
+  <title id="title">高风险导出流程</title>
+  <desc id="desc">图中从提交经过负责人审批直接进入文件生成和下载，省略了权限服务授权步骤。</desc>
+  <rect x="30" y="115" width="120" height="70" rx="12" fill="#e9f2ff" stroke="#1f5fae" stroke-width="3"/>
+  <rect x="200" y="115" width="120" height="70" rx="12" fill="#fff4d6" stroke="#8a6414" stroke-width="3"/>
+  <rect x="370" y="115" width="120" height="70" rx="12" fill="#eaf8ee" stroke="#26723b" stroke-width="3"/>
+  <rect x="535" y="115" width="80" height="70" rx="12" fill="#f3ebff" stroke="#6542a6" stroke-width="3"/>
+  <path d="M150 150 H190 M320 150 H360 M490 150 H525" fill="none" stroke="#263238" stroke-width="4"/>
+  <path d="M190 150 l-12 -8 v16 z M360 150 l-12 -8 v16 z M525 150 l-12 -8 v16 z" fill="#263238"/>
+  <text x="90" y="156" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#102a43">提交</text>
+  <text x="260" y="145" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#4b3b13">负责人</text>
+  <text x="260" y="169" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#4b3b13">审批</text>
+  <text x="430" y="156" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#164c29">生成文件</text>
+  <text x="575" y="156" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#3d2868">下载</text>
+  <text x="320" y="250" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#5d4037">图中没有显示权限服务授权</text>
+</svg>

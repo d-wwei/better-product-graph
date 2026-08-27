@@ -114,6 +114,19 @@ class TemplatePackConfigurationTests(unittest.TestCase):
 
         self.assertFalse((self.project / ".better-product-graph").exists())
 
+    def test_prerelease_bpg_version_uses_release_core_for_compatibility(self) -> None:
+        pack = self._write_pack(requires_bpg=">=0.2.13,<0.3.0")
+
+        result = configure_project_template(
+            project_root=self.project,
+            templates_root=TEMPLATES,
+            pack_root=pack,
+            bpg_version="0.2.18-rc.4",
+        )
+
+        self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
+        self.assertEqual(result["bpg_version"], "0.2.18-rc.4")
+
     def test_template_hash_mismatch_is_rejected_without_half_configuration(self) -> None:
         pack = self._write_pack(
             manifest_overrides={"template_sha256": "sha256:" + "0" * 64}
@@ -146,6 +159,39 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         )
         self.assertFalse(
             (self.project / ".better-product-graph/templates/test-product/1.0.0").exists()
+        )
+
+    def test_invalid_required_table_row_contract_is_rejected_without_configuration(
+        self,
+    ) -> None:
+        pack = self._write_pack()
+        contract_path = pack / "templates/test-product/1.0.0/OUTPUT_CONTRACT.json"
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        contract["structures"]["legacy"]["required_table_rows"] = {
+            "验收标准": {
+                "allowed_statuses": ["已确认"],
+                "reason_required_statuses": ["不涉及"],
+                "rows": [
+                    {
+                        "label": "权限检查",
+                        "status_column_index": 1,
+                    }
+                ],
+            }
+        }
+        contract_path.write_text(
+            json.dumps(contract, ensure_ascii=False), encoding="utf-8"
+        )
+        manifest_path = pack / "pack.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["output_contract_sha256"] = sha256_file(contract_path)
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+        with self.assertRaisesRegex(TemplatePackError, "required table-row"):
+            self._configure(pack)
+
+        self.assertFalse(
+            (self.project / ".better-product-graph/template-profile.json").exists()
         )
 
     def test_manifest_path_escape_and_symlink_are_rejected(self) -> None:
@@ -245,7 +291,7 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(result["configuration_action"], "PROJECT_TEMPLATE_CONFIGURE")
         self.assertEqual(result["graph_run_created"], False)
-        self.assertEqual(result["bpg_version"], "0.2.13")
+        self.assertEqual(result["bpg_version"], "0.2.18")
         self.assertFalse((self.project / ".better-product-graph/runs").exists())
 
     def test_legacy_install_operation_is_not_a_user_facing_entry(self) -> None:

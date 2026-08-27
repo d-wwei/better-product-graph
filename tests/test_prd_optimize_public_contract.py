@@ -95,6 +95,32 @@ class PRDOptimizePublicContractTests(unittest.TestCase):
             registry["nodes"]["prd.optimize"]["compatible_instruction_hashes"],
         )
 
+    def test_installed_generate_and_optimize_expose_exact_asset_change_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            plugin = Path(directory) / "plugin"
+            build_plugin(REPO_ROOT, plugin)
+            root = plugin / "skills/better-product-graph/references/atomic-skills"
+            generate = (root / "prd-generate/INSTRUCTIONS.md").read_text(encoding="utf-8")
+            review = (root / "prd-review/INSTRUCTIONS.md").read_text(encoding="utf-8")
+
+        match = re.search(
+            r"<!-- prd-asset-change-set-v1-contract -->\s*```json\s*(\{.*?\})\s*```",
+            generate,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        contract = json.loads(match.group(1))
+        self.assertEqual(contract["schema_version"], "prd-asset-change-set.v1")
+        self.assertEqual(set(contract), {"schema_version", "upsert", "remove"})
+        self.assertIn("exact regular non-symlink source refs", review)
+
+    def test_installed_review_exposes_source_only_raw_svg_finding_rule(self) -> None:
+        instruction = self._installed_instruction()
+        self.assertIn("writing_review_context.visual_source_scan", instruction)
+        self.assertIn("REVIEWABLE_UNSAFE_NOT_RENDERED", instruction)
+        self.assertIn("observation_status=NOT_RENDERED", instruction)
+        self.assertIn("`PASS` and `NOT_NEEDED` are", instruction)
+
 
 if __name__ == "__main__":
     unittest.main()

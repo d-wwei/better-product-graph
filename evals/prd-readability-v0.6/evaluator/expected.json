@@ -1,0 +1,80 @@
+{
+  "schema_version": "prd-readability-expected-envelope.v0.6",
+  "suite_id": "better-product-graph-prd-readability-v0.6",
+  "custody": "EVALUATOR_ONLY_DO_NOT_COPY_TO_AGENT_WORKSPACE",
+  "cases": {
+    "flat-18-acceptance-rows": {
+      "agent_case_id": "case-001",
+      "required_result": "FINDING",
+      "primary_objective": "MAKE_PEER_STRUCTURE_SCANNABLE",
+      "allowed_primary_pairs": [
+        ["FLAT_PEER_OVERLOAD", "GROUP"],
+        ["FLAT_PEER_OVERLOAD", "LAYER"]
+      ]
+    },
+    "duplicate-eight-questions-and-blocks": {
+      "agent_case_id": "case-002",
+      "required_result": "FINDING",
+      "primary_objective": "KEEP_ONE_CANONICAL_DEFINITION",
+      "allowed_primary_pairs": [
+        ["SEMANTIC_REPETITION", "REFERENCE"],
+        ["SEMANTIC_REPETITION", "MERGE"]
+      ]
+    },
+    "list-diagram-table-same-model": {
+      "agent_case_id": "case-003",
+      "required_result": "FINDING",
+      "primary_objective": "REMOVE_REDUNDANT_REPRESENTATION",
+      "allowed_primary_pairs": [
+        ["REPRESENTATION_COLLISION", "TRIM"],
+        ["REPRESENTATION_COLLISION", "REFERENCE"],
+        ["REPRESENTATION_COLLISION", "MERGE"]
+      ]
+    },
+    "trim-removes-useful-checklist": {
+      "agent_case_id": "case-004",
+      "required_result": "FINDING",
+      "primary_objective": "PRESERVE_CHECKLIST_FUNCTION",
+      "allowed_primary_pairs": [
+        ["CHECKLIST_FUNCTION_LOSS", "RESTORE_FUNCTION"],
+        ["CHECKLIST_FUNCTION_LOSS", "REFERENCE"]
+      ]
+    },
+    "checked-boxes-without-legend": {
+      "agent_case_id": "case-005",
+      "required_result": "FINDING",
+      "primary_objective": "CLARIFY_COMPLETION_EVIDENCE_BOUNDARY",
+      "allowed_primary_pairs": [
+        ["COMPLETION_SEMANTICS_AMBIGUOUS", "EXPLAIN"],
+        ["COMPLETION_SEMANTICS_AMBIGUOUS", "BOUNDARY"]
+      ]
+    },
+    "proposed-contract-looks-implemented": {
+      "agent_case_id": "case-006",
+      "required_result": "FINDING",
+      "primary_objective": "CLARIFY_ARTIFACT_MATURITY_BOUNDARY",
+      "allowed_primary_pairs": [
+        ["ARTIFACT_MATURITY_OVERCLAIM", "BOUNDARY"],
+        ["ARTIFACT_MATURITY_OVERCLAIM", "EXPLAIN"]
+      ]
+    },
+    "large-necessary-state-table": {
+      "agent_case_id": "case-007",
+      "required_result": "PASS",
+      "primary_objective": "NO_REPAIR_REQUIRED",
+      "allowed_primary_pairs": []
+    },
+    "long-appendix-short-main-path": {
+      "agent_case_id": "case-008",
+      "required_result": "PASS",
+      "primary_objective": "NO_REPAIR_REQUIRED",
+      "allowed_primary_pairs": []
+    },
+    "reader-first-layered-prd": {
+      "agent_case_id": "case-009",
+      "required_result": "PASS",
+      "primary_objective": "NO_REPAIR_REQUIRED",
+      "allowed_primary_pairs": []
+    }
+  }
+}

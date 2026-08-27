@@ -49,6 +49,17 @@ class NodeRegistry:
                 raise NodeRegistryError(
                     f"compatible instruction hashes are invalid for {node_id}"
                 )
+            unstarted_only = contract.get(
+                "unstarted_only_compatible_instruction_hashes", []
+            )
+            if (
+                not isinstance(unstarted_only, list)
+                or len(unstarted_only) != len(set(unstarted_only))
+                or any(value not in compatible for value in unstarted_only)
+            ):
+                raise NodeRegistryError(
+                    f"unstarted-only compatible instruction hashes are invalid for {node_id}"
+                )
             compatible_route_sets = contract.get("compatible_route_sets", [])
             if (
                 not isinstance(compatible_route_sets, list)
@@ -122,6 +133,23 @@ class NodeRegistry:
         if dispatch_hash in compatible:
             return "DECLARED_COMPATIBLE_SUCCESSOR"
         return "INCOMPATIBLE"
+
+    def attempt_instruction_compatibility(
+        self, node_id: str, dispatch_hash: Any, attempt_status: Any
+    ) -> str:
+        """Apply lifecycle limits to one declared predecessor instruction."""
+
+        compatibility = self.instruction_compatibility(node_id, dispatch_hash)
+        restricted = self.contracts[node_id].get(
+            "unstarted_only_compatible_instruction_hashes", []
+        )
+        if (
+            compatibility == "DECLARED_COMPATIBLE_SUCCESSOR"
+            and dispatch_hash in restricted
+            and attempt_status != "PLANNED"
+        ):
+            return "INCOMPATIBLE"
+        return compatibility
 
     def routes_compatible(self, node_id: str, routes: Any) -> bool:
         """Accept the current routes or one exact predecessor set declared by the successor."""

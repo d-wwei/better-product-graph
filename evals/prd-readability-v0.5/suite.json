@@ -1,0 +1,77 @@
+{
+  "schema_version": "prd-readability-suite.v0.5",
+  "suite_id": "better-product-graph-prd-readability-v0.5",
+  "status": "PREREGISTERED_AGENT_EVAL_NOT_RUN",
+  "case_ids": [
+    "flat-18-acceptance-rows",
+    "duplicate-eight-questions-and-blocks",
+    "list-diagram-table-same-model",
+    "trim-removes-useful-checklist",
+    "checked-boxes-without-legend",
+    "proposed-contract-looks-implemented",
+    "large-necessary-state-table",
+    "long-appendix-short-main-path",
+    "reader-first-layered-prd"
+  ],
+  "case_hashes": {
+    "flat-18-acceptance-rows": "sha256:96b335a1af306cdaa30573c5a714ca998a1ffc7b926d25552035a8eb0c71e759",
+    "duplicate-eight-questions-and-blocks": "sha256:381d674e6a078ac0e3e0808c6afef58b6da90c07c7f30003c71999d25cc220d2",
+    "list-diagram-table-same-model": "sha256:9efece8076738df0e84cd32151ea3263af55418627f7f73cd99b67180f0b1f97",
+    "trim-removes-useful-checklist": "sha256:f593eb22853ea98a9ea65e678b512d57942b58a8f496873979c498aa9028ea3a",
+    "checked-boxes-without-legend": "sha256:81d779c91619d495a5b2c0a25d93952125fb96682c0dff82d4195471f39e6ea2",
+    "proposed-contract-looks-implemented": "sha256:7cc8018623f7127f05cec5bcbaee3e23fa56dc4f71ffe65bc66f2036591f58e0",
+    "large-necessary-state-table": "sha256:88a7312641941246a5f50810d09332d23e717805bba6284ccc7dc22f554f44ab",
+    "long-appendix-short-main-path": "sha256:3a3ec153b2eae397bd2ae4c78661001e8601e0a60a484eb0c9382d5f4ccc10d3",
+    "reader-first-layered-prd": "sha256:e4c6886b67622e26903e9cb63628a10221edf7d4e712dd91a7a9b62b953520c1"
+  },
+  "fixture_tree_hash": "sha256:a313fc5a86bff1804f0bfa81198e5fc78fd33e343a01197fa0966248407b7dae",
+  "agent_case_file": "candidate.md",
+  "evaluator_only_files": [
+    "evaluator/expected.json",
+    "evaluator/preregistration.json",
+    "evaluator/score_results.py",
+    "fixture-review/reviewer-a.json",
+    "fixture-review/reviewer-b.json",
+    "fixture-review/adjudication.json"
+  ],
+  "profile_ref": {
+    "path": "policies/document-experience/PRD_WRITING_PROFILE_v0.5.json",
+    "hash": "sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0",
+    "version": "0.5.0"
+  },
+  "guide_ref": {
+    "path": "policies/document-experience/PRD_WRITING_GUIDE_v0.5.md",
+    "hash": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962",
+    "version": "0.5.0"
+  },
+  "instruction_ref": {
+    "path": "src/core/atomic-skills/prd-writing-eval-review-v3.2/INSTRUCTIONS.md",
+    "hash": "sha256:2315d87afb0756fa1dee7bf242fdf01d117c44460b59a5dab13d4275272a0c30",
+    "version": "v3.2"
+  },
+  "reviewer_resource_ref": {
+    "path": "src/core/reviewer-profiles/prd-writing-eval-reader-review-v3.2.json",
+    "hash": "sha256:39de6937c1696d78432d3c46af7a9dbb4144e7f60d6bc85e70515a97cd7efce3",
+    "version": "v3.2"
+  },
+  "output_contract_ref": {
+    "path": "src/core/templates/contracts/prd-v0.2.json",
+    "hash": "sha256:33270d0d8c30bc384e5c6f9f2f9a5e59cacb06b2be27da2f3f5b20eeebfc08a0",
+    "version": "better-product-graph.prd.general.0.2"
+  },
+  "result_schema_ref": {
+    "path": "src/core/schemas/document-experience-reader-eval-v3.1.schema.json",
+    "hash": "sha256:6aa12505bf4e89b99a5d9d7693f03fde99cdfa50cd9514c4a8310165c176b366",
+    "version": "document-experience-reader-eval.v3.1"
+  },
+  "target_eval_schema": "document-experience-reader-eval.v3.1",
+  "evidence_policy": {
+    "contract_pass_implies_agent_runtime_pass": false,
+    "fixture_pass_implies_real_prd_review_pass": false,
+    "fixture_pass_implies_human_reader_validation": false,
+    "agent_runtime_status": "NOT_RUN",
+    "real_prd_review_status": "NOT_RUN",
+    "human_reader_validation": "NOT_RUN",
+    "required_installed_agent_eval_result": "27/27"
+  }
+}

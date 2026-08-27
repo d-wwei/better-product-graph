@@ -13,6 +13,7 @@ from src.bpg.storage import read_json, sha256_bytes, sha256_file, verify_event_c
 from src.bpg.templates import TemplateRegistry
 from tests.test_prd_contract import REPO_ROOT, TEMPLATES, prd_submission
 from tests.test_reviews_ready import complete_ready_input, materialize_ready_evidence
+from tests.test_visual_assets import png, svg
 
 
 GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
@@ -42,6 +43,12 @@ class PRDLifecycleContractTests(unittest.TestCase):
             assembled = assemble_prd(
                 submission, TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
             )
+            assembled = assembled.with_markdown(
+                assembled.markdown.replace(
+                    "## 验收标准",
+                    "![状态示意](./assets/state.svg)\n\n## 验收标准",
+                )
+            )
             candidate_hash = sha256_bytes(assembled.markdown.encode())
             companion = {
                 "schema_version": "prd-review-companion.v1",
@@ -55,7 +62,7 @@ class PRDLifecycleContractTests(unittest.TestCase):
             archived = archive_prd_candidate(
                 project,
                 assembled,
-                assets={"state.png": b"PNG-BYTES"},
+                assets={"state.svg": svg(), "state@2x.png": png()},
                 review_companion=companion,
             )
 
@@ -64,7 +71,8 @@ class PRDLifecycleContractTests(unittest.TestCase):
             self.assertTrue((archived.path / f"{stem}.md").is_file())
             archived_review = archived.path / f"{stem}.review.json"
             self.assertTrue(archived_review.is_file())
-            self.assertTrue((archived.path / "assets" / "state.png").is_file())
+            self.assertTrue((archived.path / "assets" / "state.svg").is_file())
+            self.assertTrue((archived.path / "assets" / "state@2x.png").is_file())
             self.assertEqual(archived.review_hash, sha256_file(archived_review))
 
             candidate = {
@@ -87,7 +95,8 @@ class PRDLifecycleContractTests(unittest.TestCase):
             )
             self.assertTrue((released.path / f"{stem}.md").is_file())
             self.assertTrue((released.path / f"{stem}.review.json").is_file())
-            self.assertTrue((released.path / "assets" / "state.png").is_file())
+            self.assertTrue((released.path / "assets" / "state.svg").is_file())
+            self.assertTrue((released.path / "assets" / "state@2x.png").is_file())
 
             events = verify_event_chain(
                 project / "artifacts" / "prds" / "PRODUCT_DOCUMENT_CHANGELOG.jsonl"
@@ -104,7 +113,14 @@ class PRDLifecycleContractTests(unittest.TestCase):
             self.assertTrue(release["policy_ref"]["hash"].startswith("sha256:"))
             self.assertEqual(release["review_ref"]["hash"], archived.review_hash)
             self.assertEqual(release["ready_ref"]["hash"], sha256_file(released.path / "READY_ASSERTION.json"))
-            self.assertEqual(release["asset_refs"][0]["hash"], sha256_file(released.path / "assets" / "state.png"))
+            asset_hashes = {item["hash"] for item in release["asset_refs"]}
+            self.assertEqual(
+                asset_hashes,
+                {
+                    sha256_file(released.path / "assets" / "state.svg"),
+                    sha256_file(released.path / "assets" / "state@2x.png"),
+                },
+            )
             self.assertEqual(
                 release["requirement_relationships"],
                 assembled.metadata["requirement_relationships"],

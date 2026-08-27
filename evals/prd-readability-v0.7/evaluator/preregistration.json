@@ -1,0 +1,239 @@
+{
+  "schema_version": "prd-readability-preregistration.v0.7",
+  "suite_id": "better-product-graph-prd-readability-v0.7",
+  "status": "PREREGISTERED_BEFORE_RESULTS",
+  "freeze_order_authority": "PREREGISTRATION_GIT_COMMIT_PRECEDES_ALL_AGENT_OUTPUTS",
+  "custody": "EVALUATOR_ONLY_DO_NOT_COPY_TO_AGENT_WORKSPACE_OR_REVIEWER_PROJECTION",
+  "fixture_tree": {
+    "schema_version": "prd-readability-v0.7-fixture-tree.v1",
+    "suite_id": "better-product-graph-prd-readability-v0.7",
+    "tree_hash": "sha256:26d3d4895de069d698eb4645beb40d4e464e1f08b34615c175fde03c076df83f",
+    "files": [
+      {
+        "path": "cases/case-001.md",
+        "hash": "sha256:c7623543e91a07bd542d566940fa15d6aa3e91046fef3de9f74f1ccde684af83",
+        "size": 3243
+      },
+      {
+        "path": "cases/case-002.md",
+        "hash": "sha256:e45a942caba8425d0e1d73ebe52b7b65e35bc427236db3d92a9cf7945011bfec",
+        "size": 2543
+      },
+      {
+        "path": "cases/case-003.md",
+        "hash": "sha256:e9fc529332f28b6855f9de4856dd9bc9ac864feef6be882f9aab287ef92a928c",
+        "size": 2300
+      },
+      {
+        "path": "cases/case-004.md",
+        "hash": "sha256:04fb9f50cb9e13703b73a8eed77daa141fddf54d7d36b25df75d6f8dfdfe0f08",
+        "size": 2210
+      },
+      {
+        "path": "cases/case-005.md",
+        "hash": "sha256:8cf590a4e50a7ac1953ea556dbfd1a252cd6c57b42a28759a7b6922bac5b0e49",
+        "size": 2004
+      },
+      {
+        "path": "cases/case-006.md",
+        "hash": "sha256:1b5eac3917602c619947b7165624dc7ffd1d92c55d6a9246b47b71aeb01b95c6",
+        "size": 2498
+      },
+      {
+        "path": "cases/case-007.md",
+        "hash": "sha256:3d62f3849f4e4e28b7b0e2220fac259a59ee9fb327dbd80ad050041a8fa55119",
+        "size": 4161
+      },
+      {
+        "path": "cases/case-008.md",
+        "hash": "sha256:6e49333d0e3a0a9fa768369c5c47f5c0cbedc53105fa7513c6753b5f4f2a3f01",
+        "size": 7136
+      },
+      {
+        "path": "cases/case-009.md",
+        "hash": "sha256:e39615254bad34a2ebc87ffdaaac3f37fdecac94b3a0f25b6287215dab274464",
+        "size": 3097
+      },
+      {
+        "path": "assets/case-009-recovery-flow.svg",
+        "hash": "sha256:6c7a919a21b2e03bc80ca509131dce2dc8d2a5ea3274bc4fac959e26b2949745",
+        "size": 8155
+      },
+      {
+        "path": "assets/case-009-recovery-flow@2x.png",
+        "hash": "sha256:6ad8ef3f1a227354ca520ec406981c9e18c37f0c7b658c582176f5d43676107b",
+        "size": 181548
+      }
+    ]
+  },
+  "fixture_review_refs": [
+    {
+      "path": "fixture-review/reviewer-a.json",
+      "hash": "sha256:6b3ec82e66eacf611fff98634c67827e3351fdab4c9ecd7f6fd52efa89c972c8",
+      "version": 1
+    },
+    {
+      "path": "fixture-review/reviewer-b.json",
+      "hash": "sha256:46b8e69af7aa2b0575de681e3c75643a480ceea11b9b7bf8ea4d9c08625643d0",
+      "version": 1
+    }
+  ],
+  "fixture_adjudication_ref": {
+    "path": "fixture-review/adjudication.json",
+    "hash": "sha256:a3cd94ae572bc68d5036243a9fdcbba485b36b119dbc06b681aa4dd55725a044",
+    "version": 1
+  },
+  "suite_ref": {
+    "path": "suite.json",
+    "hash": "sha256:cfb41589166d528fadaace805c2c1f2c71682b7965eef00c6c74eb3cba816ff3",
+    "version": "0.7"
+  },
+  "expected_ref": {
+    "path": "evaluator/expected.json",
+    "hash": "sha256:0d8f2244b02ba19b790c936381bb5dc17e206065c8f18c722cb6c8eb5fbc35b9",
+    "version": 1
+  },
+  "scorer_ref": {
+    "path": "evaluator/score_results.py",
+    "hash": "sha256:2268f2764d879ce767d0a16a6eedeba9819bad4739b1f88ec025242afb5e66ae",
+    "version": 1
+  },
+  "run_contract_ref": {
+    "path": "run_contract.py",
+    "hash": "sha256:8f582eaf8b5f3fa2b56ae4fcda9df2a4ea4b5223ba29d8a0fa781a3498d60f9d",
+    "version": 1
+  },
+  "evidence_reader_ref": {
+    "path": "evaluator/evidence_reader.py",
+      "hash": "sha256:da32dc96af07c0f1cfb3901013e7e5a8925932086a2cadab2575eaa3e3d7d2b7",
+    "version": 1
+  },
+  "profile_ref": {
+    "path": "policies/document-experience/PRD_WRITING_PROFILE_v0.5.json",
+    "hash": "sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0",
+    "version": "0.5.0"
+  },
+  "guide_ref": {
+    "path": "policies/document-experience/PRD_WRITING_GUIDE_v0.5.md",
+    "hash": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962",
+    "version": "0.5.0"
+  },
+  "instruction_ref": {
+    "path": "src/core/atomic-skills/prd-writing-eval-review-v3.2/INSTRUCTIONS.md",
+    "hash": "sha256:2315d87afb0756fa1dee7bf242fdf01d117c44460b59a5dab13d4275272a0c30",
+    "version": "v3.2"
+  },
+  "reviewer_resource_ref": {
+    "path": "src/core/reviewer-profiles/prd-writing-eval-reader-review-v3.2.json",
+    "hash": "sha256:39de6937c1696d78432d3c46af7a9dbb4144e7f60d6bc85e70515a97cd7efce3",
+    "version": "v3.2"
+  },
+  "output_contract_ref": {
+    "path": "src/core/templates/contracts/prd-v0.2.json",
+    "hash": "sha256:33270d0d8c30bc384e5c6f9f2f9a5e59cacb06b2be27da2f3f5b20eeebfc08a0",
+    "version": "better-product-graph.prd.general.0.2"
+  },
+  "result_schema_ref": {
+    "path": "src/core/schemas/document-experience-reader-eval-v3.1.schema.json",
+    "hash": "sha256:6aa12505bf4e89b99a5d9d7693f03fde99cdfa50cd9514c4a8310165c176b366",
+    "version": "document-experience-reader-eval.v3.1"
+  },
+  "mandatory_phases": [
+    "RC_CANDIDATE",
+    "FINAL_PUBLIC_ARTIFACT"
+  ],
+  "phase_gate": {
+    "case_count": 9,
+    "repeats_per_case": 3,
+    "required_attempt_count": 27,
+    "required_passed_attempt_count": 27,
+    "required_passed_repeats_per_case": 3
+  },
+  "phase_installed_build_versions": {
+    "RC_CANDIDATE": "0.2.18-rc.4",
+    "FINAL_PUBLIC_ARTIFACT": "0.2.18"
+  },
+  "cross_phase_fresh_identity_fields": [
+    "run_id",
+    "attempt_id",
+    "reviewer_execution_ref.id",
+    "author_execution_ref.id",
+    "preregistration_checkpoint_ref",
+    "work_order_ref",
+    "output_target",
+    "state_ref",
+    "installed_build_ref"
+  ],
+  "cross_phase_policy": "BOTH_PHASES_PASS_NO_LATER_PHASE_RESCUE",
+  "selection_policy": "ALL_PRODUCED_ATTEMPTS_OCCUPY_DENOMINATOR_NO_BEST_OF_N_NO_REPLACEMENT",
+  "threshold_change_after_first_output": "FORBIDDEN_REQUIRES_SUITE_V0.8",
+  "negative_attempt_policy": "EXACTLY_ONE_FINDING_ASSESSMENT_REGISTERED_PRIMARY_PAIR_PRESENT_SECONDARY_ENUM_VALUES_ALLOWED_NO_SECOND_FINDING",
+  "positive_attempt_policy": "PASS_NULL_PRIMARY_ZERO_FAILURES_ZERO_FINDINGS",
+  "installed_build_policy": "ONE_EXACT_BUILD_REF_PER_PHASE_ALL_27_ATTEMPTS",
+  "manifest_policy": "ONE_CONTROLLER_BOUND_PHASE_MANIFEST_AFTER_27_PREPARES_AND_NULL_RESULTS_BEFORE_AGENT_OUTPUT",
+  "manifest_receipt_policy": "WRITE_ONCE_RECEIPT_PLUS_ALL_27_CONTROLLER_STATE_EVENT_TRANSACTION_BINDINGS_REQUIRED",
+  "batch_validation_receipt_policy": "ALL_27_ORIGINAL_RAW_BYTES_PUBLICLY_PREFLIGHTED_AND_ACCEPTED_RESULT_HASH_BOUND_BEFORE_FIRST_SUBMISSION",
+  "execution_manifest_schema": {
+    "schema_version": "prd-readability-v0.7-execution-manifest.v1",
+    "central_path_pattern": ".better-product-graph/writing-evals/execution-manifests/<PHASE>.json",
+    "write_once": true,
+    "controller_binding_transition": "bind_phase_manifest",
+    "freeze_preconditions": {
+      "prepared_runs": 27,
+      "result_ref_null": 27,
+      "agent_outputs": 0
+    },
+    "exact_entry_fields": [
+      "ordinal",
+      "suite_id",
+      "phase",
+      "semantic_case_id",
+      "agent_case_id",
+      "repeat_index",
+      "run_id",
+      "attempt_id",
+      "reviewer_execution_ref",
+      "author_execution_ref",
+      "preregistration_checkpoint_ref",
+      "work_order_ref",
+      "output_target",
+      "central_project_root",
+      "state_ref",
+      "installed_build_ref"
+    ]
+  },
+  "produced_output_policy": "PRODUCED_OUTPUT_OCCUPIES_BOUND_DENOMINATOR_EVEN_IF_CONTROLLER_VALIDATION_REJECTS",
+  "mechanical_correction_policy": "TWO_STAGE_PUBLIC_PREFLIGHT_SAME_ATTEMPT_AUTHORITY_COPY_FIELDS_ONLY_PRESERVE_ORIGINAL_RAW_BYTES_AND_IDENTICAL_SEMANTIC_PAYLOAD_HASH",
+  "mechanical_authority_copy_fields": [
+    "schema_version",
+    "evaluation_only",
+    "authority",
+    "suite_id",
+    "case_id",
+    "node_id",
+    "attempt_id",
+    "instruction_ref",
+    "instruction_hash",
+    "input_refs",
+    "input_hashes",
+    "preregistration_checkpoint_ref",
+    "candidate_ref",
+    "profile_ref",
+    "guide_ref",
+    "reviewer_resource_ref",
+    "output_contract_ref",
+    "author_execution_ref",
+    "reviewer_execution_ref",
+    "reviewer_role",
+    "isolated_input_refs",
+    "claim_boundary"
+  ],
+  "evaluator_leakage_policy": "FORBIDDEN_IN_ANONYMOUS_EXPORT_AND_REVIEWER_PROJECTIONS",
+  "agent_runtime_status": "NOT_RUN",
+  "phase_runtime_status": {
+    "RC_CANDIDATE": "NOT_RUN",
+    "FINAL_PUBLIC_ARTIFACT": "NOT_RUN"
+  },
+  "real_prd_review_status": "NOT_RUN",
+  "human_reader_validation": "NOT_RUN"
+}

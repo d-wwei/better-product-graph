@@ -308,6 +308,7 @@ class HostEngine:
         state = self.controller.mark_required_evals_repair(
             run_id, expected_state_version=state["state_version"]
         )
+        evals_status = self.controller.product_evals_context(run_id)["evals_status"]
         return {
             "status": "EVALS_FULFILLMENT_REQUIRED",
             "run_id": run_id,
@@ -316,10 +317,11 @@ class HostEngine:
             "delivery_intent": repair["delivery_intent"],
             "experiment_contract": repair["experiment_contract"],
             "evals": repair["evals"],
+            "evals_status": evals_status,
             "execution_status": "NOT_RUN",
             "ready_status": "NOT_READY",
             "release_status": "NOT_RELEASED",
-            "repair_operation": "fulfill-evals",
+            "repair_operation": "prepare-evals",
             "next_nodes": ["review.parallel"],
             "required_origin_separation": repair["required_origin_separation"],
         }
@@ -330,9 +332,12 @@ class HostEngine:
             return {"status": "REJECTED", "reason": "INTERNAL_BYPASS_FORBIDDEN"}
         if parsed.activation == "GUIDED_HELP" or parsed.core_intent == "host.help":
             return dict(HELP)
+        authoritative_state: dict[str, Any] | None = None
         if parsed.run_id:
             try:
-                self.controller.authoritative_read_barrier(parsed.run_id)
+                authoritative_state = self.controller.authoritative_read_barrier(
+                    parsed.run_id
+                )
             except TransitionRejected as error:
                 return {
                     "status": "BLOCKED_STALE",
@@ -360,7 +365,17 @@ class HostEngine:
                 "items": [str(path) for path in sorted(root.glob("*.json"))] if root.exists() else [],
             }
         if parsed.core_intent == "run.status":
-            return {"status": "OK", "state": self.controller.load_state(parsed.run_id or "")}
+            state = authoritative_state or self.controller.load_state(parsed.run_id or "")
+            payload: dict[str, Any] = {"status": "OK", "state": state}
+            warnings = self.controller.historical_source_warnings(state)
+            if warnings:
+                payload.update(
+                    {
+                        "historical_source_status": "DEGRADED_SOURCE_DRIFT",
+                        "historical_source_warnings": warnings,
+                    }
+                )
+            return payload
         if parsed.core_intent == "run.pause":
             state = self.controller.load_state(parsed.run_id or "")
             return finish({

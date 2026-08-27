@@ -1,0 +1,72 @@
+{
+  "schema_version": "writing-reader-eval-contract.v3.2",
+  "resource_id": "prd-writing-eval-reader-review-v3.2",
+  "version": "v3.2",
+  "authority": "EVALUATION_ONLY_ADVISORY",
+  "result_schema": "document-experience-reader-eval.v3.1",
+  "node_id": "writing-eval.review",
+  "terminal_behavior": "CLOSE_EVAL_RUN_WITHOUT_PRODUCT_AUTHORITY",
+  "supported_profile_id": "prd-plain-language-zh-CN",
+  "supported_profile_version": "0.5.0",
+  "reader_outcomes": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "diagnostic_categories": [
+    "SEMANTIC_REPETITION",
+    "FLAT_PEER_OVERLOAD",
+    "REPRESENTATION_COLLISION",
+    "DETAIL_IN_MAIN_PATH",
+    "DENSE_TABLE",
+    "JARGON_INTRUSION",
+    "CHECKLIST_FUNCTION_LOSS",
+    "COMPLETION_SEMANTICS_AMBIGUOUS",
+    "ARTIFACT_MATURITY_OVERCLAIM"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "GROUP",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "REFERENCE",
+    "MOVE",
+    "TRIM",
+    "RESTORE_FUNCTION",
+    "BOUNDARY"
+  ],
+  "responsibility_boundary": {
+    "assesses": "CLARITY_AND_LOCATABILITY_OF_STATED_CONTENT",
+    "does_not_assess": "SUBSTANTIVE_PRODUCT_ENGINEERING_OR_TEST_COMPLETENESS",
+    "repair_selection": "ALLOW_EVIDENCE_BACKED_ALTERNATIVES_FOR_SAME_READER_OBJECTIVE"
+  },
+  "visual_assessment_contract": {
+    "trigger_semantics": "INSPECTION_SIGNALS_NOT_AUTOMATIC_ILLUSTRATION_REQUIREMENTS",
+    "missing_visual_finding_gate": "CURRENT_TEXT_CANNOT_REASONABLY_COMMUNICATE_KEY_RELATIONSHIP_AND_MINIMAL_VISUAL_MATERIALLY_IMPROVES_IT"
+  },
+  "independence": {
+    "author_kind": "HOST_AGENT_ATTEMPT",
+    "reviewer_kind": "HOST_SUBAGENT_ATTEMPT",
+    "different_ids_required": true,
+    "expected_custody": "EVALUATOR_ONLY_EXCLUDED"
+  },
+  "preregistration_required_refs": [
+    "suite_ref",
+    "case_ref",
+    "candidate_ref",
+    "profile_ref",
+    "guide_ref",
+    "instruction_ref",
+    "reviewer_resource_ref",
+    "output_contract_ref",
+    "installed_build_ref",
+    "dispatch_ref"
+  ],
+  "claim_boundary": "AGENT_EVAL_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN"
+}

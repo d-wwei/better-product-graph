@@ -58,14 +58,34 @@ def sync_prd_writing_profile_v02(repo_root: Path, *, check: bool = False) -> dic
     previous_guide = source_root / "PRD_WRITING_GUIDE_v0.1.md"
     previous_runtime_profile = runtime_root / "prd-writing-profile-v0.1.json"
     previous_runtime_guide = runtime_root / "prd-writing-guide-v0.1.md"
+    candidate_v04_profile = source_root / "PRD_WRITING_PROFILE_v0.4.json"
+    candidate_v04_guide = source_root / "PRD_WRITING_GUIDE_v0.4.md"
+    candidate_v04_runtime_profile = runtime_root / "prd-writing-profile-v0.4.json"
+    candidate_v04_runtime_guide = runtime_root / "prd-writing-guide-v0.4.md"
+    candidate_v05_profile = source_root / "PRD_WRITING_PROFILE_v0.5.json"
+    candidate_v05_guide = source_root / "PRD_WRITING_GUIDE_v0.5.md"
+    candidate_v05_runtime_profile = runtime_root / "prd-writing-profile-v0.5.json"
+    candidate_v05_runtime_guide = runtime_root / "prd-writing-guide-v0.5.md"
     base_policy = runtime_root / "document-experience.json"
     registry_path = runtime_root / "document-experience-profiles.json"
-    for path in (source_profile, source_guide, previous_profile, previous_guide, base_policy):
+    for path in (
+        source_profile,
+        source_guide,
+        previous_profile,
+        previous_guide,
+        candidate_v04_profile,
+        candidate_v04_guide,
+        candidate_v05_profile,
+        candidate_v05_guide,
+        base_policy,
+    ):
         if path.is_symlink() or not path.is_file():
             raise WritingProfilePromotionError(f"required regular source missing: {path}")
 
     profile = json.loads(source_profile.read_text(encoding="utf-8"))
+    candidate_v05 = json.loads(candidate_v05_profile.read_text(encoding="utf-8"))
     guide_hash = sha256_file(source_guide)
+    candidate_v05_guide_hash = sha256_file(candidate_v05_guide)
     base_policy_hash = sha256_file(base_policy)
     if (
         profile.get("schema_version") != "document-experience-profile.v1"
@@ -77,12 +97,31 @@ def sync_prd_writing_profile_v02(repo_root: Path, *, check: bool = False) -> dic
         or profile.get("base_policy_ref", {}).get("hash") != base_policy_hash
     ):
         raise WritingProfilePromotionError("released writing profile source contract is invalid")
+    if (
+        candidate_v05.get("schema_version") != "document-experience-profile.v1"
+        or candidate_v05.get("profile_id") != "prd-plain-language-zh-CN"
+        or candidate_v05.get("profile_version") != "0.5.0"
+        or candidate_v05.get("status") != "CANDIDATE"
+        or candidate_v05.get("runtime_status") != "CANDIDATE_NON_DEFAULT"
+        or candidate_v05.get("validation_status")
+        != "POLICY_AUTHORED_AGENT_EVAL_NOT_RUN"
+        or candidate_v05.get("review_contract_id")
+        != "prd-writing-reader-review-v3.1"
+        or candidate_v05.get("writing_guide_ref", {}).get("hash")
+        != candidate_v05_guide_hash
+        or candidate_v05.get("base_policy_ref", {}).get("hash") != base_policy_hash
+    ):
+        raise WritingProfilePromotionError("v0.5 writing profile source contract is invalid")
 
     if not check:
         _atomic_copy(source_profile, runtime_profile)
         _atomic_copy(source_guide, runtime_guide)
         _atomic_copy(previous_profile, previous_runtime_profile)
         _atomic_copy(previous_guide, previous_runtime_guide)
+        _atomic_copy(candidate_v04_profile, candidate_v04_runtime_profile)
+        _atomic_copy(candidate_v04_guide, candidate_v04_runtime_guide)
+        _atomic_copy(candidate_v05_profile, candidate_v05_runtime_profile)
+        _atomic_copy(candidate_v05_guide, candidate_v05_runtime_guide)
     if (
         not runtime_profile.is_file()
         or runtime_profile.is_symlink()
@@ -95,11 +134,46 @@ def sync_prd_writing_profile_v02(repo_root: Path, *, check: bool = False) -> dic
         or runtime_guide.read_bytes() != source_guide.read_bytes()
     ):
         raise WritingProfilePromotionError("runtime PRD writing guide differs from human source")
+    if (
+        not previous_runtime_profile.is_file()
+        or previous_runtime_profile.is_symlink()
+        or previous_runtime_profile.read_bytes() != previous_profile.read_bytes()
+        or not previous_runtime_guide.is_file()
+        or previous_runtime_guide.is_symlink()
+        or previous_runtime_guide.read_bytes() != previous_guide.read_bytes()
+    ):
+        raise WritingProfilePromotionError(
+            "runtime previous PRD writing profile differs from human source"
+        )
+    if (
+        not candidate_v04_runtime_profile.is_file()
+        or candidate_v04_runtime_profile.is_symlink()
+        or candidate_v04_runtime_profile.read_bytes()
+        != candidate_v04_profile.read_bytes()
+        or not candidate_v04_runtime_guide.is_file()
+        or candidate_v04_runtime_guide.is_symlink()
+        or candidate_v04_runtime_guide.read_bytes() != candidate_v04_guide.read_bytes()
+    ):
+        raise WritingProfilePromotionError(
+            "runtime PRD writing v0.4 candidate differs from human source"
+        )
+    if (
+        not candidate_v05_runtime_profile.is_file()
+        or candidate_v05_runtime_profile.is_symlink()
+        or candidate_v05_runtime_profile.read_bytes()
+        != candidate_v05_profile.read_bytes()
+        or not candidate_v05_runtime_guide.is_file()
+        or candidate_v05_runtime_guide.is_symlink()
+        or candidate_v05_runtime_guide.read_bytes() != candidate_v05_guide.read_bytes()
+    ):
+        raise WritingProfilePromotionError(
+            "runtime PRD writing v0.5 candidate differs from human source"
+        )
 
     expected_registry = {
         "schema_version": "document-experience-profile-registry.v1",
         "default_profiles": {
-            "prd": {"id": "prd-plain-language-zh-CN", "version": "0.2.0"}
+            "prd": {"id": "prd-plain-language-zh-CN", "version": "0.5.0"}
         },
         "profiles": [
             {
@@ -118,7 +192,7 @@ def sync_prd_writing_profile_v02(repo_root: Path, *, check: bool = False) -> dic
             {
                 "id": "prd-plain-language-zh-CN",
                 "version": "0.2.0",
-                "status": "RELEASED_DEFAULT",
+                "status": "RELEASED_PREVIOUS",
                 "artifact_type": "PRD",
                 "profile_path": "prd-writing-profile-v0.2.json",
                 "profile_sha256": sha256_file(source_profile),
@@ -127,7 +201,36 @@ def sync_prd_writing_profile_v02(repo_root: Path, *, check: bool = False) -> dic
                 "base_policy_path": "document-experience.json",
                 "base_policy_sha256": base_policy_hash,
                 "base_policy_version": "document-experience.v1",
-            }
+            },
+            {
+                "id": "prd-plain-language-zh-CN",
+                "version": "0.4.0",
+                "status": "CANDIDATE_NON_DEFAULT",
+                "artifact_type": "PRD",
+                "profile_path": "prd-writing-profile-v0.4.json",
+                "profile_sha256": sha256_file(candidate_v04_profile),
+                "writing_guide_path": "prd-writing-guide-v0.4.md",
+                "writing_guide_sha256": sha256_file(candidate_v04_guide),
+                "base_policy_path": "document-experience.json",
+                "base_policy_sha256": base_policy_hash,
+                "base_policy_version": "document-experience.v1",
+            },
+            {
+                "id": "prd-plain-language-zh-CN",
+                "version": "0.5.0",
+                "status": "RELEASED_DEFAULT",
+                "artifact_type": "PRD",
+                "profile_path": "prd-writing-profile-v0.5.json",
+                "profile_sha256": sha256_file(candidate_v05_profile),
+                "writing_guide_path": "prd-writing-guide-v0.5.md",
+                "writing_guide_sha256": candidate_v05_guide_hash,
+                "base_policy_path": "document-experience.json",
+                "base_policy_sha256": base_policy_hash,
+                "base_policy_version": "document-experience.v1",
+                "lifecycle_authority": (
+                    "REGISTRY_PROMOTION_OVER_IMMUTABLE_EVALUATED_ARTIFACT"
+                ),
+            },
         ],
     }
     if check:

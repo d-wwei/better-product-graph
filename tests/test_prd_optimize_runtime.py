@@ -773,7 +773,7 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             ],
         )
 
-    def test_installed_compatible_predecessor_attempt_exposes_new_trace_authority(self) -> None:
+    def test_installed_started_predecessor_optimize_attempt_fails_closed_without_writes(self) -> None:
         case = self._prepare_case("predecessor-traceability")
         run_id = case["run_id"]
         attempt_id = case["optimize_dispatch"]["attempt_id"]
@@ -811,30 +811,13 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
             transaction_id="internal-compatible-predecessor-fixture",
         )
 
-        resumed = self._invoke(
+        before = self._inventory()
+        rejected = self._invoke_error(
             "--operation", "dispatch", "--run-id", run_id
-        )["dispatch"]
-
-        self.assertEqual(resumed["attempt_id"], attempt_id)
-        self.assertEqual(resumed["instruction_hash"], predecessor_hash)
-        published = resumed["optimize_context"]["metadata_authority"][
-            "spec_traceability"
-        ]
-        result = deepcopy(case["optimize_result"])
-        result["instruction_hash"] = predecessor_hash
-        result["semantic_output"]["metadata"]["spec_traceability"] = deepcopy(
-            published
-        )
-        advanced = self._invoke(
-            "--operation", "submit", "--run-id", run_id,
-            "--payload-file", str(
-                self._input_payload("predecessor-traceability-result.json", result)
-            ),
-            "--requested-node", "review.parallel",
         )
 
-        self.assertEqual(advanced["state"]["current_candidate_ref"]["version"], "v0.2")
-        self.assertIn(attempt_id, advanced["state"]["consumed_attempts"])
+        self.assertIn("contract drifted", rejected.stderr)
+        self.assertEqual(self._inventory(), before)
 
     def test_installed_optimize_accepts_template_mapped_visible_change_log(self) -> None:
         case = self._prepare_case(

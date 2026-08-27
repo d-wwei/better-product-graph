@@ -1,0 +1,51 @@
+{
+  "schema_version": "prd-readability-preregistration.v0.6",
+  "suite_id": "better-product-graph-prd-readability-v0.6",
+  "status": "PREREGISTERED_BEFORE_RESULTS",
+  "freeze_order_authority": "PREREGISTRATION_GIT_COMMIT_PRECEDES_RESULTS",
+  "custody": "EVALUATOR_ONLY_DO_NOT_COPY_TO_AGENT_WORKSPACE",
+  "fixture_tree": {
+    "schema_version": "prd-readability-v0.5-fixture-tree.v1",
+    "tree_hash": "sha256:a313fc5a86bff1804f0bfa81198e5fc78fd33e343a01197fa0966248407b7dae",
+    "files": [
+      {"path": "cases/flat-18-acceptance-rows.md", "hash": "sha256:96b335a1af306cdaa30573c5a714ca998a1ffc7b926d25552035a8eb0c71e759", "size": 1798},
+      {"path": "cases/duplicate-eight-questions-and-blocks.md", "hash": "sha256:381d674e6a078ac0e3e0808c6afef58b6da90c07c7f30003c71999d25cc220d2", "size": 1750},
+      {"path": "cases/list-diagram-table-same-model.md", "hash": "sha256:9efece8076738df0e84cd32151ea3263af55418627f7f73cd99b67180f0b1f97", "size": 1923},
+      {"path": "cases/trim-removes-useful-checklist.md", "hash": "sha256:f593eb22853ea98a9ea65e678b512d57942b58a8f496873979c498aa9028ea3a", "size": 1653},
+      {"path": "cases/checked-boxes-without-legend.md", "hash": "sha256:81d779c91619d495a5b2c0a25d93952125fb96682c0dff82d4195471f39e6ea2", "size": 1326},
+      {"path": "cases/proposed-contract-looks-implemented.md", "hash": "sha256:7cc8018623f7127f05cec5bcbaee3e23fa56dc4f71ffe65bc66f2036591f58e0", "size": 1458},
+      {"path": "cases/large-necessary-state-table.md", "hash": "sha256:88a7312641941246a5f50810d09332d23e717805bba6284ccc7dc22f554f44ab", "size": 2818},
+      {"path": "cases/long-appendix-short-main-path.md", "hash": "sha256:3a3ec153b2eae397bd2ae4c78661001e8601e0a60a484eb0c9382d5f4ccc10d3", "size": 3012},
+      {"path": "cases/reader-first-layered-prd.md", "hash": "sha256:e4c6886b67622e26903e9cb63628a10221edf7d4e712dd91a7a9b62b953520c1", "size": 2327},
+      {"path": "assets/reader-first-layered-prd.svg", "hash": "sha256:c68433cff928a8a7ed205642e011e082d99668a5e6b91df5f1173e2d927004b2", "size": 6185},
+      {"path": "assets/reader-first-layered-prd@2x.png", "hash": "sha256:1960e6f9f1fcd7291ba0ceaf7e9b9ff79d104eb6bfa26e171398ef619eb2dbfc", "size": 141796}
+    ]
+  },
+  "fixture_review_refs": [
+    {"path": "fixture-review/reviewer-a.json", "hash": "sha256:a95b666c4dce7a34de74f2ce9900ab87d4f1d55ffcc9f618589857311fd53764", "version": 1},
+    {"path": "fixture-review/reviewer-b.json", "hash": "sha256:59772a838e4ca7fc9629d6adb7c079e724c7b08378229c9479cabe410e8360f3", "version": 1}
+  ],
+  "fixture_adjudication_ref": {"path": "fixture-review/adjudication.json", "hash": "sha256:34c0dff28d85543f7db0dfd3a57985d5b1ccc8b6edf2ea33b13ffb155d0ea44c", "version": 1},
+  "suite_ref": {"path": "suite.json", "hash": "sha256:8b27324c17b9e4cc072aaf4ff223c2bc60a4633c7d68b909557849e803e442e1", "version": "0.6"},
+  "expected_ref": {"path": "evaluator/expected.json", "hash": "sha256:b5a53a04b438b9b79215fe3d1dda82046c8afdb3670a5575a645ed6984cab367", "version": 1},
+  "scorer_ref": {"path": "evaluator/score_results.py", "hash": "sha256:f0d57e3a422bdd45aa9226bcdbc9a915be3daa6731bfdea8f4d427c330ccc006", "version": 1},
+  "profile_ref": {"path": "policies/document-experience/PRD_WRITING_PROFILE_v0.5.json", "hash": "sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0", "version": "0.5.0"},
+  "guide_ref": {"path": "policies/document-experience/PRD_WRITING_GUIDE_v0.5.md", "hash": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962", "version": "0.5.0"},
+  "instruction_ref": {"path": "src/core/atomic-skills/prd-writing-eval-review-v3.2/INSTRUCTIONS.md", "hash": "sha256:2315d87afb0756fa1dee7bf242fdf01d117c44460b59a5dab13d4275272a0c30", "version": "v3.2"},
+  "reviewer_resource_ref": {"path": "src/core/reviewer-profiles/prd-writing-eval-reader-review-v3.2.json", "hash": "sha256:39de6937c1696d78432d3c46af7a9dbb4144e7f60d6bc85e70515a97cd7efce3", "version": "v3.2"},
+  "output_contract_ref": {"path": "src/core/templates/contracts/prd-v0.2.json", "hash": "sha256:33270d0d8c30bc384e5c6f9f2f9a5e59cacb06b2be27da2f3f5b20eeebfc08a0", "version": "better-product-graph.prd.general.0.2"},
+  "result_schema_ref": {"path": "src/core/schemas/document-experience-reader-eval-v3.1.schema.json", "hash": "sha256:6aa12505bf4e89b99a5d9d7693f03fde99cdfa50cd9514c4a8310165c176b366", "version": "document-experience-reader-eval.v3.1"},
+  "repeats_per_case": 3,
+  "case_count": 9,
+  "required_attempt_count": 27,
+  "required_passed_attempt_count": 27,
+  "required_passed_repeats_per_case": 3,
+  "selection_policy": "ALL_ATTEMPTS_NO_BEST_OF_N",
+  "threshold_change_after_first_result": "FORBIDDEN",
+  "negative_attempt_policy": "EXACTLY_ONE_FINDING_ASSESSMENT_REGISTERED_PRIMARY_PAIR_PRESENT_SECONDARY_LABELS_AND_REPAIRS_ALLOWED_NO_SECOND_FINDING",
+  "positive_attempt_policy": "PASS_NULL_PRIMARY_ZERO_FAILURES_ZERO_FINDINGS",
+  "installed_build_policy": "ONE_EXACT_BUILD_REF_ALL_27_ATTEMPTS",
+  "agent_runtime_status": "NOT_RUN",
+  "real_prd_review_status": "NOT_RUN",
+  "human_reader_validation": "NOT_RUN"
+}

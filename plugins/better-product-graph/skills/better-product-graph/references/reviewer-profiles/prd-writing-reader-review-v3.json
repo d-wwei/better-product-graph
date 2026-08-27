@@ -1,0 +1,99 @@
+{
+  "schema_version": "writing-reader-review-contract.v3",
+  "resource_id": "prd-writing-reader-review-v3",
+  "version": "v3",
+  "authority": "ADVISORY_ONLY",
+  "review_schema": "document-experience-reader-review.v3",
+  "supported_profile_id": "prd-plain-language-zh-CN",
+  "supported_profile_version": "0.4.0",
+  "profile_ref": {
+    "path": "references/policies/prd-writing-profile-v0.4.json",
+    "hash": "sha256:85d81248659d0fd0a74fd9fce679b4c5bda0445971a00329c379b76672705919",
+    "version": "0.4.0"
+  },
+  "guide_ref": {
+    "path": "references/policies/prd-writing-guide-v0.4.md",
+    "hash": "sha256:b262531a455a31e9a5aa087808ca369f99ce65e488d17ff3af59998f649e3639",
+    "version": "0.4.0"
+  },
+  "reviewer_role": "writing_standard",
+  "isolated_input_order": [
+    "candidate_ref",
+    "profile_ref",
+    "guide_ref",
+    "review_contract_ref",
+    "output_contract_ref"
+  ],
+  "reader_readback_contract": {
+    "required_fields": [
+      "problem_and_outcome",
+      "primary_relationships",
+      "mental_model",
+      "main_path_and_recovery",
+      "decision_conditions_and_risks",
+      "navigation_map"
+    ],
+    "mental_model_min_components": 3,
+    "mental_model_max_components": 5,
+    "navigation_targets": [
+      "PRODUCT_RULES",
+      "ACCEPTANCE",
+      "RISKS_UNKNOWNS_NEXT"
+    ]
+  },
+  "reader_outcomes": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "diagnostic_categories": [
+    "SEMANTIC_REPETITION",
+    "FLAT_PEER_OVERLOAD",
+    "REPRESENTATION_COLLISION",
+    "DETAIL_IN_MAIN_PATH",
+    "DENSE_TABLE",
+    "JARGON_INTRUSION",
+    "CHECKLIST_FUNCTION_LOSS",
+    "COMPLETION_SEMANTICS_AMBIGUOUS",
+    "ARTIFACT_MATURITY_OVERCLAIM"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "GROUP",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "REFERENCE",
+    "MOVE",
+    "TRIM",
+    "RESTORE_FUNCTION",
+    "BOUNDARY"
+  ],
+  "assessment_verdicts": {
+    "verbosity": ["PASS", "FINDING"],
+    "checklist": ["PASS", "FINDING"],
+    "visual": ["PASS", "FINDING", "NOT_NEEDED"]
+  },
+  "visual_assessment_contract": {
+    "dispatch_pair_source": "writing_review_context.reader_visible_visual_pairs",
+    "pass": "OBSERVED_AND_EXACT_ALL_PAIRS",
+    "finding_with_pair": "OBSERVED_AND_EXACT_ALL_PAIRS_WITH_NORMAL_FINDING",
+    "finding_without_pair": "NOT_OBSERVED_WITH_NORMAL_FINDING",
+    "not_needed": "NO_DISPATCH_PAIR_AND_CONCRETE_REASON",
+    "mechanical_claim_boundary": "SAFETY_PAIRING_LOCATION_AND_EXACT_BYTES_ONLY",
+    "semantic_claim_boundary": "INDEPENDENT_REVIEWER_ATTESTATION_NOT_CONTROLLER_PERCEPTION"
+  },
+  "finding_union_rule": "TOP_LEVEL_FINDING_REFS_EQUAL_OUTCOME_AND_ASSESSMENT_FINDING_UNION",
+  "independence": {
+    "author_kind": "HOST_AGENT_ATTEMPT",
+    "reviewer_kind": "HOST_SUBAGENT_ATTEMPT",
+    "different_ids_required": true,
+    "claim_boundary": "RECORDED_DISTINCT_DURABLE_ATTEMPTS_NOT_EXTERNAL_IDENTITY_PROOF"
+  },
+  "claim_boundary": "AGENT_REVIEW_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN"
+}

@@ -32,6 +32,7 @@ def _inventory(plugin_root: Path) -> list[dict[str, Any]]:
             entries.append(
                 {"path": relative.as_posix(), "sha256": _sha256_bytes(content), "size": len(content)}
             )
+    entries.sort(key=lambda item: item["path"])
     return entries
 
 

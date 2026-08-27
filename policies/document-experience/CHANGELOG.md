@@ -1,5 +1,39 @@
 # Document Experience Policy / Profile Changelog
 
+## PRD Writing Profile v0.5.0 Default Promotion — 2026-08-27
+
+- 当前默认：`prd-plain-language-zh-CN@0.5.0 / RELEASED_DEFAULT`；v0.2 调整为 `RELEASED_PREVIOUS`，继续作为可回滚版本，v0.4 保持失败候选历史。
+- 为保持 Suite v0.8、RC5 与 RC7 普通审查的精确可复现性，Profile 与 Guide 的评测输入字节不改写：Profile 仍为 `sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0`，Guide 仍为 `sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962`。
+- 当前激活生命周期由 `document-experience-profiles.json` 的唯一 `RELEASED_DEFAULT` 记录负责；Profile/Guide 内嵌的 Candidate 字样保留为评测时点的不可变来源元数据，不再作为当前默认选择真源。
+- RC5 Agent Eval 为 `27/27 PASS`。RC7 普通 advisory Review 为 `FINALIZED`，共八项 Finding，全部处置为 `DEFERRED_FUTURE_REVISION`；这不表示 Evals Generator v0.6 已整改。
+- 观察式真人阅读仍为 `NOT_RUN`。含活动态 raw inline SVG 的 v0.6 PRD 仍为 `NOT_READY / NOT_RELEASED`，没有 Ready 收据。
+
+## PRD Writing Profile v0.5.0 Candidate — 2026-08-26
+
+- 状态：`CANDIDATE / CANDIDATE_NON_DEFAULT`；默认 Profile 仍为 `prd-plain-language-zh-CN@0.2.0 / RELEASED_DEFAULT`。
+- 写作规范：`PRD_WRITING_GUIDE_v0.5.md`，SHA-256 `sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962`。
+- Profile：`PRD_WRITING_PROFILE_v0.5.json`，SHA-256 `sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0`。
+- 保留 v0.4 的八条表达规则、六个读者结果、九类诊断和十二种修订手段；没有新增 Node、Gate、批准权或普通 Review 结果字段。
+- 澄清 Writing Reviewer 只评估已陈述内容的清晰度与可定位性；实质内容完整性仍由 Product、Engineering Feasibility 与 Testability Reviewer 负责。
+- 将视觉触发项明确为检查信号而非自动配图要求，并允许不同的、有证据支持的修订手段实现同一读者目标。
+- 新 ordinary Reviewer 资源为 `prd-writing-reader-review-v3.1`，继续使用 `document-experience-reader-review.v3` 与 `ADVISORY_ONLY`；Agent Product Eval、真实 PRD ordinary Review 和观察式真人阅读均为 `NOT_RUN`。
+
+## PRD Writing Profile v0.4.0 Candidate — 2026-08-26
+
+- 状态：`CANDIDATE / CANDIDATE_NON_DEFAULT`；默认 Profile 仍为 `prd-plain-language-zh-CN@0.2.0 / RELEASED_DEFAULT`。
+- 写作规范：`PRD_WRITING_GUIDE_v0.4.md`，SHA-256 `sha256:b262531a455a31e9a5aa087808ca369f99ce65e488d17ff3af59998f649e3639`。
+- Profile：`PRD_WRITING_PROFILE_v0.4.json`，SHA-256 `sha256:85d81248659d0fd0a74fd9fce679b4c5bda0445971a00329c379b76672705919`。
+- 定义八条去重复、分组、主路径、表达选择、表格、Checklist 功能、状态真实性和人话优先规则；保留六个读者结果作为一级目标。
+- 固定九类理解断点和十二种最小修订手段；禁止按字数、行数、章节数、表格行数或 Checklist 项数自动判错。
+- 新 ordinary Reviewer 合同 `prd-writing-reader-review-v3` 当前标记 `PROPOSED_NOT_IMPLEMENTED`；Agent Product Eval、真实 PRD Review 和观察式真人阅读均为 `NOT_RUN`，不得据此晋级。
+
+## PRD Writing Profile v0.3.0 Historical Candidate Import — 2026-08-26
+
+- 从 `codex/prd-writing-reviewer-v04@33ef15099f26298aee19ed88eff566011486be48` 逐文件 `git show` 导入并冻结 v0.3 Guide、Profile、Eval Suite、hidden expected、结果和失败报告；未 merge 或 cherry-pick 旧分支。
+- 导入清单：`docs/release/PRD_WRITING_REVIEWER_v0.3_IMPORT_MANIFEST.json`，SHA-256 `sha256:8c993237c5b8a0c316ca340c1a0ce8db946270f560d7611d6efb56a7739165e7`，逐文件记录 source/target、Git blob、SHA-256 和字节数。
+- 历史结果保持 `3/5 FAIL`；真实 PRD Review 与观察式真人阅读保持 `NOT_RUN`；`promotion_eligible=false`。该导入不重算、不修正原始评分，也不改变 v0.2 默认身份。
+- 历史 Guide SHA-256：`sha256:dafd119eac9c7274ebe26fd3c263e21bd8047f9404f50c4bbdca77725468a47f`；历史 Profile SHA-256：`sha256:2d58aff838e7fd071c4840e6fbbc23e324046a7fd27e8fd11cb5476070ba14dc`。
+
 ## PRD Writing Profile v0.1.0 — 2026-08-24
 
 - 状态：`RELEASED / ACTIVE`；BPG 默认 PRD 表达 Profile 为 `prd-plain-language-zh-CN@0.1.0 / RELEASED_DEFAULT`。

@@ -142,6 +142,36 @@ class ReviewContractTests(unittest.TestCase):
         self.assertEqual(result["status"], "FINALIZED")
         self.assertNotIn("approved", result)
 
+    def test_compact_v3_writing_ref_is_preserved_through_aggregate_and_finalize(self) -> None:
+        submissions = [
+            review_submission("product", "f-product", "a"),
+            review_submission("engineering_feasibility", "f-eng", "b"),
+            review_submission("testability", "f-test", "c"),
+        ]
+        v3_ref = {
+            "path": "reviews/writing-reader-review-v3.json",
+            "hash": "sha256:writing-reader-review-v3",
+            "version": 3,
+        }
+        for submission in submissions:
+            submission["semantic_output"]["writing_coverage_ref"] = v3_ref
+        aggregate = aggregate_reviews(CANDIDATE, submissions)
+        dispositions = [
+            {"finding_id": item["finding_id"], "status": "EXTERNAL_REVIEW"}
+            for item in aggregate["findings"]
+        ]
+
+        finalized = finalize_review(
+            CANDIDATE,
+            submissions,
+            aggregate,
+            dispositions,
+            companion_view_ref={"candidate_hash": "sha256:prd", "finding_count": 3},
+        )
+
+        self.assertEqual(aggregate["writing_coverage_ref"], v3_ref)
+        self.assertEqual(finalized["status"], "FINALIZED")
+
     def test_undispositioned_writing_finding_cannot_finalize(self) -> None:
         submissions = [
             review_submission("product", "f-writing", "readability-gap"),

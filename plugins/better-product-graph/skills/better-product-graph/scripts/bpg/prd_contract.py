@@ -366,6 +366,42 @@ def _validate_conditional_sections(
             )
 
 
+def _validate_required_table_rows(
+    markdown: str, rules: dict[str, Any], issues: list[str]
+) -> None:
+    sections = _section_bodies(markdown)
+    for heading, rule in rules.items():
+        table_rows = [
+            cells
+            for line in sections.get(heading, [])
+            if (cells := _table_cells(line)) is not None
+            and not all(TABLE_DELIMITER_CELL.fullmatch(cell) for cell in cells)
+        ]
+        for required in rule["rows"]:
+            label = required["label"]
+            matches = [row for row in table_rows if row and row[0] == label]
+            if len(matches) != 1:
+                qualifier = "missing" if not matches else "duplicated"
+                issues.append(f"required table row {qualifier}: {label}")
+                continue
+            row = matches[0]
+            if any(not cell for cell in row):
+                issues.append(f"required table row has an empty cell: {label}")
+            status_column = required.get("status_column_index")
+            if status_column is None:
+                continue
+            if status_column >= len(row):
+                issues.append(f"required table row status column is missing: {label}")
+                continue
+            status = row[status_column].split("｜", 1)[0].strip()
+            if status not in rule["allowed_statuses"]:
+                issues.append(f"required table row status is invalid: {label}")
+            elif status in rule["reason_required_statuses"] and "理由" not in "｜".join(
+                row
+            ):
+                issues.append(f"required table row status needs a reason: {label}")
+
+
 def validate_final_markdown(
     markdown: str,
     metadata: dict[str, Any],
@@ -445,6 +481,9 @@ def _validate_output_shape(
         if unknown:
             issues.append("H2 heading is not declared by the exact output contract: " + ", ".join(unknown))
     _validate_conditional_sections(markdown, contract["conditional_sections"], issues)
+    _validate_required_table_rows(
+        markdown, shape.get("required_table_rows", {}), issues
+    )
     semantics = {
         **contract["common_required_semantics"],
         **shape["required_semantics"],

@@ -46,6 +46,10 @@ class PluginContractSuiteTests(unittest.TestCase):
         self.assertEqual(result["evidence_level"], "FRESH_INSTALLED_COPY_CONTRACT")
         self.assertEqual(result["codex_host_runtime_status"], "NOT_RUN")
         self.assertTrue(result["installed_identity"]["valid"])
+        installed_manifest = json.loads(
+            (self.plugin / "build-manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(installed_manifest["plugin"]["version"], "0.2.18")
         required = {
             "discovery",
             "direct_activation",

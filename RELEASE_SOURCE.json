@@ -1,19 +1,17 @@
 {
-  "schema_version": "better-product-graph.release-source.v1",
-  "generated_at": "2026-08-25",
+  "schema_version": "better-product-graph.release-source.v2",
+  "generated_at": "2026-08-27",
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
-  "source_branch": "main",
-  "source_commit": "a88bc430fe2e8b73b5098266a29ee661247894d6",
-  "release_evidence_commit": "a88bc430fe2e8b73b5098266a29ee661247894d6",
-  "plugin_version": "0.2.13",
+  "development_branch": "main",
+  "development_snapshot_commit": "2b773261e5b4da4892a620fa6401d8d9b36fe6f4",
+  "artifact_build_source_commit": "16d8ce48b999f85d34747afb94ff255d40220c78",
+  "artifact_build_source_dirty": false,
+  "plugin_version": "0.2.18",
   "release_channel": "Developer Alpha",
-  "publication_status": "NOT_PUBLISHED_AS_GITHUB_RELEASE",
-  "intended_tag": null,
+  "intended_tag": "v0.2.18",
+  "public_identity_binding": "The public snapshot commit, tag and GitHub Release are external final-publication evidence. This file intentionally contains no self-referential public commit.",
   "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
-  "release_sanitizations": [
-    "Replaced developer-specific absolute paths in three negative or optional-local test fixtures with /Users/example equivalents; test semantics are unchanged."
-  ],
   "documents": {
     "product_prd": {
       "path": "docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md",
@@ -30,71 +28,71 @@
       "version": "v0.17",
       "sha256": "ad4c049767e52ed26234c409cdbaeaf67a2589e66b88b6a42b0baf3e373c4feb"
     },
-    "planning_context_prd": {
-      "path": "docs/released/prd/BPG-PRD-PLANNING-CONTEXT-001_规划上下文准备_v0.1_2026-08-24/BPG-PRD-PLANNING-CONTEXT-001_规划上下文准备_v0.1_2026-08-24.md",
-      "version": "v0.1",
-      "sha256": "43f33c8e58cb8da0449027443b3869ef69cb8419af2248886e3aa1dfff19fa81"
-    },
-    "bootstrap_prd": {
-      "path": "docs/released/prd/BPG-PRD-BOOTSTRAP-CONTEXT-MVU-001_bootstrap-context-mvu_v0.1_2026-08-24/BPG-PRD-BOOTSTRAP-CONTEXT-MVU-001_bootstrap-context-mvu_v0.1_2026-08-24.md",
-      "version": "v0.1",
-      "sha256": "fcd1a6d43b1c2f5f388cbb70de67fb4a44547921550630ef92fad00996bc02c3"
-    },
-    "dependency_aware_learning_prd": {
-      "path": "docs/released/prd/BPG-PRD-LEARNING-FRONTIER-001_dependency-aware-learning-pilot_v0.3_2026-08-24/BPG-PRD-LEARNING-FRONTIER-001_dependency-aware-learning-pilot_v0.3_2026-08-24.md",
-      "version": "v0.3",
-      "sha256": "85bf189de12b15e1e6ba99894111ff3bc3ed8f31afd14f8b1b80520bc3b3f18f"
-    },
     "default_prd_template": {
       "path": "templates/prd/general/PRD_TEMPLATE_v0.2.md",
       "version": "general@0.2.0",
       "sha256": "c276e951bba16ff868f5b2cf7dacb1642adf5eac512fb2a3898f4ad825ad64a4"
+    },
+    "installation": {
+      "path": "docs/release/INSTALL_v0.2.18.md",
+      "sha256": "bc2f14598a87e9aa90faf6511d311063845c00d9c5030caf4e006498cef7f739"
+    },
+    "release_notes": {
+      "path": "docs/release/RELEASE_NOTES_v0.2.18.md",
+      "sha256": "f703cb827b0a66394cd4cebb2b2f1832a85a8ab063c9e687ec1b9bf2f3d11d57"
     }
   },
   "release_artifacts": {
-    "repository_snapshot": {
-      "version": "0.2.13",
-      "status": "COMMITTED_TO_PUBLIC_MAIN_NOT_PUBLISHED_AS_GITHUB_RELEASE",
-      "codex_plugin_artifact_hash": "sha256:e071fb7d580c0542a381a93131cadbc3eda447ba6ab50348f556f69a97d2045d",
-      "claude_plugin_artifact_hash": "sha256:627c1b68d7db70d9edaa2b5b15fb14cfa698a19ba4829f796a72244c05e9fc2c"
-    },
     "codex_marketplace_zip": {
-      "name": "better-product-graph-codex-0.2.12.zip",
-      "status": "LAST_PUBLISHED_BASELINE_NOT_CURRENT_SOURCE",
-      "sha256": "9393b491bfcd06821d2c7bfd29fe89dc1ffffe42d28dbb6fe138461c9cff70c6",
-      "bytes": 277349,
-      "plugin_artifact_hash": "sha256:ee1dae1add734080ddee2735a3b3486cca9b4fbf693cf686fe158f02cd5d472d"
+      "name": "better-product-graph-codex-0.2.18-a.zip",
+      "sha256": "163d6c3f65047af4e514d864eead60f49e816a5112fc1be15200f1520b1bf9f5",
+      "bytes": 401267,
+      "plugin_artifact_hash": "sha256:5f5f9e68cbccab58726381ae2e145356d7ce995d054286639e4aacc279bfa737"
     },
     "claude_marketplace_zip": {
-      "name": "better-product-graph-claude-0.2.12.zip",
-      "status": "LAST_PUBLISHED_BASELINE_NOT_CURRENT_SOURCE",
-      "sha256": "56bff0784cc779430bc6be6b573abfe4fb67cf0d6499d28c73718ddfaaa4bb2d",
-      "bytes": 276611,
-      "plugin_artifact_hash": "sha256:3cc04012bc4e1797a650a6799808e1f291d89eea492917ab87bee0a76ffeec5c"
+      "name": "better-product-graph-claude-0.2.18-a.zip",
+      "sha256": "4c73c3a38f77fa6e6610cbc56abcbad8e9f65e445b6290415da24ad042f28919",
+      "bytes": 400539,
+      "plugin_artifact_hash": "sha256:37d39b5dab0f95d58be47a93b9f7e7e3ce9e8e63764ae01185e07ef32aac93f8"
     },
-    "core_tree_fingerprint": "sha256:0fd5227e01f7a3637c2ad451975f088fcdeed65412c6763cd84d2ee62119b141"
+    "core_tree_fingerprint": "sha256:20b8fe2e26ce0e49172e36c61ec014bbfac857d675644533aae08a86aa0840b5",
+    "asset_policy": "The GitHub Release must reuse these exact evaluated ZIP bytes. A package rebuilt from the public snapshot is a source-reproducibility check only and cannot replace either gated asset."
   },
   "release_evidence": {
-    "source_tests": "477/477 PASS on development source commit a88bc43",
-    "public_snapshot_tests": "452/452 PASS; 1 optional local-upstream check skipped",
-    "repair_verifier": "NOT_RUN_FOR_0.2.13",
-    "deterministic_marketplace_packages": "Repository Plugin snapshots rebuilt for Codex and Claude; GitHub Release ZIPs NOT_BUILT_FOR_0.2.13",
-    "codex_marketplace_local_install": "NOT_RUN_FOR_EXACT_PUBLIC_0.2.13_SNAPSHOT",
-    "claude_marketplace_local_install": "NOT_RUN_FOR_EXACT_PUBLIC_0.2.13_SNAPSHOT",
-    "plugin_creator_validator": "NOT_RUN_FOR_0.2.13",
-    "claude_strict_validator": "NOT_RUN_FOR_0.2.13",
-    "authenticated_host_exact_release_commit": "NOT_RUN_FOR_EXACT_PUBLIC_0.2.13_SNAPSHOT",
-    "product_golden_agent_judgment": "NOT_RUN",
-    "document_experience_user_readability_validation": "NOT_RUN"
+    "development_source_tests": "761/761 PASS on the exact development tree committed as 2b773261e5b4da4892a620fa6401d8d9b36fe6f4",
+    "rc5_agent_eval": "27/27 PASS",
+    "final_public_artifact_agent_eval": "27/27 PASS",
+    "multi_root_release_aggregation": "PASS; both phases rederived at 27/27; 54 fresh Reviewer identities; cross-phase issues=[]; no phase rescore",
+    "final_ordinary_product_review": "FINALIZED; four independent Reviewers; six advisory Findings; all dispositioned DEFERRED_FUTURE_REVISION; no Eval authority",
+    "reviewed_prd_ready": "NOT_READY; reader-visible raw inline SVG rejected before any Ready receipt",
+    "reviewed_prd_release": "NOT_RELEASED; release_ref=null; handoff_ref=null",
+    "reviewed_prd_implementation": "NOT_CLAIMED",
+    "reviewed_prd_tests": "NOT_CLAIMED",
+    "human_reader_validation": "NOT_RUN"
   },
-  "deferred": [],
-  "excluded_from_release_history": [
-    "local Graph runtime state",
-    "Better Work execution records",
-    "raw audits and adversarial probes",
-    "Superpowers construction plans",
-    "development-only capability and verification reports",
-    "draft and archived product documents",
-    "project assistant memory"
+  "release_sanitizations": [
+    "Replace developer-specific absolute paths in negative, optional-local or invalidated historical fixtures with /Users/example equivalents; test semantics and active runtime bytes are unchanged."
+  ],
+  "excluded_public_tests": [
+    "tests/test_prd_document_experience_profile.py: depends on excluded local preview artifacts",
+    "tests/test_prd_readability_v04_suite.py: depends on excluded internal import-manifest evidence",
+    "tests/test_prd_readability_v05_suite.py: depends on excluded internal semantic-audit evidence",
+    "tests/test_prd_readability_v06_suite.py: depends on excluded internal scoring-alignment evidence",
+    "tests/test_prd_readability_v08_suite.py: depends on excluded historical RC4 internal report",
+    "tests/test_prd_readability_v08_rc5_binding.py: depends on development-repository historical commit checkout",
+    "tests/test_prd_writing_profile_task4_promotion.py: depends on excluded internal reports and local released artifact evidence",
+    "tests/test_source_only_visual_review.py: depends on an excluded local released PRD artifact"
+  ],
+  "excluded_from_public_snapshot": [
+    ".assistant project memory",
+    ".better-product-graph local Run state and evidence",
+    ".better-work execution records",
+    ".product-audit local audit state",
+    ".superpowers construction plans and SDD ledgers",
+    "audits and adversarial working reports",
+    "artifacts including drafts, local Releases and Handoffs",
+    "docs/superpowers implementation plans",
+    "internal raw release and Eval reports",
+    "local evidence roots, secrets, caches, __pycache__ and bytecode"
   ]
 }

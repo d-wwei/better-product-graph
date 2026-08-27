@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "product-eval-execution-receipt.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "pack_ref",
+    "executor",
+    "execution_id",
+    "executed_at",
+    "observations",
+    "verdict"
+  ],
+  "properties": {
+    "schema_version": {"const": "product-eval-execution-receipt.v1"},
+    "status": {"const": "COMPLETED"},
+    "pack_ref": {
+      "type": "object",
+      "required": ["path", "hash", "version"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "version": {"type": ["string", "integer"]}
+      },
+      "additionalProperties": false
+    },
+    "executor": {
+      "type": "object",
+      "required": ["kind", "id", "authorization_ref"],
+      "properties": {
+        "kind": {"enum": ["TEST_GRAPH", "AUTHORIZED_EXECUTOR"]},
+        "id": {"type": "string", "minLength": 1},
+        "authorization_ref": {
+          "type": "object",
+          "required": ["path", "hash", "version"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "version": {"type": ["string", "integer"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution_id": {"type": "string", "minLength": 1},
+    "executed_at": {"type": "string", "minLength": 1},
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["case_id", "fixture_id", "observed_output", "result", "evidence_refs"],
+        "properties": {
+          "case_id": {"type": "string", "minLength": 1},
+          "fixture_id": {"type": "string", "minLength": 1},
+          "observed_output": {},
+          "result": {"enum": ["PASS", "FAIL", "INCONCLUSIVE"]},
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["path", "hash", "version"],
+              "properties": {
+                "path": {"type": "string", "minLength": 1},
+                "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+                "version": {"type": ["string", "integer"]}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "verdict": {"enum": ["PASS", "FAIL", "INCONCLUSIVE"]}
+  },
+  "additionalProperties": false
+}

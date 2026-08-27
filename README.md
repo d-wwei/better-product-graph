@@ -16,7 +16,7 @@ Better Product Graph（BPG）是一个运行在 Codex 和 Claude Code 里的本�
 
 它不会把每个 Signal 都强行写成 PRD。合理的结果也可以是：立即处理线上事故、提交 Bug 核查包、继续研究、做可逆实验、等待条件成熟，或者明确停止。
 
-> **最新 GitHub Release：`0.2.0` Developer Alpha；当前 `main` 测试快照：`0.2.12`。** `0.2.12` 收敛了真实试用中发现的学习、规划上下文和 PRD 优化合同，并支持符合精确前置条件的在途 Run 安全恢复；它仍不冒充跨 Run 共享的项目知识库或已执行的产品评测。
+> **当前版本：`0.2.18` Developer Alpha。** 核心 Product Loop、双 Host Adapter、本地版本/审计/恢复和 Handoff 已可运行；本版新增经过双阶段 Agent Eval 的 PRD Writing Reviewer。陌生项目的完整共享知识仍需要后续 Knowledge Maintenance Graph。
 
 ### 来自对 eli 的蒸馏
 
@@ -87,16 +87,14 @@ Idea / 用户反馈 / 线上 Issue
 
 ### 安装
 
-完整步骤见 [安装指南](docs/release/INSTALL_v0.2.md)。最快方式：
+完整步骤与精确校验值见 [0.2.18 安装指南](docs/release/INSTALL_v0.2.18.md)。最快方式：
 
 Codex：
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.0
+codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.18
 codex plugin add better-product-graph@better-product-graph
 ```
-
-如需试用尚未制作 GitHub Release 的 `0.2.12`，把 `--ref v0.2.0` 改为 `--ref main`。
 
 Claude Code：
 
@@ -124,12 +122,14 @@ $better-product-graph new <产品想法、用户反馈或 Issue>
 
 ### 当前证据
 
-- 源码测试、修复映射、双 Host 构建、installed identity、确定性包和隔离安装都进入公开 CI/发行检查。
+- 最终开发树测试为 `761/761 PASS`；冻结 RC5 与最终公开候选包的 PRD Writing Reviewer Agent Eval 均为 `27/27 PASS`。
+- 4 个独立 Reviewer 对 Evals Generator PRD v0.6 完成普通 Review 并记录 6 项关注；Ready 随后因 raw inline SVG 在零 receipt 状态 fail closed，因此该 PRD 不是 Ready、Released、已实现或已测试。
+- 两个 Host 的确定性包、installed identity、隔离安装和共享 Core 一致性均进入发行检查；观察式真人读者验证仍为 `NOT_RUN`。
 - Codex 的历史真实 Host Run 已从 Signal 走到本地 Release、Handoff 和 `COMPLETED`。
 - Claude Code 的 `0.2.0` 真实 Host 试跑为 6/7：关键可写、权限、恢复和 Handoff 路径通过；只读 Help 没有 runner 调用证据，因此严格结果仍是 `PARTIAL`。
 - 自然语言 Auto-selection 与真实 Product Golden Agent judgment 仍是 `NOT_RUN`，不会被机械测试冒充。
 
-更多边界见 [Roadmap v0.16](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md) 与 [产品 PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md)。
+更多边界见 [Roadmap v0.17](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md) 与 [产品 PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md)。
 
 ### 反馈与贡献
 
@@ -149,7 +149,7 @@ Better Product Graph (BPG) is a local product workflow for Codex and Claude Code
 
 It does not force every signal into a PRD. A valid outcome may be an incident brief, a bug investigation packet, more research, a reversible experiment, a deliberate wait, or a recorded stop.
 
-> **Latest GitHub Release: `0.2.0` Developer Alpha; current `main` test snapshot: `0.2.12`.** Version `0.2.12` converges learning, planning-context, and PRD-optimization contracts found through real dogfooding, with exact-precondition recovery for in-flight Runs. It does not pretend to provide shared cross-run project knowledge or executed product evaluations.
+> **Current release: `0.2.18` Developer Alpha.** The core Product Loop, both Host Adapters, local versioning, audit, recovery, and Handoff are available. This release adds a PRD Writing Reviewer evaluated in two frozen Agent phases. Complete shared context for an unfamiliar project remains future Knowledge Maintenance Graph work.
 
 ### Distilled from eli
 
@@ -220,16 +220,14 @@ It is not yet a fit if you need:
 
 ### Install
 
-See the full [installation guide](docs/release/INSTALL_v0.2.md). The shortest path is:
+See the [0.2.18 installation guide](docs/release/INSTALL_v0.2.18.md) for exact checksums. The shortest path is:
 
 Codex:
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.0
+codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.18
 codex plugin add better-product-graph@better-product-graph
 ```
-
-To try the unreleased `0.2.12` snapshot, replace `--ref v0.2.0` with `--ref main`.
 
 Claude Code:
 
@@ -257,12 +255,14 @@ Both Hosts expose the same eleven intents: `new`, `capture`, `inbox`, `status`, 
 
 ### Current evidence
 
-- Source tests, repair mappings, dual-Host builds, installed identity, deterministic bundles, and isolated installation are part of the public release checks.
+- The final development tree passed `761/761` tests. The frozen RC5 and final public-candidate PRD Writing Reviewer Agent Eval phases both passed `27/27`.
+- Four independent reviewers completed an ordinary Review of Evals Generator PRD v0.6 and recorded six concerns. Ready then failed closed on raw inline SVG with zero receipts, so that PRD is not Ready, Released, implemented, or tested.
+- Deterministic dual-Host packages, installed identity, isolated installation, and shared-Core consistency are release-gated. Observed human-reader validation remains `NOT_RUN`.
 - A historical real Codex Host Run completed the local path from Signal to Release, Handoff, and `COMPLETED`.
 - The real Claude Code `0.2.0` trial scored 6/7: the tested writable, permission, recovery, and Handoff paths passed; read-only Help did not produce runner evidence, so the strict result remains `PARTIAL`.
 - Natural-language auto-selection and real Product Golden Agent judgment remain `NOT_RUN`; mechanical tests do not substitute for them.
 
-See [Roadmap v0.16](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md) and the [product PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md) for the exact scope.
+See [Roadmap v0.17](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md) and the [product PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md) for the exact scope.
 
 ### Feedback and contributions
 

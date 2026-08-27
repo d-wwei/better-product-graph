@@ -1,0 +1,42 @@
+{
+  "schema_version": "prd-readability-v0.5-fixture-review.v1",
+  "record_status": "SUPERSEDED_BY_FIXTURE_CHANGE",
+  "reviewed_commit": "cf4ec9009c964875d888f881ba5fba8665ed5402",
+  "reviewer_identity": {
+    "kind": "HOST_SUBAGENT_ATTEMPT",
+    "id": "fixture-review-b-20260826"
+  },
+  "fixture_author_identity": {
+    "kind": "HOST_SUBAGENT_ATTEMPT",
+    "id": "fixture-author-task3-cf4ec90"
+  },
+  "fixture_tree": {
+    "schema_version": "prd-readability-v0.5-fixture-tree.v1",
+    "tree_hash": "sha256:f322ee4226f9f9090ea81010bc01b47774821899b2c0db91d783826a53eaa5ba"
+  },
+  "original_reviewer_tree_claim": {
+    "tree_hash": "sha256:d4fbfba8501de633d57fdcc105aaa1fd6640f5ecec20028e0c7a0de099c7cb09",
+    "algorithm_note": "Reviewer B reported sha256 over sorted file hashes.",
+    "visual_png_hash": "sha256:f0b01ea4c50d8b9ee9e875e028d7288fe5ba3bbfb56f9cfcbe2161424a80baf8"
+  },
+  "excluded_inputs": [
+    "allowed_pairs",
+    "expected",
+    "preregistration",
+    "scorer",
+    "semantic_results"
+  ],
+  "cases": [
+    {"case_id": "flat-18-acceptance-rows", "intended_objective": "MAKE_PEER_STRUCTURE_SCANNABLE", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": null, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "duplicate-eight-questions-and-blocks", "intended_objective": "KEEP_ONE_CANONICAL_DEFINITION", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": null, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "list-diagram-table-same-model", "intended_objective": "REMOVE_REDUNDANT_REPRESENTATION", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": null, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "trim-removes-useful-checklist", "intended_objective": "PRESERVE_CHECKLIST_FUNCTION", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": null, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "checked-boxes-without-legend", "intended_objective": "CLARIFY_COMPLETION_EVIDENCE_BOUNDARY", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": null, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "proposed-contract-looks-implemented", "intended_objective": "CLARIFY_ARTIFACT_MATURITY_BOUNDARY", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": null, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "large-necessary-state-table", "intended_objective": "NO_REPAIR_REQUIRED", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": true, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "long-appendix-short-main-path", "intended_objective": "NO_REPAIR_REQUIRED", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": true, "visual_observation": "NOT_APPLICABLE"},
+    {"case_id": "reader-first-layered-prd", "intended_objective": "NO_REPAIR_REQUIRED", "single_primary_capability": true, "unintended_material_issue": null, "positive_fixture_complete": true, "visual_observation": {"rendered_png_observed": true, "rendered_svg_observed": false, "notes": "实际查看 PNG，认为视觉有用且与正文一致。"}}
+  ],
+  "concerns": [],
+  "verdict": "APPROVED"
+}

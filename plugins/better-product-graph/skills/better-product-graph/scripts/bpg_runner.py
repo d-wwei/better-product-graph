@@ -55,7 +55,17 @@ def with_host_execution_context(
                 registry_path = skill_root / "references" / "graph" / "node-contracts.json"
                 registry = json.loads(registry_path.read_text(encoding="utf-8"))
                 contract = registry.get("nodes", {}).get(node_id, {})
-                if contract.get("instruction_ref") == instruction_ref:
+                if (
+                    node_id == "writing-eval.review"
+                    and instruction_ref
+                    == "references/atomic-skills/prd-writing-eval-review/INSTRUCTIONS.md"
+                ):
+                    instruction_compatibility = (
+                        "EXACT"
+                        if dispatch_instruction_hash == installed_instruction_hash
+                        else "INCOMPATIBLE"
+                    )
+                elif contract.get("instruction_ref") == instruction_ref:
                     if dispatch_instruction_hash == installed_instruction_hash:
                         instruction_compatibility = "EXACT"
                     elif dispatch_instruction_hash in contract.get(
@@ -76,6 +86,31 @@ def with_host_execution_context(
             "read installed resources through instruction_path and never cd into skill_root."
         ),
     }
+    evals_context: dict[str, object] = {}
+    for name in ("build", "review"):
+        ref = result.get(f"{name}_instruction_ref")
+        if not isinstance(ref, dict):
+            continue
+        relative = ref.get("path")
+        expected_hash = ref.get("hash")
+        if not isinstance(relative, str) or not isinstance(expected_hash, str):
+            continue
+        candidate = (skill_root / relative).resolve()
+        try:
+            candidate.relative_to(skill_root.resolve())
+        except ValueError:
+            continue
+        if not candidate.is_file() or candidate.is_symlink():
+            continue
+        actual_hash = "sha256:" + hashlib.sha256(candidate.read_bytes()).hexdigest()
+        evals_context[name] = {
+            "instruction_path": str(candidate),
+            "expected_hash": expected_hash,
+            "installed_hash": actual_hash,
+            "compatibility": "EXACT" if actual_hash == expected_hash else "INCOMPATIBLE",
+        }
+    if evals_context:
+        result["evals_host_execution_context"] = evals_context
     return result
 
 
@@ -89,7 +124,11 @@ def main() -> int:
             "dispatch",
             "submit",
             "owner-choice",
+            "prepare-evals",
+            "stage-evals",
             "fulfill-evals",
+            "writing-eval.prepare",
+            "writing-eval.review",
             "configure-template",
         ),
         default="entry",
@@ -123,7 +162,14 @@ def main() -> int:
         parser.error("--run-id is required for installed non-entry operations")
     if args.operation == "configure-template" and not args.pack_path:
         parser.error("--pack-path is required for project Template configuration")
-    if args.operation in {"submit", "owner-choice", "fulfill-evals"} and not args.payload_file:
+    if args.operation in {
+        "submit",
+        "owner-choice",
+        "stage-evals",
+        "fulfill-evals",
+        "writing-eval.prepare",
+        "writing-eval.review",
+    } and not args.payload_file:
         parser.error("--payload-file is required for installed mutation operations")
     from bpg.runner import (
         dispatch,
@@ -131,6 +177,10 @@ def main() -> int:
         handle_entry,
         configure_project_template,
         owner_choice,
+        prepare_evals,
+        prepare_writing_eval,
+        review_writing_eval,
+        stage_evals,
         submit,
     )
 
@@ -149,6 +199,8 @@ def main() -> int:
             allow_version_change=args.allow_version_change,
             skill_root=skill_root,
         )
+    elif args.operation == "prepare-evals":
+        result = prepare_evals(Path.cwd(), graph, args.run_id, skill_root=skill_root)
     else:
         payload = json.loads(Path(args.payload_file).read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
@@ -160,6 +212,16 @@ def main() -> int:
             )
         elif args.operation == "owner-choice":
             result = owner_choice(Path.cwd(), graph, args.run_id, payload, skill_root=skill_root)
+        elif args.operation == "stage-evals":
+            result = stage_evals(Path.cwd(), graph, args.run_id, payload, skill_root=skill_root)
+        elif args.operation == "writing-eval.prepare":
+            result = prepare_writing_eval(
+                Path.cwd(), graph, args.run_id, payload, skill_root=skill_root
+            )
+        elif args.operation == "writing-eval.review":
+            result = review_writing_eval(
+                Path.cwd(), graph, args.run_id, payload, skill_root=skill_root
+            )
         else:
             result = fulfill_evals(Path.cwd(), graph, args.run_id, payload, skill_root=skill_root)
     result = with_host_execution_context(

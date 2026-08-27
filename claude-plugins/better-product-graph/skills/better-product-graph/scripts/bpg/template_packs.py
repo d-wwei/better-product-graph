@@ -39,6 +39,11 @@ PACK_FIELDS = {
 }
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+BPG_SEMVER = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-(?:0|[1-9]\d*|[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9]\d*|[A-Za-z-][0-9A-Za-z-]*))*)?$"
+)
 REQUIREMENT = re.compile(r"^(>=|<=|>|<|==)(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 
 
@@ -52,7 +57,15 @@ def _semver(value: Any, label: str) -> tuple[int, int, int]:
 
 
 def _supports_bpg(requirement: Any, bpg_version: str) -> bool:
-    current = _semver(bpg_version, "BPG version")
+    if not isinstance(bpg_version, str):
+        raise TemplatePackError("BPG version must be a semantic version")
+    current_match = BPG_SEMVER.fullmatch(bpg_version)
+    if current_match is None:
+        raise TemplatePackError("BPG version must be a semantic version")
+    # Template compatibility ranges intentionally compare the stable release core.
+    # This lets an RC exercise the exact packs intended for its eventual release,
+    # while pack identities themselves remain stable semantic versions.
+    current = tuple(int(part) for part in current_match.groups()[:3])
     if not isinstance(requirement, str) or not requirement:
         raise TemplatePackError("Template Pack requires_bpg is required")
     clauses = requirement.split(",")

@@ -25,6 +25,11 @@ from .storage import (
     sha256_file,
 )
 from .product_navigation import requirement_relationships, update_release_manifest
+from .visual_assets import (
+    VisualAssetError,
+    inspect_reader_visible_visual_assets,
+    validate_managed_visual_asset_tree,
+)
 
 
 ASSET_REF = re.compile(r"\]\(\./assets/([^)]+)\)")
@@ -208,7 +213,26 @@ def _safe_asset_name(name: str) -> PurePosixPath:
     return pure
 
 
-def _validate_assets(markdown: str, assets: dict[str, bytes]) -> None:
+def _visual_contract_enabled(metadata: dict[str, Any]) -> bool:
+    document_experience = metadata.get("document_experience")
+    if not isinstance(document_experience, dict):
+        return False
+    profile_ref = document_experience.get("profile_ref")
+    if not isinstance(profile_ref, dict):
+        return False
+    version = profile_ref.get("version")
+    if not isinstance(version, str):
+        return False
+    try:
+        parts = tuple(int(item) for item in version.split("."))
+    except ValueError:
+        return False
+    return len(parts) == 3 and parts >= (0, 4, 0)
+
+
+def _validate_assets(
+    markdown: str, assets: dict[str, bytes], *, metadata: dict[str, Any]
+) -> None:
     referenced = set(ASSET_REF.findall(markdown))
     provided = set(assets)
     for name in provided:
@@ -216,6 +240,11 @@ def _validate_assets(markdown: str, assets: dict[str, bytes]) -> None:
     missing = referenced - provided
     if missing:
         raise ImmutableArtifactError("missing referenced assets: " + ", ".join(sorted(missing)))
+    if _visual_contract_enabled(metadata):
+        try:
+            validate_managed_visual_asset_tree(markdown, assets)
+        except VisualAssetError as error:
+            raise ImmutableArtifactError(str(error)) from error
 
 
 def _append_changelog(project_root: Path, line: str) -> None:
@@ -230,6 +259,25 @@ def _append_changelog(project_root: Path, line: str) -> None:
         if line.rstrip() in existing.splitlines():
             return
         atomic_write_bytes(path, (existing.rstrip() + "\n" + line.rstrip() + "\n").encode())
+
+
+def validate_archived_visual_delivery(
+    project_root: Path, archived: ArtifactSet
+) -> list[dict[str, Any]]:
+    """Enforce the active Profile's visual delivery contract before Ready/Release."""
+
+    metadata_paths = list(archived.path.glob("*.metadata.json"))
+    if len(metadata_paths) != 1:
+        raise ImmutableArtifactError("archived Candidate metadata is ambiguous")
+    metadata = read_json(metadata_paths[0])
+    if not _visual_contract_enabled(metadata):
+        return []
+    try:
+        return inspect_reader_visible_visual_assets(
+            project_root.resolve(), archived.document_path
+        )
+    except VisualAssetError as error:
+        raise ImmutableArtifactError(str(error)) from error
 
 
 def _stem(prd_id: str, short_title: str, version: str, document_date: str) -> str:
@@ -405,7 +453,7 @@ def archive_prd_candidate(
     experience = validate_document_experience(assembled.markdown, "prd")
     if experience.status != "PASS":
         raise ImmutableArtifactError("Document Experience failed: " + ", ".join(experience.issues))
-    _validate_assets(assembled.markdown, assets)
+    _validate_assets(assembled.markdown, assets, metadata=assembled.metadata)
     root = project_root.resolve()
     prd_id = assembled.metadata["prd_id"]
     short_title = assembled.metadata["short_title"]
@@ -506,7 +554,11 @@ def release_prd_candidate(
     if ready_assertion.get("review_companion_hash") not in {None, archived.review_hash}:
         raise ImmutableArtifactError("release READY Assertion binds a different Review companion")
     root = project_root.resolve()
-    metadata = read_json(archived.path / f"{archived.path.name}.metadata.json")
+    metadata_paths = list(archived.path.glob("*.metadata.json"))
+    if len(metadata_paths) != 1:
+        raise ImmutableArtifactError("archived Candidate metadata is ambiguous")
+    metadata = read_json(metadata_paths[0])
+    validate_archived_visual_delivery(root, archived)
     parent = assert_managed_path(root, root / "artifacts" / "prds" / "released")
     target = assert_managed_path(root, parent / archived.path.name)
     if target.exists():

@@ -1,0 +1,221 @@
+{
+  "schema_version": "prd-readability-v0.8-blind-calibration-review-result.v1",
+  "suite_id": "better-product-graph-prd-readability-v0.8",
+  "reviewer_id": "fixture-review-v08-a2-20260826",
+  "claim_boundary": {
+    "fixture_calibration_only": true,
+    "agent_product_eval": "NOT_RUN",
+    "ordinary_product_review": "NOT_RUN",
+    "human_reader_validation": "NOT_RUN"
+  },
+  "reviews": [
+    {
+      "document_id": "document-001",
+      "result": "FINDING",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": "FLAT_PEER_OVERLOAD",
+      "primary_repair_technique": "GROUP",
+      "exact_basis": [
+        {
+          "path": "documents/document-001.md",
+          "hash": "sha256:a4ddce5b0fe9a9e584449f2e77ed47d682694ebe6f13fd9d6f44542e047d3cc6",
+          "start_line": 18,
+          "end_line": 37
+        }
+      ],
+      "reason": "可观察验收把资格、状态、恢复、权限、通知和审计等二十项结果平铺在同一级；读者虽能逐项理解，却难以快速定位某一类结果。按这些可命名结果分组即可降低扫描成本，无需删除验收语义。"
+    },
+    {
+      "document_id": "document-002",
+      "result": "PASS",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-002.md",
+          "hash": "sha256:b451fcd03dd20ee5e4f449f27ec822b00d965837abd8b64d4d8b1ec237df750d",
+          "start_line": 7,
+          "end_line": 24
+        },
+        {
+          "path": "documents/document-002.md",
+          "hash": "sha256:b451fcd03dd20ee5e4f449f27ec822b00d965837abd8b64d4d8b1ec237df750d",
+          "start_line": 26,
+          "end_line": 41
+        }
+      ],
+      "reason": "一页结论、产品规则和处理流程都明确把等级、例外与决胜字段指向同一个正式位置；验收以可观察样本验证该合同，风险和下一步也可直接定位。读者不需要修复即可解释排序及异常去向。"
+    },
+    {
+      "document_id": "document-003",
+      "result": "FINDING",
+      "observed_reader_outcome": "DECIDE",
+      "primary_diagnosis": "SEMANTIC_REPETITION",
+      "primary_repair_technique": "REFERENCE",
+      "exact_basis": [
+        {
+          "path": "documents/document-003.md",
+          "hash": "sha256:f266cd0ef1602a5f2421699494abe366987be1e0c0d67418975ee2d226963c22",
+          "start_line": 7,
+          "end_line": 9
+        },
+        {
+          "path": "documents/document-003.md",
+          "hash": "sha256:f266cd0ef1602a5f2421699494abe366987be1e0c0d67418975ee2d226963c22",
+          "start_line": 21,
+          "end_line": 29
+        }
+      ],
+      "reason": "三个章节都自称完整正式合同，却分别给出贵宾等级、事件号方向和最后更新时间优先级的冲突口径，读者无法决定同一组消息的唯一顺序。应选定一个权威合同，其他章节只引用该位置。"
+    },
+    {
+      "document_id": "document-004",
+      "result": "FINDING",
+      "observed_reader_outcome": "SEE",
+      "primary_diagnosis": "REPRESENTATION_COLLISION",
+      "primary_repair_technique": "TRIM",
+      "exact_basis": [
+        {
+          "path": "documents/document-004.md",
+          "hash": "sha256:6cf05b9834705e7a1d8fd378e0d20439ddb8b4da6e3409a216aaabaada2e3248",
+          "start_line": 14,
+          "end_line": 34
+        }
+      ],
+      "reason": "同一组三种身份与三种动作被文字、字符图和矩阵连续完整表达三次，没有一种被指定为主要表达，也没有补充差异。保留最适合比较的权限矩阵并删去重复模型即可。"
+    },
+    {
+      "document_id": "document-005",
+      "result": "FINDING",
+      "observed_reader_outcome": "DECIDE",
+      "primary_diagnosis": "CHECKLIST_FUNCTION_LOSS",
+      "primary_repair_technique": "RESTORE_FUNCTION",
+      "exact_basis": [
+        {
+          "path": "documents/document-005.md",
+          "hash": "sha256:ddea764c0df839c50aae4a46c7fd0afdd7001555f5a5d445b2e2241746912e7b",
+          "start_line": 16,
+          "end_line": 18
+        }
+      ],
+      "reason": "上线核对把四项独立事项压成一句话，并明确不再记录负责人、验证证据或未关闭项，因此读者无法据此判断是否可切换。应恢复逐项处置、责任、证据和开放状态的交稿确认功能。"
+    },
+    {
+      "document_id": "document-006",
+      "result": "FINDING",
+      "observed_reader_outcome": "DECIDE",
+      "primary_diagnosis": "COMPLETION_SEMANTICS_AMBIGUOUS",
+      "primary_repair_technique": "BOUNDARY",
+      "exact_basis": [
+        {
+          "path": "documents/document-006.md",
+          "hash": "sha256:c5bcab1a72d861c46349538416f9b624447f0af8d6e59fca0cceb22d79c66938",
+          "start_line": 15,
+          "end_line": 21
+        }
+      ],
+      "reason": "当前状态使用勾选、黄点和空框，但没有图例说明它们代表产品决定、实现、测试还是发布，也没有证据边界；读者无法据此判断能力是否完成。应补清每种符号的精确完成语义与证据范围。"
+    },
+    {
+      "document_id": "document-007",
+      "result": "FINDING",
+      "observed_reader_outcome": "DECIDE",
+      "primary_diagnosis": "ARTIFACT_MATURITY_OVERCLAIM",
+      "primary_repair_technique": "BOUNDARY",
+      "exact_basis": [
+        {
+          "path": "documents/document-007.md",
+          "hash": "sha256:4cc4b84977f02851ead635fc8b505afe2b55b9ed6233dfa2d6f9315c3178f624",
+          "start_line": 7,
+          "end_line": 9
+        },
+        {
+          "path": "documents/document-007.md",
+          "hash": "sha256:4cc4b84977f02851ead635fc8b505afe2b55b9ed6233dfa2d6f9315c3178f624",
+          "start_line": 32,
+          "end_line": 45
+        }
+      ],
+      "reason": "“当前能力”声称引擎已在线且页面可直接发布，后文却将合同标为 PROPOSED_NOT_IMPLEMENTED，并把实现、联调、测试和发布全部记为 NOT_RUN。应删除无证据的运行与发布结论，使成熟度边界全篇一致。"
+    },
+    {
+      "document_id": "document-008",
+      "result": "PASS",
+      "observed_reader_outcome": "LOCATE",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-008.md",
+          "hash": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+          "start_line": 7,
+          "end_line": 19
+        },
+        {
+          "path": "documents/document-008.md",
+          "hash": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+          "start_line": 21,
+          "end_line": 42
+        },
+        {
+          "path": "documents/document-008.md",
+          "hash": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+          "start_line": 44,
+          "end_line": 59
+        }
+      ],
+      "reason": "权限矩阵虽长，但字段稳定，逐行映射身份、资料范围、动作、条件和结果，适合比较与定位；阅读导航、产品规则、验收、风险和下一步形成清楚路径。行数本身没有造成理解断点。"
+    },
+    {
+      "document_id": "document-009",
+      "result": "PASS",
+      "observed_reader_outcome": "RETELL",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-009.md",
+          "hash": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+          "start_line": 3,
+          "end_line": 20
+        },
+        {
+          "path": "documents/document-009.md",
+          "hash": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+          "start_line": 22,
+          "end_line": 43
+        },
+        {
+          "path": "documents/document-009.md",
+          "hash": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+          "start_line": 45,
+          "end_line": 90
+        }
+      ],
+      "reason": "正文先给出改期主路径、单一成功边界和失败恢复，再把兼容、本地化与分析明细分层放入有明确入口的附录；附录逐项补充而不改写主合同。读者可低成本复述主路径并按需定位细节，长附录无需修复。"
+    },
+    {
+      "document_id": "document-010",
+      "result": "PASS",
+      "observed_reader_outcome": "SEE",
+      "primary_diagnosis": null,
+      "primary_repair_technique": null,
+      "exact_basis": [
+        {
+          "path": "documents/document-010.md",
+          "hash": "sha256:1e505a4bd4044d7e6f2bcf87e619133b60dbbd2211657b3a2261928363781032",
+          "start_line": 7,
+          "end_line": 19
+        },
+        {
+          "path": "documents/document-010.md",
+          "hash": "sha256:1e505a4bd4044d7e6f2bcf87e619133b60dbbd2211657b3a2261928363781032",
+          "start_line": 21,
+          "end_line": 44
+        }
+      ],
+      "reason": "实际渲染的流程图清楚展示三条恢复路径汇入服务端确认，以及超时、拒绝和确认失败的停止支路；连线均有文字标签，颜色不是唯一含义。相邻文字替代准确复述关系而不逐节点重复，产品规则、验收和下一步可直接定位。"
+    }
+  ]
+}

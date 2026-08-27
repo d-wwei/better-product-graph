@@ -9,6 +9,59 @@ from typing import Any
 from .storage import read_json, sha256_file
 
 
+EXPECTED_CORE_REASONING_RESOURCE_IDS = frozenset(
+    {"better-question", "cognitive-router", "cognitive-base-catalog"}
+)
+EXPECTED_COGNITIVE_BASE_RESOURCE_IDS = frozenset(
+    {
+        "attention-allocation",
+        "bayesian-reasoning",
+        "cognitive-base-creator",
+        "constraint-as-catalyst",
+        "conviction-override",
+        "cross-domain-connector",
+        "dialectical-thinking",
+        "double-loop-learning",
+        "first-principles",
+        "frame-auditing",
+        "interactive-cognition",
+        "inversion-thinking",
+        "motivation-audit",
+        "non-attachment",
+        "principled-action",
+        "results-driven",
+        "second-order-thinking",
+        "systems-thinking",
+        "tacit-knowledge",
+        "temporal-wisdom",
+    }
+)
+EXPECTED_REVIEWER_PROFILE_RESOURCE_IDS = frozenset(
+    {
+        "goal-fidelity-profile",
+        "goal-fidelity-rubric",
+        "goal-fidelity-packet-contract",
+        "writing-standard-coverage-contract",
+        "prd-writing-profile-v0.2",
+        "prd-writing-guide-v0.2",
+        "prd-writing-reader-review-v3",
+        "prd-writing-profile-v0.4",
+        "prd-writing-guide-v0.4",
+        "prd-writing-reader-review-v3.1",
+        "prd-writing-reader-review-v3.2",
+        "prd-writing-profile-v0.5",
+        "prd-writing-guide-v0.5",
+        "prd-writing-eval-reader-review-v3.1",
+        "prd-writing-eval-reader-review-v3.2",
+    }
+)
+EXPECTED_REFERENCE_RESOURCE_IDS = (
+    EXPECTED_CORE_REASONING_RESOURCE_IDS
+    | EXPECTED_COGNITIVE_BASE_RESOURCE_IDS
+    | EXPECTED_REVIEWER_PROFILE_RESOURCE_IDS
+)
+
+
 class ReferenceCatalogError(ValueError):
     """An installed or source reference catalog is incomplete or has drifted."""
 
@@ -40,22 +93,20 @@ class ReferenceCatalog:
         ids = [item["resource_id"] for item in resources]
         if len(ids) != len(set(ids)):
             raise ReferenceCatalogError("reference resource IDs must be unique")
-        if {item["resource_id"] for item in self.core_reasoning} != {
-            "better-question",
-            "cognitive-router",
-            "cognitive-base-catalog",
-        }:
+        if (
+            {item["resource_id"] for item in self.core_reasoning}
+            != EXPECTED_CORE_REASONING_RESOURCE_IDS
+        ):
             raise ReferenceCatalogError("core reasoning reference set is incomplete")
-        if len(self.cognitive_bases) != 20:
+        if (
+            {item["resource_id"] for item in self.cognitive_bases}
+            != EXPECTED_COGNITIVE_BASE_RESOURCE_IDS
+        ):
             raise ReferenceCatalogError("exactly 20 cognitive bases are required")
-        if {item["resource_id"] for item in self.reviewer_profiles} != {
-            "goal-fidelity-profile",
-            "goal-fidelity-rubric",
-            "goal-fidelity-packet-contract",
-            "writing-standard-coverage-contract",
-            "prd-writing-profile-v0.2",
-            "prd-writing-guide-v0.2",
-        }:
+        if (
+            {item["resource_id"] for item in self.reviewer_profiles}
+            != EXPECTED_REVIEWER_PROFILE_RESOURCE_IDS
+        ):
             raise ReferenceCatalogError("reviewer reference set is incomplete")
         self._validate_cognitive_base_selectors()
         self._validate_extraction_manifest()
@@ -151,7 +202,30 @@ class ReferenceCatalog:
         return deepcopy(self.core_reasoning + self.cognitive_bases)
 
     def review_resources(self) -> list[dict[str, Any]]:
-        return deepcopy(self.reviewer_profiles)
+        return deepcopy(
+            [
+                item
+                for item in self.reviewer_profiles
+                if item["resource_id"]
+                not in {
+                    "prd-writing-eval-reader-review-v3.1",
+                    "prd-writing-eval-reader-review-v3.2",
+                }
+            ]
+        )
+
+    def writing_eval_resources(self) -> list[dict[str, Any]]:
+        allowed = {
+            "prd-writing-profile-v0.4",
+            "prd-writing-guide-v0.4",
+            "prd-writing-eval-reader-review-v3.1",
+            "prd-writing-profile-v0.5",
+            "prd-writing-guide-v0.5",
+            "prd-writing-eval-reader-review-v3.2",
+        }
+        return deepcopy(
+            [item for item in self.reviewer_profiles if item["resource_id"] in allowed]
+        )
 
     def all_resource_refs(self) -> list[dict[str, Any]]:
         return deepcopy(self.core_reasoning + self.cognitive_bases + self.reviewer_profiles)

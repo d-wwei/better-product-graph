@@ -24,7 +24,7 @@ def _canonical_json(value: Any) -> bytes:
 
 
 def _inventory(plugin_root: Path) -> list[dict[str, Any]]:
-    return [
+    entries = [
         {
             "path": path.relative_to(plugin_root).as_posix(),
             "sha256": _sha256_file(path),
@@ -39,6 +39,8 @@ def _inventory(plugin_root: Path) -> list[dict[str, Any]]:
             and path.suffix in {".pyc", ".pyo"}
         )
     ]
+    entries.sort(key=lambda item: item["path"])
+    return entries
 
 
 def _load_intents(plugin_root: Path) -> Any:

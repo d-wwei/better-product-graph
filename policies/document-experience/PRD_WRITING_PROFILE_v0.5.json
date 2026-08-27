@@ -1,0 +1,160 @@
+{
+  "schema_version": "document-experience-profile.v1",
+  "profile_id": "prd-plain-language-zh-CN",
+  "profile_version": "0.5.0",
+  "status": "CANDIDATE",
+  "artifact_type": "PRD",
+  "audience": "SMART_ZERO_CONTEXT_PRODUCT_MANAGER",
+  "language": "zh-CN",
+  "template_independent": true,
+  "base_policy_ref": {
+    "path": "references/policies/document-experience.json",
+    "schema_version": "document-experience.v1",
+    "hash": "sha256:60b11a0da0a6e0db7d591e7da5a0e89f25493680dafb2aa8e52897ff012c44b4"
+  },
+  "writing_guide_ref": {
+    "path": "references/policies/prd-writing-guide-v0.5.md",
+    "version": "0.5.0",
+    "hash": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962"
+  },
+  "reader_outcomes": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "required_expression_rules": [
+    "ONE_SEMANTIC_ONE_CANONICAL_LOCATION",
+    "MAIN_PATH_CORE_PRODUCT_RESULTS_ONLY",
+    "GROUP_TO_COMPRESS_WITHOUT_SEMANTIC_LOSS",
+    "ONE_PRIMARY_REPRESENTATION_PER_RELATIONSHIP",
+    "TABLES_ONLY_FOR_COMPARISON_AND_MAPPING",
+    "PRESERVE_FUNCTION_NOT_REPETITION",
+    "TRUTHFUL_PRECISE_STATUS",
+    "PLAIN_LANGUAGE_BEFORE_MACHINE_NAME"
+  ],
+  "review_contract_id": "prd-writing-reader-review-v3.1",
+  "review_contract_status": "IMPLEMENTED_CANDIDATE_NON_DEFAULT",
+  "review_method": "INDEPENDENT_TWO_PASS_READBACK_THEN_DIAGNOSIS",
+  "review_responsibility_policy": {
+    "writing_reviewer_assesses": "CLARITY_AND_LOCATABILITY_OF_STATED_CONTENT",
+    "substantive_completeness_owners": [
+      "PRODUCT",
+      "ENGINEERING_FEASIBILITY",
+      "TESTABILITY"
+    ],
+    "missing_content_policy": "DO_NOT_INVENT_OR_REASSIGN_AS_WRITING_FINDING",
+    "repair_selection": "ALLOW_EVIDENCE_BACKED_ALTERNATIVES_FOR_SAME_READER_OBJECTIVE",
+    "authority": "ADVISORY_ONLY_NO_NODE_GATE_APPROVAL_OR_RESULT_FIELD"
+  },
+  "diagnostic_categories": [
+    "SEMANTIC_REPETITION",
+    "FLAT_PEER_OVERLOAD",
+    "REPRESENTATION_COLLISION",
+    "DETAIL_IN_MAIN_PATH",
+    "DENSE_TABLE",
+    "JARGON_INTRUSION",
+    "CHECKLIST_FUNCTION_LOSS",
+    "COMPLETION_SEMANTICS_AMBIGUOUS",
+    "ARTIFACT_MATURITY_OVERCLAIM"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "GROUP",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "REFERENCE",
+    "MOVE",
+    "TRIM",
+    "RESTORE_FUNCTION",
+    "BOUNDARY"
+  ],
+  "truth_policy": {
+    "boundary": "FACT_JUDGMENT_ASSUMPTION_UNKNOWN_AND_MUTABLE_STATUS_DISTINGUISHABLE",
+    "checked_item_semantics": "EXPLICIT_LEGEND_AND_EVIDENCE_BOUNDARY_REQUIRED",
+    "proposed_contract_marker": "PROPOSED_NOT_IMPLEMENTED",
+    "not_run_policy": "NEVER_RENDER_AS_PASS_OR_FAIL",
+    "local_handoff_policy": "NEVER_RENDER_AS_REMOTE_SENT_RECEIVED_OR_APPROVED"
+  },
+  "checklist_function_policy": {
+    "removal_gate": "REMOVE_ONLY_AFTER_FUNCTION_IS_PRESERVED_ELSE_RESTORE_FUNCTION",
+    "functions_to_preserve": [
+      "EXPLANATION",
+      "LOCATION",
+      "DECISION",
+      "TRACEABILITY",
+      "DELIVERY_CONFIRMATION"
+    ],
+    "not_applicable": "KEEP_DISPOSITION_AND_CONCRETE_REASON",
+    "unknown_or_not_done": "KEEP_VISIBLE_WITH_REAL_STATUS_OWNER_IMPACT_OR_NEXT_ACTION"
+  },
+  "conditional_content_policy": {
+    "body": "OMIT_HEADING_TABLE_AND_PLACEHOLDER_WHEN_TRULY_NOT_APPLICABLE",
+    "checklist": "KEEP_ITEM_WITH_NOT_APPLICABLE_AND_CONCRETE_REASON",
+    "unknown_or_not_done": "KEEP_VISIBLE_WITH_REAL_STATUS_OWNER_IMPACT_OR_NEXT_ACTION",
+    "mandatory_semantics": "NEVER_OMIT",
+    "template_interaction": "PROFILE_MAY_OMIT_CONDITIONAL_PRESENTATION_ONLY_WHEN_OUTPUT_CONTRACT_ALLOWS"
+  },
+  "visual_policy": {
+    "required_when": [
+      "NON_TRIVIAL_SEQUENCE_OR_TRANSFORMATION",
+      "BRANCH_FAILURE_OR_RECOVERY",
+      "THREE_OR_MORE_INTERACTING_MODULES_OR_ACTORS",
+      "RESPONSIBILITY_OR_CONTAINMENT",
+      "STATE_TRANSITION",
+      "OPTION_COMPARISON_OR_TRADEOFF",
+      "ONE_CAUSE_MULTIPLE_DOWNSTREAM_EFFECTS"
+    ],
+    "trigger_semantics": "INSPECTION_SIGNALS_NOT_AUTOMATIC_ILLUSTRATION_REQUIREMENTS",
+    "missing_visual_finding_gate": "CURRENT_TEXT_CANNOT_REASONABLY_COMMUNICATE_KEY_RELATIONSHIP_AND_MINIMAL_VISUAL_MATERIALLY_IMPROVES_IT",
+    "requirements": [
+      "QUESTION_ANSWERED_VISIBLE",
+      "SCOPE_VISIBLE",
+      "SEMANTIC_ROLE_FOR_EACH_VISUAL_ELEMENT",
+      "TEXT_ALTERNATIVE_PRESENT",
+      "COLOR_NOT_SOLE_MEANING",
+      "ACTUAL_RENDER_OBSERVATION_REQUIRED",
+      "NO_DECORATIVE_VISUAL",
+      "NO_NODE_BY_NODE_TEXT_DUPLICATION"
+    ],
+    "large_table_policy": "EVALUATE_READER_COMPARISON_AND_LOCATION_COST_NOT_ROW_COUNT",
+    "long_appendix_policy": "PASS_WHEN_MAIN_PATH_IS_COMPLETE_AND_NAVIGATION_IS_CLEAR"
+  },
+  "information_density_policy": {
+    "word_count_gate": "FORBIDDEN",
+    "line_count_gate": "FORBIDDEN",
+    "section_count_gate": "FORBIDDEN",
+    "table_row_count_gate": "FORBIDDEN",
+    "requires_global_frame": true,
+    "requires_navigation_path": true,
+    "duplicate_authority": "ONE_CANONICAL_SOURCE_WITH_REFERENCES",
+    "main_path": "CORE_PRODUCT_RESULTS_ONLY",
+    "compression_method": "GROUP_AND_LAYER_WITHOUT_SEMANTIC_LOSS"
+  },
+  "prd_spec_boundary": {
+    "prd_owns": [
+      "PRODUCT_PROBLEM",
+      "USER_OUTCOME",
+      "SCOPE",
+      "PRODUCT_RULES",
+      "OBSERVABLE_ACCEPTANCE",
+      "EXTERNAL_BEHAVIOR_AND_SAFETY_BOUNDARIES"
+    ],
+    "engineering_spec_owns": [
+      "INTERNAL_SCHEMA",
+      "STORAGE_LAYOUT",
+      "CLASS_AND_OBJECT_SPLIT",
+      "INTERNAL_LINEARIZATION",
+      "IMPLEMENTATION_ALGORITHM",
+      "INTERNAL_CONCURRENCY_CONTROL"
+    ]
+  },
+  "binding_rule": "RESOLVE_SEPARATELY_FROM_TEMPLATE_AND_BIND_EXACT_PATH_VERSION_HASH",
+  "runtime_status": "CANDIDATE_NON_DEFAULT",
+  "validation_status": "POLICY_AUTHORED_AGENT_EVAL_NOT_RUN"
+}

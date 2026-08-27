@@ -138,6 +138,80 @@ def fulfill_evals(
     )
 
 
+def prepare_evals(
+    project_root: Path,
+    graph_manifest: Path,
+    run_id: str,
+    *,
+    skill_root: Path | None = None,
+) -> dict[str, Any]:
+    """Return the exact Product Evals build/review work order."""
+
+    resolved_skill_root = skill_root or graph_manifest.resolve().parent.parent
+    _validate_project_boundary(project_root, resolved_skill_root)
+    return HostRuntime(project_root, graph_manifest, resolved_skill_root).prepare_evals(run_id)
+
+
+def stage_evals(
+    project_root: Path,
+    graph_manifest: Path,
+    run_id: str,
+    submission: dict[str, Any],
+    *,
+    skill_root: Path | None = None,
+) -> dict[str, Any]:
+    """Stage one immutable Product Eval Pack pending independent Review."""
+
+    resolved_skill_root = skill_root or graph_manifest.resolve().parent.parent
+    checked = _preflight(project_root, resolved_skill_root)
+    return _with_preflight(
+        checked,
+        HostRuntime(project_root, graph_manifest, resolved_skill_root).stage_evals(
+            run_id, submission
+        ),
+    )
+
+
+def prepare_writing_eval(
+    project_root: Path,
+    graph_manifest: Path,
+    run_id: str,
+    submission: dict[str, Any],
+    *,
+    skill_root: Path | None = None,
+) -> dict[str, Any]:
+    """Create or resume one isolated evaluation-only Writing Review."""
+
+    resolved_skill_root = skill_root or graph_manifest.resolve().parent.parent
+    checked = _preflight(project_root, resolved_skill_root)
+    return _with_preflight(
+        checked,
+        HostRuntime(project_root, graph_manifest, resolved_skill_root).prepare_writing_eval(
+            run_id, submission
+        ),
+    )
+
+
+def review_writing_eval(
+    project_root: Path,
+    graph_manifest: Path,
+    run_id: str,
+    submission: dict[str, Any],
+    *,
+    skill_root: Path | None = None,
+) -> dict[str, Any]:
+    """Close one Eval Run without creating Product Review authority."""
+
+    resolved_skill_root = skill_root or graph_manifest.resolve().parent.parent
+    checked = _preflight(project_root, resolved_skill_root)
+    return _with_preflight(
+        checked,
+        HostRuntime(project_root, graph_manifest, resolved_skill_root).review_writing_eval(
+            run_id, submission
+        ),
+    )
+
+
 def configure_project_template(
     project_root: Path,
     pack_root: Path,

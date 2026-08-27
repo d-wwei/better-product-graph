@@ -1,10 +1,96 @@
 # Changelog
 
-## 0.2.13 — Unreleased — External Template Pack configuration
+## 0.2.18 — 2026-08-27 — PRD Writing Profile v0.5 source promotion
+
+- Complete both preregistered semantic phases on the frozen v0.8 contract: RC5 `27/27 PASS` and the exact final public-candidate artifact `27/27 PASS`. The supported multi-root aggregator rederived both terminal results without rescoring, proved 54 fresh Reviewer identities with zero protected-identity overlap, and returned no cross-phase issue. Human-reader observation remains `NOT_RUN`.
+- Complete a fresh ordinary Review of the immutable Evals Generator PRD v0.6 with four independent Reviewers and six advisory Findings. The Review finalized through the existing aggregate/disposition path, then Ready correctly failed closed on reader-visible raw inline SVG before any Ready receipt, Release, or Handoff; the reviewed PRD remains `NOT_READY / NOT_RELEASED` and is not claimed implemented or tested.
+- Freeze the exact evaluated Codex and Claude ZIP bytes built from clean source `16d8ce48b999f85d34747afb94ff255d40220c78`. Both Hosts share Core fingerprint `sha256:20b8fe2e26ce0e49172e36c61ec014bbfac857d675644533aae08a86aa0840b5`; package publication and downloaded-artifact/global-install verification remain separate release operations.
+- Add a repository-supported, read-only multi-root Release aggregator for the frozen RC5 and Final phase terminals. It binds each phase to an exact central root and installed Skill root, defines Work Order identity as root identity plus root-relative path plus Manifest-bound hash, verifies root containment and regular/non-symlink/single-link custody, preserves all other cross-phase freshness prohibitions, and binds the aggregation evidence to the exact aggregator file hash without rescoring or rewriting historical evidence.
+- Promote the exact evaluated `prd-plain-language-zh-CN@0.5.0` Profile and Guide as the PRD default through the versioned registry; retain their frozen candidate bytes so Suite v0.8, RC5 and RC7 evidence remain reproducible. Registry lifecycle state is authoritative for this immutable-artifact promotion, while v0.2 remains the rollback Profile and v0.4 remains failed candidate history.
+- Record RC5 Agent Eval `27/27 PASS` and the RC7 ordinary advisory Review as distinct evidence. The ordinary Review finalized eight Findings and dispositioned all eight as `DEFERRED_FUTURE_REVISION`; it did not modify or repair the immutable Evals Generator v0.6 PRD, and human-reader validation remains `NOT_RUN`.
+- Preserve the Profile 0.5 Ready boundary: active raw inline SVG remains invalid for Ready/Release. The reviewed v0.6 PRD is `NOT_READY`, with zero Ready receipts and no Release.
+- Advance the development source and both Host manifests to final source identity `0.2.18`. The final-artifact Eval and ordinary Review are recorded above; public push, tag, GitHub Release, downloaded-asset verification and global installation remain separately evidenced release operations.
+
+## 0.2.18-rc.7 — 2026-08-27 — Source parser, final asset tree and Review custody closure
+
+- Replace order-dependent regex masking with a source-ordered Markdown literal scanner: arbitrary-length fenced code, indented code, inline code spans and real HTML comments cannot hide or invent a later active raw SVG. Archive, Ready and Release share the corrected classification; Ready still writes zero receipts on rejection.
+- Validate the complete strict-Profile visual asset tree, not only Markdown references. Every visual must be one referenced safe SVG plus its exact same-stem `@2x.png`; malicious and safe orphan pairs, missing partners, unknown visual formats, symlinks and unsafe bytes fail closed before archive and again before Ready/Release.
+- Tighten `prd-asset-change-set.v1`: exact removals reject nonexistent targets, and `source_ref.version` accepts only a positive JSON integer or non-empty string. Any resulting Candidate tree change invalidates the prior tree-bound Review.
+- Add a mechanical ordinary-Review projection contract that requires unique `HOST_SUBAGENT_ATTEMPT` identities and unique exact relative/absolute output targets for all four Reviewer roles, disjoint from author and eval identities, with every output absent before dispatch. RC6 preparation evidence is superseded and non-authoritative; no semantic Reviewer output is created by RC7 preparation.
+- Preserve the exact released Evals Generator v0.6, frozen PRD readability v0.8 suite and RC5 report bytes. RC7 makes no global-install, publication or release claim.
+
+## 0.2.18-rc.6 — 2026-08-27 — Source-only ordinary Review convergence
+
+- Allow an exact imperfect or legacy PRD with active raw inline SVG, an unsafe managed visual, or an unavailable visual to enter ordinary advisory Review through a mechanically classified `SOURCE_TEXT_ONLY` path. The scanner runs before any visual consumer, binds exact Candidate bytes and line basis, emits `NOT_RENDERED`, and preserves path/hash/permission failures as dispatch blockers.
+- Require the independent Writing Reviewer to create a normal advisory Finding for `RAW_INLINE_SVG`; `PASS` and `NOT_NEEDED` are rejected. Findings continue through the existing aggregate, disposition, optimize and re-review lifecycle without a new Node or Gate.
+- Enforce the visual delivery contract for Profile 0.5.0 and future applicable versions before Ready receipts and again before Release. Managed safe SVG/PNG pairs remain strict; Profile 0.2 historical documents retain their original legitimacy.
+- Add the optional closed `prd-asset-change-set.v1` producer input so Generate/Optimize can add, replace or remove exact managed SVG/PNG bytes. The Controller validates regular non-symlink sources, traversal, extension, hash and final self-contained pairing; a replacement Candidate receives a new tree identity and old Review evidence is stale.
+- Preserve the exact released Evals Generator v0.6, frozen PRD readability v0.8 suite and RC5 report bytes. RC6 does not reinterpret the passed RC5 semantic evaluation and makes no global-install, publication or release claim.
+
+## 0.2.18-rc.5 — 2026-08-27 — PRD Writing Reviewer v0.8 candidate
+
+- Preserve the exact Suite v0.7 and RC4 `24/27 FAIL` evidence instead of rerunning, replacing or rescoring any failed attempt.
+- Start a new Suite v0.8 fixture identity because old `case-002` did not contain the competing canonical definitions its frozen oracle assumed; three fresh Reviewers reasonably treated its concise overview/process/AC restatement as functional.
+- Keep the public Writing contract and scorer semantics unchanged. The replacement negative contains consequential competing definitions, while a same-domain positive calibration document proves concise summary, canonical reference and behavior AC remain valid.
+- Valid A2/B2 blind fixture calibration is `APPROVED`: exact outputs independently agree on six FINDING documents and four PASS documents; the same-domain paired positive remains outside the scored nine.
+- Freeze the new v0.8 oracle, preregistration, run contract, evidence reader and scorer only after that agreement. This unique RC5 source identity is now cut; Agent Eval, ordinary Product Review, promotion, publication, release and installation remain `NOT_RUN`.
+- Preserve the first v0.8 calibration projection and Reviewer outputs as `SUPERSEDED_INVALID_FOR_CALIBRATION`: its work order leaked a calibration-specific positive hint and some non-case-002 fixtures carried scoring-oriented additions. They remain audit evidence only and cannot contribute to any future denominator.
+- Reblind under a new fixture tree and new Reviewer identities only after mechanically proving exact tree completeness, hint-free visible inputs, semantic equivalence for every case except replacement case-002, and no historical output reuse.
+- Preserve Profile/Guide v0.5, Instruction/Reviewer v3.2 and Result Schema v3.1 semantics; formal evaluation remains exactly nine cases × three attempts with all produced attempts occupying the denominator and no retry, replacement or best-of-N selection.
+- Make v0.8 phase scoring terminal on supported local code paths: derive reports internally behind a non-serializable capability, reserve an independent `O_EXCL` ledger entry, reject caller-supplied reports and partial/replayed bundles, and rederive every phase score from exact evidence before stored replay or Release aggregation. Explicitly limit the claim to fail-closed local workflow integrity rather than cryptographic resistance to privileged code-and-evidence rewriting.
+
+## 0.2.18-rc.4 — 2026-08-26 — PRD Writing Reviewer v0.7 candidate
+
+- Supersede `0.2.18-rc.3` after its Suite v0.6 execution was frozen as `INVALID_HARNESS`: the 27 Runs did not share one central durable project root, so the preregistered scorer could not read one valid denominator and semantic scoring remained `NOT_RUN`.
+- Bind this unique RC4 candidate to frozen Suite v0.7, which prepares all 27 Runs under one central durable project root while keeping each Reviewer projection isolated and self-contained; RC1, RC2, and RC3 evidence remains immutable historical evidence and cannot be reused.
+- Agent Eval remains `NOT_RUN` at identity cut; this candidate claims no semantic PASS, ordinary PRD Review result, Profile v0.5 promotion, release, publication, or global installation, and human-reader validation remains `NOT_RUN`.
+
+## 0.2.18-rc.3 — 2026-08-26 — PRD Writing Reviewer v0.6 candidate
+
+- Supersede RC2 because frozen Suite v0.6 aligns evaluator scoring with the already-public product contract: one Finding assessment may contain related secondary issue labels or repair techniques while retaining one registered primary diagnosis and primary repair.
+- Preserve `0.2.18-rc.1` and `0.2.18-rc.2` as failed historical identities. Neither may be rebuilt, released, installed, reused, or reinterpreted as RC3 evidence.
+- Agent Eval remains `NOT_RUN`; this unique RC3 identity claims no semantic evaluation PASS, ordinary PRD Review result, Profile v0.5 promotion, release, publication, or global installation.
+
+## 0.2.18-rc.2 — 2026-08-26 — PRD Writing Reviewer v0.5 candidate
+
+- Replace the invalid `0.2.18-rc.1` candidate identity after its anonymous v0.5 case exporter emitted a private `prd-readability-agent-case.v0.5` envelope and resource-ref fields that the installed Writing Eval runtime correctly rejected.
+- Keep the shared, closed `prd-readability-agent-case.v0.4` transport envelope unchanged and make the v0.5 exporter emit that exact installed-runtime contract without changing any fixture, oracle, preregistration, or reviewer semantics.
+- Treat `0.2.18-rc.1` as failed historical evidence. It must not be rebuilt, released, installed, or used for semantic evaluation; all candidate gates restart from this unique `0.2.18-rc.2` identity.
+
+## 0.2.18-rc.1 — 2026-08-26 — PRD Writing Reviewer v0.5 candidate
+
+- Cut a new release-candidate identity for the preregistered PRD Writing Reviewer v0.5 evaluation and ordinary Review gates; Profile v0.5 remains a non-default candidate until those gates pass.
+- Preserve `0.2.17-rc.2@c9eb267c0857fecd03585fc192ce0bc4c59d5c89` as a failed historical RC. Its result bundle is not upgrade-compatible evidence for this candidate and must not be reused or reinterpreted as v0.5 evidence.
+- Keep the immutable v0.4 / RC2 `5/9 FAIL` record and human-reader observation `NOT_RUN`; this candidate identity alone does not claim semantic evaluation, release, publication, or installation success.
+- Superseded before semantic execution: its anonymous export contract did not match the installed Writing Eval runtime and therefore could not enter `writing-eval.prepare` through the public built path.
+
+## 0.2.16 — Unreleased — Product Evals Generator local loop
+
+- Add explanatory `NOT_NEEDED / RECOMMENDED / REQUIRED` applicability handling, exact Candidate-bound Product Eval Pack staging, immutable correction history, and truthful applicability/fulfillment/execution/freshness status.
+- Package independent `product-eval-pack.v1`, `product-eval-review.v1`, and future execution-receipt schemas while keeping semantic Pack authoring in the Host and real execution/verdict outside BPG.
+- Require a genuinely separate, isolated Reviewer before Controller-bound fulfillment; preserve `NOT_RUN`, rerun ordinary PRD Review, and reject empty Packs, invented Ground Truth, false PASS/FAIL, unstaged Pack substitution, and missing authority concealment.
+- Expose installed `prepare-evals`, `stage-evals`, and existing `fulfill-evals` control actions for both Codex and Claude hosts without adding a Graph node, public intent, remote connector, or RULE-206 template migration.
+
+## 0.2.15 — Unreleased — Immutable planning-context source history
+
+- Freeze every accepted planning-context source into content-addressed Run-local storage before it becomes an input to later nodes, while retaining the original live ref only as provenance in the committed Node Result.
+- Keep completed legacy Runs `COMPLETED` when a formerly accepted live planning source later changes; expose `DEGRADED_SOURCE_DRIFT` as a historical audit warning instead of instructing callers to resubmit an already consumed attempt.
+- Continue to fail closed for active Runs, malformed legacy provenance, changed frozen snapshots, and all Candidate, Release, Handoff, receipt, and event-authority drift.
+
+## 0.2.14 — Unreleased — Unique external Template Pack contract identity
+
+- Advance to one new distributable identity after two local/public development artifacts used `0.2.13` with different commits and artifact hashes; do not redistribute or rebuild either `0.2.13` artifact as the team baseline.
+- Preserve the external Template Pack configuration capability while binding the project output-contract resolution and required Checklist row/status validation repairs from exact commit `636a546660d91166183b20ec93138a1ded147f71`.
+
+## 0.2.13 — 2026-08-25 — Superseded development identities
+
+> Do not redistribute or rebuild under `0.2.13`: the public/local development lineage and the later project Template contract repair used the same version with different commit and artifact hashes. `0.2.14` is the unique successor identity.
 
 - Let users configure an independently versioned external Template Pack by asking the Host Agent in natural language; do not expose an installer as a product concept or add a Graph Node, public Graph intent, service, daemon, or second source of truth.
 - Keep one internal configuration action that validates Pack schema, BPG compatibility, exact Template and output-contract hashes, trusted project paths, symlink safety, and explicit version changes before activation; failed validation remains zero-write and same-version configuration is idempotent.
 - Route both installed Host Skills through the existing project Template registry while preserving exact per-Run Template pins, fallback policy, rollback history, and ordinary PRD lifecycle authority.
+- Resolve a Run-pinned project Template output contract from the trusted project template area during Writing Review instead of incorrectly forcing it through the installed-skill reference catalog; retain exact Hash and symlink checks.
+- Allow an output contract to declare required Markdown table rows, legal status values, and reason-required statuses so Generate and Optimize can fail closed on omitted business Checklist content before Candidate archive and Ready.
 
 ## 0.2.12 — Unreleased — Compatible in-flight Optimize context upgrade
 

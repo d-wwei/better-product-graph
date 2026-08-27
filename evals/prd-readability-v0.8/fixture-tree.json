@@ -1,0 +1,68 @@
+{
+  "schema_version": "prd-readability-v0.8-fixture-tree.v1",
+  "suite_id": "better-product-graph-prd-readability-v0.8",
+  "status": "BLIND_FIXTURE_CALIBRATION_PENDING",
+  "tree_hash": "sha256:da47036a8a805580542574f40d5c623ccd7a487aa15724a510001da840b69ef6",
+  "files": [
+    {
+      "path": "cases/case-001.md",
+      "hash": "sha256:a4ddce5b0fe9a9e584449f2e77ed47d682694ebe6f13fd9d6f44542e047d3cc6",
+      "size": 3243
+    },
+    {
+      "path": "cases/case-002.md",
+      "hash": "sha256:f266cd0ef1602a5f2421699494abe366987be1e0c0d67418975ee2d226963c22",
+      "size": 3681
+    },
+    {
+      "path": "cases/case-003.md",
+      "hash": "sha256:6cf05b9834705e7a1d8fd378e0d20439ddb8b4da6e3409a216aaabaada2e3248",
+      "size": 2300
+    },
+    {
+      "path": "cases/case-004.md",
+      "hash": "sha256:ddea764c0df839c50aae4a46c7fd0afdd7001555f5a5d445b2e2241746912e7b",
+      "size": 2210
+    },
+    {
+      "path": "cases/case-005.md",
+      "hash": "sha256:c5bcab1a72d861c46349538416f9b624447f0af8d6e59fca0cceb22d79c66938",
+      "size": 2004
+    },
+    {
+      "path": "cases/case-006.md",
+      "hash": "sha256:4cc4b84977f02851ead635fc8b505afe2b55b9ed6233dfa2d6f9315c3178f624",
+      "size": 2498
+    },
+    {
+      "path": "cases/case-007.md",
+      "hash": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+      "size": 4161
+    },
+    {
+      "path": "cases/case-008.md",
+      "hash": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+      "size": 7136
+    },
+    {
+      "path": "cases/case-009.md",
+      "hash": "sha256:1e505a4bd4044d7e6f2bcf87e619133b60dbbd2211657b3a2261928363781032",
+      "size": 3097
+    },
+    {
+      "path": "assets/case-009-recovery-flow.svg",
+      "hash": "sha256:907a6616c39c403f42279a376b7588df0725e0afd9d3688c759e844152f421f8",
+      "size": 8181
+    },
+    {
+      "path": "assets/case-009-recovery-flow@2x.png",
+      "hash": "sha256:f942437d992886c03c569e67a15630bac966949b54f90ce548c76b1076f27afb",
+      "size": 181573
+    },
+    {
+      "path": "calibration/notification-priority-positive.md",
+      "hash": "sha256:b451fcd03dd20ee5e4f449f27ec822b00d965837abd8b64d4d8b1ec237df750d",
+      "size": 2495
+    }
+  ]
+}

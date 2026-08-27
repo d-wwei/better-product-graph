@@ -1231,7 +1231,7 @@ class InstalledPublicReauditTests(unittest.TestCase):
         )
         self.assertEqual(
             authority["document_experience"]["profile_ref"]["version"],
-            "0.2.0",
+            "0.5.0",
         )
         self.assertEqual(
             {item["role"].split(":", 1)[0] for item in authority["spec_traceability"]["refs"]},
@@ -2279,9 +2279,21 @@ class InstalledPublicReauditTests(unittest.TestCase):
             self.assertEqual(pending["status"], "EVALS_FULFILLMENT_REQUIRED")
             resumed = self._ok("resume", run_id)
             self.assertEqual(resumed["status"], "EVALS_FULFILLMENT_REQUIRED")
-            self.assertEqual(resumed["repair_operation"], "fulfill-evals")
+            self.assertEqual(resumed["repair_operation"], "prepare-evals")
             self.assertEqual(resumed["execution_status"], "NOT_RUN")
             self.assertEqual(resumed["next_nodes"], ["review.parallel"])
+            prepared_evals = self._ok(
+                "--operation", "prepare-evals", "--run-id", run_id
+            )
+            self.assertEqual(prepared_evals["status"], "EVALS_PREPARATION_REQUIRED")
+            self.assertEqual(
+                prepared_evals["evals_host_execution_context"]["build"]["compatibility"],
+                "EXACT",
+            )
+            self.assertEqual(
+                prepared_evals["evals_host_execution_context"]["review"]["compatibility"],
+                "EXACT",
+            )
             candidate_identity = resumed["candidate_ref"]
             self.assertEqual(candidate_identity, pending["candidate_ref"])
             self.assertEqual(
@@ -2290,7 +2302,18 @@ class InstalledPublicReauditTests(unittest.TestCase):
             fixtures_path = self.project / "required-evals" / "fixtures.json"
             atomic_write_json(
                 fixtures_path,
-                {"schema_version": "eval-fixtures.v1", "cases": ["continue", "stop"]},
+                {
+                    "schema_version": "product-eval-fixtures.v1",
+                    "version": 1,
+                    "fixtures": [
+                        {
+                            "fixture_id": f"fixture-{kind}",
+                            "case_id": f"case-{kind}",
+                            "input": kind,
+                        }
+                        for kind in ("normal", "boundary", "failure", "adversarial")
+                    ],
+                },
             )
             fixtures_ref = {
                 "path": fixtures_path.relative_to(self.project).as_posix(),
@@ -2299,25 +2322,65 @@ class InstalledPublicReauditTests(unittest.TestCase):
             }
             pack_path = self.project / "required-evals" / "eval-pack.json"
             pack = {
-                "schema_version": "better-product-graph.eval-pack.v1",
+                "schema_version": "product-eval-pack.v1",
+                "version": 1,
                 "status": "SPECIFICATION_REVIEW_PENDING",
                 "candidate_ref": candidate_identity,
                 "applicability": "REQUIRED",
                 "execution_status": "NOT_RUN",
+                "producer": {"kind": "HOST_AGENT", "id": "eval-pack-builder"},
+                "purpose": {
+                    "reason": "普通 AC 不能稳定判断多个合理输出的质量边界。",
+                    "in_scope": ["生成质量", "状态真实性"],
+                    "out_of_scope": ["真实测试执行"],
+                },
+                "scenarios": {
+                    "normal": ["case-normal"],
+                    "boundary": ["case-boundary"],
+                    "failure": ["case-failure"],
+                    "adversarial": ["case-adversarial"],
+                },
+                "rubric": {
+                    "multiple_valid_outputs": True,
+                    "criteria": [
+                        {
+                            "criterion": "quality",
+                            "pass_condition": "输出满足 exact Decision 的产品边界",
+                        }
+                    ],
+                    "unacceptable": ["编造 Ground Truth", "无收据声称 PASS"],
+                },
                 "ground_truth_provenance": {
                     "type": "CONTRACT_DERIVED_EXPECTATIONS",
                     "statement": "Expected outcomes derive from the exact Decision contract.",
                     "exact_refs": [decision_ref],
                 },
-                "producer": {"kind": "HOST_AGENT", "id": "eval-pack-builder"},
+                "coverage": {"ac_refs": ["AC-CORE-001"], "known_gaps": []},
+                "unknowns": {"items": [], "blocked": False, "recovery_actions": []},
+                "execution_handoff": {
+                    "requirements": ["读取 exact Pack 与 Fixtures"],
+                    "not_occurred": [
+                        "RUNTIME_EXECUTION",
+                        "TEST_EXECUTION",
+                        "VERDICT",
+                    ],
+                },
+                "security": {"external_inputs": "UNTRUSTED_DATA_ONLY"},
                 "evaluator_contract": {
                     "contract_id": "required-evals-lifecycle",
                     "fixtures_ref": fixtures_ref,
                 },
                 "cases": [
-                    {"case_id": "continue", "expected_outcome": "CONTINUE"},
-                    {"case_id": "stop", "expected_outcome": "STOP"},
+                    {
+                        "case_id": f"case-{kind}",
+                        "class": kind.upper(),
+                        "fixture_id": f"fixture-{kind}",
+                        "oracle": "按 Rubric 与 exact Decision 判定",
+                        "covers_ac": ["AC-CORE-001"],
+                    }
+                    for kind in ("normal", "boundary", "failure", "adversarial")
                 ],
+                "revision": {"supersedes_pack_ref": None, "correction": None},
             }
             atomic_write_json(pack_path, pack)
             pack_ref = {
@@ -2325,11 +2388,46 @@ class InstalledPublicReauditTests(unittest.TestCase):
                 "hash": sha256_file(pack_path),
                 "version": 1,
             }
+            self._ok(
+                "--operation",
+                "stage-evals",
+                "--run-id",
+                run_id,
+                "--payload-file",
+                str(
+                    self._payload(
+                        "required-evals-stage.json",
+                        {
+                            "schema_version": "product-eval-pack-submission.v1",
+                            "candidate_ref": candidate_identity,
+                            "build_attempt": pack["producer"],
+                            "applicability_assessment": {
+                                "schema_version": "product-eval-applicability.v1",
+                                "candidate_ref": candidate_identity,
+                                "decision": "REQUIRED",
+                                "existing_ac_sufficiency": "普通 AC 不能稳定判断多个合理输出的质量边界。",
+                                "additional_judgment": "Rubric、Fixtures 和对抗案例提供 Ready 所需判断。",
+                                "delivery_effect": {
+                                    "blocking": True,
+                                    "reason": "缺少可判定规格时不能证明 Ready。",
+                                },
+                                "next_action": {
+                                    "owner": "Product Owner",
+                                    "action": "冻结 Pack 并完成独立规格 Review。",
+                                },
+                                "missing_authority": None,
+                            },
+                            "eval_pack_ref": pack_ref,
+                            "fixtures_ref": fixtures_ref,
+                        },
+                    )
+                ),
+            )
             eval_review_path = self.project / "required-evals" / "eval-review.json"
             atomic_write_json(
                 eval_review_path,
                 {
-                    "schema_version": "better-product-graph.eval-pack-review.v1",
+                    "schema_version": "product-eval-review.v1",
                     "status": "REVIEWED",
                     "execution_status": "NOT_RUN",
                     "reviewer_role": "INDEPENDENT_TESTABILITY_REVIEWER",
@@ -2341,7 +2439,13 @@ class InstalledPublicReauditTests(unittest.TestCase):
                         "fixtures_ref": fixtures_ref,
                         "eval_pack_ref": pack_ref,
                     },
-                    "finding_closure": [],
+                    "independence_receipt": {
+                        "different_instance": True,
+                        "isolated_context": True,
+                        "frozen_read_only_inputs": True,
+                        "first_round_findings_isolated": True,
+                    },
+                    "findings": [],
                     "new_high_findings": 0,
                     "evidence_boundary": {
                         "runtime_execution": "NOT_RUN",

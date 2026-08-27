@@ -1,0 +1,85 @@
+{
+  "schema_version": "prd-readability-suite.v0.4",
+  "suite_id": "better-product-graph-prd-readability-v0.4",
+  "status": "PREREGISTERED_AGENT_EVAL_NOT_RUN",
+  "case_ids": [
+    "flat-18-acceptance-rows",
+    "duplicate-eight-questions-and-blocks",
+    "list-diagram-table-same-model",
+    "trim-removes-useful-checklist",
+    "checked-boxes-without-legend",
+    "proposed-contract-looks-implemented",
+    "large-necessary-state-table",
+    "long-appendix-short-main-path",
+    "reader-first-layered-prd"
+  ],
+  "case_hashes": {
+    "flat-18-acceptance-rows": "sha256:5829dd13ad6368fe7ceaee1fa313fc7e599261d149453ce8297f80277b9366da",
+    "duplicate-eight-questions-and-blocks": "sha256:d87e88a56138e3a7d66b2e875cbff5a5a7c8aa618b379450e50f28e14e8798eb",
+    "list-diagram-table-same-model": "sha256:30a96ec8c08ecdca0ddfaec6e8b12ae7d6a72c9295707e17cd168d7fafb0c046",
+    "trim-removes-useful-checklist": "sha256:d2c05b39c43cb906820eb47eaf2127af026330ce6a4a324730bb2a3ef8fccb82",
+    "checked-boxes-without-legend": "sha256:32630110abe618cd212c3072e6b5a2c985a4de05b7f38cb6d2c43cd8612afd17",
+    "proposed-contract-looks-implemented": "sha256:1b600887465d760a1a3e022a248cf08a36aae515dc1259b904a271db3bdae1f5",
+    "large-necessary-state-table": "sha256:b10d4844b2400373383d5ef0aa4fb629581a8c1a9cc3cf37b5b6a69d9fe6e03f",
+    "long-appendix-short-main-path": "sha256:460024341618650bb72b5e026cfb3d75ccb12792d991ae2192210ad24f1fe463",
+    "reader-first-layered-prd": "sha256:c1b3a7f60e7ec6858a745600b7cb8067d22b8aa2de253ccc04faa201591ec825"
+  },
+  "agent_visible_case_file": "candidate.md",
+  "evaluator_only_files": [
+    "evaluator/expected.json",
+    "evaluator/preregistration.json"
+  ],
+  "profile_ref": {
+    "path": "policies/document-experience/PRD_WRITING_PROFILE_v0.4.json",
+    "hash": "sha256:85d81248659d0fd0a74fd9fce679b4c5bda0445971a00329c379b76672705919",
+    "version": "0.4.0"
+  },
+  "guide_ref": {
+    "path": "policies/document-experience/PRD_WRITING_GUIDE_v0.4.md",
+    "hash": "sha256:b262531a455a31e9a5aa087808ca369f99ce65e488d17ff3af59998f649e3639",
+    "version": "0.4.0"
+  },
+  "target_eval_schema": "document-experience-reader-eval.v3.1",
+  "reader_outcomes": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "diagnostic_categories": [
+    "SEMANTIC_REPETITION",
+    "FLAT_PEER_OVERLOAD",
+    "REPRESENTATION_COLLISION",
+    "DETAIL_IN_MAIN_PATH",
+    "DENSE_TABLE",
+    "JARGON_INTRUSION",
+    "CHECKLIST_FUNCTION_LOSS",
+    "COMPLETION_SEMANTICS_AMBIGUOUS",
+    "ARTIFACT_MATURITY_OVERCLAIM"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "GROUP",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "REFERENCE",
+    "MOVE",
+    "TRIM",
+    "RESTORE_FUNCTION",
+    "BOUNDARY"
+  ],
+  "evidence_policy": {
+    "contract_pass_implies_agent_runtime_pass": false,
+    "fixture_pass_implies_real_prd_review_pass": false,
+    "fixture_pass_implies_human_reader_validation": false,
+    "agent_runtime_status": "NOT_RUN",
+    "real_prd_review_status": "NOT_RUN",
+    "human_reader_validation": "NOT_RUN",
+    "required_installed_agent_eval_result": "9/9"
+  }
+}

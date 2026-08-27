@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "product-eval-pack.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "version",
+    "status",
+    "candidate_ref",
+    "applicability",
+    "execution_status",
+    "producer",
+    "purpose",
+    "scenarios",
+    "rubric",
+    "ground_truth_provenance",
+    "coverage",
+    "unknowns",
+    "execution_handoff",
+    "security",
+    "evaluator_contract",
+    "cases",
+    "revision"
+  ],
+  "properties": {
+    "schema_version": {"const": "product-eval-pack.v1"},
+    "version": {"type": "integer", "minimum": 1},
+    "status": {"const": "SPECIFICATION_REVIEW_PENDING"},
+    "candidate_ref": {
+      "type": "object",
+      "required": ["path", "hash", "version"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "version": {"type": ["string", "integer"]}
+      },
+      "additionalProperties": false
+    },
+    "applicability": {"enum": ["RECOMMENDED", "REQUIRED"]},
+    "execution_status": {"const": "NOT_RUN"},
+    "producer": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"const": "HOST_AGENT"},
+        "id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "purpose": {
+      "type": "object",
+      "required": ["reason", "in_scope", "out_of_scope"],
+      "properties": {
+        "reason": {"type": "string", "minLength": 1},
+        "in_scope": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "out_of_scope": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      },
+      "additionalProperties": false
+    },
+    "scenarios": {
+      "type": "object",
+      "required": ["normal", "boundary", "failure", "adversarial"],
+      "properties": {
+        "normal": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "boundary": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "failure": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "adversarial": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      },
+      "additionalProperties": false
+    },
+    "rubric": {
+      "type": "object",
+      "required": ["multiple_valid_outputs", "criteria", "unacceptable"],
+      "properties": {
+        "multiple_valid_outputs": {"type": "boolean"},
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["criterion", "pass_condition"],
+            "properties": {
+              "criterion": {"type": "string", "minLength": 1},
+              "pass_condition": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "unacceptable": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      },
+      "additionalProperties": false
+    },
+    "ground_truth_provenance": {
+      "type": "object",
+      "required": ["type", "statement", "exact_refs"],
+      "properties": {
+        "type": {"const": "CONTRACT_DERIVED_EXPECTATIONS"},
+        "statement": {"type": "string", "minLength": 1},
+        "exact_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "hash", "version"],
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+              "version": {"type": ["string", "integer"]}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["ac_refs", "known_gaps"],
+      "properties": {
+        "ac_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "known_gaps": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      },
+      "additionalProperties": false
+    },
+    "unknowns": {
+      "type": "object",
+      "required": ["items", "blocked", "recovery_actions"],
+      "properties": {
+        "items": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "blocked": {"const": false},
+        "recovery_actions": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      },
+      "additionalProperties": false
+    },
+    "execution_handoff": {
+      "type": "object",
+      "required": ["requirements", "not_occurred"],
+      "properties": {
+        "requirements": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "not_occurred": {
+          "type": "array",
+          "items": {"enum": ["RUNTIME_EXECUTION", "TEST_EXECUTION", "VERDICT"]},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "security": {
+      "type": "object",
+      "required": ["external_inputs"],
+      "properties": {"external_inputs": {"const": "UNTRUSTED_DATA_ONLY"}},
+      "additionalProperties": false
+    },
+    "evaluator_contract": {
+      "type": "object",
+      "required": ["contract_id", "fixtures_ref"],
+      "properties": {
+        "contract_id": {"type": "string", "minLength": 1},
+        "fixtures_ref": {
+          "type": "object",
+          "required": ["path", "hash", "version"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "version": {"type": ["string", "integer"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["case_id", "class", "fixture_id", "oracle", "covers_ac"],
+        "properties": {
+          "case_id": {"type": "string", "minLength": 1},
+          "class": {"enum": ["NORMAL", "BOUNDARY", "FAILURE", "ADVERSARIAL"]},
+          "fixture_id": {"type": "string", "minLength": 1},
+          "oracle": {"type": "string", "minLength": 1},
+          "covers_ac": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "revision": {
+      "type": "object",
+      "required": ["supersedes_pack_ref", "correction"],
+      "properties": {
+        "supersedes_pack_ref": {
+          "type": ["object", "null"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "version": {"type": ["string", "integer"]}
+          },
+          "additionalProperties": false
+        },
+        "correction": {
+          "type": ["object", "null"],
+          "properties": {
+            "actor": {
+              "type": "object",
+              "required": ["kind", "id"],
+              "properties": {
+                "kind": {"enum": ["PRODUCT_MANAGER", "HOST_AGENT"]},
+                "id": {"type": "string", "minLength": 1}
+              },
+              "additionalProperties": false
+            },
+            "reason": {"type": "string", "minLength": 1},
+            "changed_fields": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

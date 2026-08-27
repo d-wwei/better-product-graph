@@ -37,12 +37,17 @@ PROVENANCE_ROLES = frozenset(
     }
 )
 PACK_SCHEMA_VERSIONS = frozenset(
-    {"better-product-graph.eval-pack.v0.2", "better-product-graph.eval-pack.v1"}
+    {
+        "better-product-graph.eval-pack.v0.2",
+        "better-product-graph.eval-pack.v1",
+        "product-eval-pack.v1",
+    }
 )
 REVIEW_SCHEMA_VERSIONS = frozenset(
     {
         "better-product-graph.eval-pack-review.v0.1",
         "better-product-graph.eval-pack-review.v1",
+        "product-eval-review.v1",
     }
 )
 
@@ -255,7 +260,7 @@ def _all_findings_closed(value: Any) -> bool:
     return isinstance(value, list) and all(
         isinstance(item, dict)
         and isinstance(item.get("finding_id"), str)
-        and item.get("status") == "CLOSED"
+        and item.get("status") in {"CLOSED", "DISPOSITIONED"}
         for item in value
     )
 
@@ -274,8 +279,10 @@ def validate_reviewed_evals(
 
     if not isinstance(evals, dict) or evals.get("fulfillment") != "REVIEWED":
         raise EvalsAuthorityError("reviewed Evals metadata is missing")
-    if evals.get("applicability") != "REQUIRED":
-        raise EvalsAuthorityError("REVIEWED Evals are only valid when applicability is REQUIRED")
+    if evals.get("applicability") not in {"RECOMMENDED", "REQUIRED"}:
+        raise EvalsAuthorityError(
+            "REVIEWED Evals are valid only when applicability is RECOMMENDED or REQUIRED"
+        )
     if evals.get("execution_status") != "NOT_RUN":
         raise EvalsAuthorityError(
             "Product Eval Pack execution_status must remain NOT_RUN until downstream execution"
@@ -351,15 +358,33 @@ def validate_reviewed_evals(
         pack = read_json(pack_path)
         review = read_json(review_path)
         schemas = SchemaRuntime(skill_root)
-        schemas.validate("eval-pack.schema.json", pack)
-        schemas.validate("eval-pack-review.schema.json", review)
+        schemas.validate(
+            (
+                "product-eval-pack.schema.json"
+                if pack.get("schema_version") == "product-eval-pack.v1"
+                else "eval-pack.schema.json"
+            ),
+            pack,
+        )
+        schemas.validate(
+            (
+                "product-eval-review.schema.json"
+                if review.get("schema_version") == "product-eval-review.v1"
+                else "eval-pack-review.schema.json"
+            ),
+            review,
+        )
     except (IntegrityError, SchemaValidationError) as error:
         raise EvalsAuthorityError(f"Eval artifact schema is invalid: {error}") from error
     if pack.get("schema_version") not in PACK_SCHEMA_VERSIONS:
         raise EvalsAuthorityError("Eval Pack schema_version is not allowlisted")
     if review.get("schema_version") not in REVIEW_SCHEMA_VERSIONS:
         raise EvalsAuthorityError("Eval Pack review schema_version is not allowlisted")
-    if pack.get("applicability") != "REQUIRED" or pack.get("execution_status") != "NOT_RUN":
+    if (
+        pack.get("applicability") != evals.get("applicability")
+        or pack.get("applicability") not in {"RECOMMENDED", "REQUIRED"}
+        or pack.get("execution_status") != "NOT_RUN"
+    ):
         raise EvalsAuthorityError("Eval Pack applicability/execution boundary is invalid")
     cases = pack.get("cases")
     if (
@@ -369,7 +394,7 @@ def validate_reviewed_evals(
             isinstance(item, dict)
             and isinstance(item.get("case_id"), str)
             and bool(item["case_id"])
-            and "expected_outcome" in item
+            and ("expected_outcome" in item or "oracle" in item)
             for item in cases
         )
     ):
@@ -406,7 +431,11 @@ def validate_reviewed_evals(
         or review.get("reviewer_role") != "INDEPENDENT_TESTABILITY_REVIEWER"
         or review.get("reviewer_authority") != "ADVISORY_ONLY"
         or review.get("new_high_findings") != 0
-        or not _all_findings_closed(review.get("finding_closure"))
+        or not _all_findings_closed(
+            review.get("findings")
+            if review.get("schema_version") == "product-eval-review.v1"
+            else review.get("finding_closure")
+        )
     ):
         raise EvalsAuthorityError("Eval Pack review conclusion/authority is invalid")
     subjects = review.get("subjects", {})

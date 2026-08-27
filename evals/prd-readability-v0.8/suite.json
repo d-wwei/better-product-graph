@@ -1,0 +1,84 @@
+{
+  "schema_version": "prd-readability-suite.v0.8",
+  "suite_id": "better-product-graph-prd-readability-v0.8",
+  "status": "PREREGISTERED_AGENT_EVAL_NOT_RUN",
+  "case_ids": [
+    "case-001",
+    "case-002",
+    "case-003",
+    "case-004",
+    "case-005",
+    "case-006",
+    "case-007",
+    "case-008",
+    "case-009"
+  ],
+  "case_hashes": {
+    "case-001": "sha256:a4ddce5b0fe9a9e584449f2e77ed47d682694ebe6f13fd9d6f44542e047d3cc6",
+    "case-002": "sha256:f266cd0ef1602a5f2421699494abe366987be1e0c0d67418975ee2d226963c22",
+    "case-003": "sha256:6cf05b9834705e7a1d8fd378e0d20439ddb8b4da6e3409a216aaabaada2e3248",
+    "case-004": "sha256:ddea764c0df839c50aae4a46c7fd0afdd7001555f5a5d445b2e2241746912e7b",
+    "case-005": "sha256:c5bcab1a72d861c46349538416f9b624447f0af8d6e59fca0cceb22d79c66938",
+    "case-006": "sha256:4cc4b84977f02851ead635fc8b505afe2b55b9ed6233dfa2d6f9315c3178f624",
+    "case-007": "sha256:d4b7c38d7344692be2a7fc81761c1acbd91aebc1a3c8405fe974592ac12e7060",
+    "case-008": "sha256:5c7172cb13975bf3d564b7792e30209fca22fe469b4cdd633630c8a64a94449b",
+    "case-009": "sha256:1e505a4bd4044d7e6f2bcf87e619133b60dbbd2211657b3a2261928363781032"
+  },
+  "fixture_tree_hash": "sha256:da47036a8a805580542574f40d5c623ccd7a487aa15724a510001da840b69ef6",
+  "calibration_only_document": "calibration/notification-priority-positive.md",
+  "agent_case_file": "candidate.md",
+  "evaluator_only_files": [
+    "evaluator/expected.json",
+    "evaluator/preregistration.json",
+    "evaluator/score_results.py",
+    "evaluator/evidence_reader.py",
+    "run_contract.py",
+    "fixture-review/reviewer-a.json",
+    "fixture-review/reviewer-b.json",
+    "fixture-review/adjudication.json"
+  ],
+  "profile_ref": {
+    "path": "policies/document-experience/PRD_WRITING_PROFILE_v0.5.json",
+    "hash": "sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0",
+    "version": "0.5.0"
+  },
+  "guide_ref": {
+    "path": "policies/document-experience/PRD_WRITING_GUIDE_v0.5.md",
+    "hash": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962",
+    "version": "0.5.0"
+  },
+  "instruction_ref": {
+    "path": "src/core/atomic-skills/prd-writing-eval-review-v3.2/INSTRUCTIONS.md",
+    "hash": "sha256:2315d87afb0756fa1dee7bf242fdf01d117c44460b59a5dab13d4275272a0c30",
+    "version": "v3.2"
+  },
+  "reviewer_resource_ref": {
+    "path": "src/core/reviewer-profiles/prd-writing-eval-reader-review-v3.2.json",
+    "hash": "sha256:39de6937c1696d78432d3c46af7a9dbb4144e7f60d6bc85e70515a97cd7efce3",
+    "version": "v3.2"
+  },
+  "output_contract_ref": {
+    "path": "src/core/templates/contracts/prd-v0.2.json",
+    "hash": "sha256:33270d0d8c30bc384e5c6f9f2f9a5e59cacb06b2be27da2f3f5b20eeebfc08a0",
+    "version": "better-product-graph.prd.general.0.2"
+  },
+  "result_schema_ref": {
+    "path": "src/core/schemas/document-experience-reader-eval-v3.1.schema.json",
+    "hash": "sha256:6aa12505bf4e89b99a5d9d7693f03fde99cdfa50cd9514c4a8310165c176b366",
+    "version": "document-experience-reader-eval.v3.1"
+  },
+  "target_eval_schema": "document-experience-reader-eval.v3.1",
+  "evidence_policy": {
+    "contract_pass_implies_agent_runtime_pass": false,
+    "fixture_pass_implies_real_prd_review_pass": false,
+    "fixture_pass_implies_human_reader_validation": false,
+    "agent_runtime_status": "NOT_RUN",
+    "phase_runtime_status": {
+      "RC_CANDIDATE": "NOT_RUN",
+      "FINAL_PUBLIC_ARTIFACT": "NOT_RUN"
+    },
+    "real_prd_review_status": "NOT_RUN",
+    "human_reader_validation": "NOT_RUN",
+    "required_installed_agent_eval_result_per_phase": "27/27"
+  }
+}

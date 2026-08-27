@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,11 +48,11 @@ class DistributionContractTests(unittest.TestCase):
         )
         self.assertFalse(any(path.is_symlink() for path in self.output.rglob("*")))
         self.assertEqual(manifest["plugin"]["name"], "better-product-graph")
-        self.assertEqual(manifest["plugin"]["version"], "0.2.13")
+        self.assertEqual(manifest["plugin"]["version"], "0.2.18")
         installed_manifest = json.loads(
             (self.output / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(installed_manifest["version"], "0.2.13")
+        self.assertEqual(installed_manifest["version"], "0.2.18")
         self.assertEqual(manifest["architecture_baseline"]["version"], "V1.4")
         self.assertEqual(manifest["roadmap_baseline"]["version"], "v0.17")
         self.assertTrue((self.output / "LICENSE").is_file())
@@ -70,6 +72,10 @@ class DistributionContractTests(unittest.TestCase):
             manifest["document_experience_promotion"]["profile_id"],
             "prd-plain-language-zh-CN",
         )
+        self.assertEqual(
+            manifest["document_experience_promotion"]["profile_version"],
+            "0.5.0",
+        )
         installed_policies = (
             self.output
             / "skills"
@@ -81,6 +87,8 @@ class DistributionContractTests(unittest.TestCase):
         self.assertTrue((installed_policies / "prd-writing-guide-v0.1.md").is_file())
         self.assertTrue((installed_policies / "prd-writing-profile-v0.2.json").is_file())
         self.assertTrue((installed_policies / "prd-writing-guide-v0.2.md").is_file())
+        self.assertTrue((installed_policies / "prd-writing-profile-v0.5.json").is_file())
+        self.assertTrue((installed_policies / "prd-writing-guide-v0.5.md").is_file())
         self.assertTrue(manifest["execution_contract_fingerprint"].startswith("sha256:"))
         self.assertTrue(manifest["artifact_hash"].startswith("sha256:"))
         self.assertTrue(verify_installed_identity(self.output)["valid"])
@@ -90,11 +98,11 @@ class DistributionContractTests(unittest.TestCase):
         skill_root = self.output / "skills" / "better-product-graph"
         policy_root = skill_root / "references" / "policies"
         profile = json.loads(
-            (policy_root / "prd-writing-profile-v0.2.json").read_text(
+            (policy_root / "prd-writing-profile-v0.5.json").read_text(
                 encoding="utf-8"
             )
         )
-        guide = (policy_root / "prd-writing-guide-v0.2.md").read_text(
+        guide = (policy_root / "prd-writing-guide-v0.5.md").read_text(
             encoding="utf-8"
         )
         generate_instruction = (
@@ -107,10 +115,10 @@ class DistributionContractTests(unittest.TestCase):
         )
         self.assertEqual(
             profile["writing_guide_ref"]["path"],
-            "references/policies/prd-writing-guide-v0.2.md",
+            "references/policies/prd-writing-guide-v0.5.md",
         )
-        self.assertIn("## 2. 十三条写作规则", guide)
-        self.assertIn("先建立全局框架，再逐层展开", guide)
+        self.assertIn("## 3. 作者必须遵守的八条规则", guide)
+        self.assertIn("一个语义一个正式位置", guide)
         self.assertIn("Engineering SPEC", guide)
         self.assertIn("metadata_authority.document_experience", generate_instruction)
         self.assertNotIn("plain-talk", generate_instruction)
@@ -184,6 +192,55 @@ class DistributionContractTests(unittest.TestCase):
 
         with self.assertRaisesRegex(BuildError, "SKILL.md"):
             build_plugin(REPO_ROOT, self.output)
+
+    def test_build_rejects_same_count_reference_resource_substitution(self) -> None:
+        repo = Path(self.tempdir.name) / "tampered-repo"
+        shutil.copytree(
+            REPO_ROOT,
+            repo,
+            ignore=shutil.ignore_patterns(
+                ".git",
+                "__pycache__",
+                "artifacts",
+                "audits",
+                ".better-product-graph",
+                ".product-audit",
+                ".better-work",
+                ".assistant",
+            ),
+        )
+        catalog_path = (
+            repo
+            / "src"
+            / "core"
+            / "reasoning-catalog"
+            / "reference-catalog-v0.1.json"
+        )
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        catalog["reviewer_profiles"] = [
+            item
+            for item in catalog["reviewer_profiles"]
+            if item["resource_id"] != "prd-writing-eval-reader-review-v3.2"
+        ]
+        fake_path = repo / "src" / "core" / "reviewer-profiles" / "fake-reviewer.json"
+        fake_bytes = b'{"schema_version":"fake-reviewer.v1"}\n'
+        fake_path.write_bytes(fake_bytes)
+        catalog["reviewer_profiles"].append(
+            {
+                "resource_id": "fake-writing-eval-reviewer",
+                "kind": "EVAL_REVIEWER_PACKET_CONTRACT",
+                "version": "v1",
+                "path": "references/reviewer-profiles/fake-reviewer.json",
+                "hash": "sha256:" + hashlib.sha256(fake_bytes).hexdigest(),
+            }
+        )
+        catalog_path.write_text(
+            json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(BuildError, "reference catalog membership"):
+            build_plugin(repo, self.output)
 
     def test_build_is_byte_stable_for_same_source_identity(self) -> None:
         second = Path(self.tempdir.name) / "second"

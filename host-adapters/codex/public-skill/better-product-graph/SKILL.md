@@ -108,14 +108,46 @@ Product Decision, first submit the Agent proposal without an Owner choice or
 requested route; after the Controller returns `OWNER_CHOICE_REQUIRED`, use the
 separate installed `--operation owner-choice` contract.
 
-When `prd.ready.gate` returns `EVALS_FULFILLMENT_REQUIRED`, do not claim Ready,
-Release, Handoff, or executed tests. Create the exact Eval Pack and fixtures as
-the Host Agent, obtain an independent testability review from a different
-Agent/subagent identity, then use the internal repair operation below. This is
-not a user-facing intent and does not create an Experiment fast lane: it binds
-`REVIEWED` specification evidence with `execution_status=NOT_RUN`, resets the
-same Candidate's advisory companion to `NOT_RUN`, and routes the Candidate back
-through the ordinary `review.parallel` path.
+For Product Evals marked `RECOMMENDED`, the Host may run the bounded workflow
+before Ready; it must not turn the recommendation into a delivery blocker. When
+`prd.ready.gate` returns `EVALS_FULFILLMENT_REQUIRED`, the same workflow is the
+required repair. Do not claim Ready, Release, Handoff, remote delivery, executed
+tests, or PASS/FAIL.
+
+First obtain the exact Candidate, four-dimensional status, and installed build
+and Review instructions:
+
+```text
+python3 <installed-skill-root>/scripts/bpg_runner.py \
+  --operation prepare-evals \
+  --run-id <exact-run-id>
+```
+
+Read only the absolute instruction paths whose hashes are `EXACT` in
+`evals_host_execution_context`. The Host Agent authors an explanatory
+`product-eval-applicability.v1` assessment. If REQUIRED authority is missing,
+submit `product-eval-assessment-submission.v1`; the Controller records
+`BLOCKED_MISSING_INPUT` with Owner, impact, and recovery, without accepting an
+empty Pack. Otherwise freeze `product-eval-pack.v1` and
+`product-eval-fixtures.v1`, then stage them with the closed submission below:
+
+```text
+python3 <installed-skill-root>/scripts/bpg_runner.py \
+  --operation stage-evals \
+  --run-id <exact-run-id> \
+  --payload-file <project-relative-product-eval-pack-submission.json>
+```
+
+`product-eval-pack-submission.v1` binds the returned exact `candidate_ref`, one
+closed HOST_AGENT `build_attempt`, the assessment, and exact path/hash/version
+refs for Pack and Fixtures. Staging means `GENERATED_PENDING_REVIEW / NOT_RUN`,
+not product approval. A substantive correction creates the next Pack version,
+supersedes the exact prior Pack, and leaves its history `STALE`.
+
+Run the installed independent Review instruction in a genuinely different,
+isolated Agent/subagent instance over frozen read-only inputs. After every
+substantive Finding is closed or dispositioned, freeze
+`product-eval-review.v1` and bind it through the existing final operation:
 
 ```text
 python3 <installed-skill-root>/scripts/bpg_runner.py \
@@ -132,12 +164,69 @@ The Eval Pack and review must satisfy the installed Eval schemas, bind the same
 Candidate/fixtures/Pack, preserve contract-derived Ground Truth provenance, and
 state all runtime/test/reader execution as `NOT_RUN`.
 
+These are three separate authority contracts: `product-eval-pack.v1` specifies
+what to test, `product-eval-review.v1` reviews that specification, and only a
+future authorized `product-eval-execution-receipt.v1` may report observations
+or a verdict. BPG produces neither that execution receipt nor a product
+PASS/FAIL. The fulfillment operation routes the same Candidate back through
+ordinary `review.parallel`; it does not create an Experiment fast lane.
+
 At this blocker, public `resume` returns the same authoritative repair contract
 at top level: `status=EVALS_FULFILLMENT_REQUIRED`, the closed
-`candidate_ref`, `repair_operation=fulfill-evals`,
+`candidate_ref`, `repair_operation=prepare-evals`,
 `execution_status=NOT_RUN`, and `next_nodes=[review.parallel]`. Use that returned
 Candidate ref directly; the broader `state.current_candidate_ref` is status
 context and is not the fulfillment submission shape.
+
+### Internal Writing Reviewer product evaluation
+
+`writing-eval.prepare` and `writing-eval.review` are evaluator-harness operations,
+not user-facing product intents and not Product Graph nodes. Use them only for an
+explicit installed Writing Reviewer evaluation whose Agent workspace excludes all
+expected/scoring files. They create state only under
+`.better-product-graph/writing-evals/`; they never create a Product Run or enter
+aggregate, Ready, Release, or Handoff.
+
+The evaluator first supplies one closed `writing-eval-prepare.v1` payload containing
+only an Agent-visible suite manifest, opaque case manifest, exact Candidate, and
+anonymous author-attempt identity:
+
+<!-- writing-eval-prepare-contract -->
+```json
+{
+  "schema_version": "writing-eval-prepare.v1",
+  "suite_id": "better-product-graph-prd-readability-v0.4",
+  "case_id": "case-001",
+  "suite_ref": {"path": "agent-suite.json", "hash": "sha256:<exact>", "version": 1},
+  "case_ref": {"path": "case-001/case-manifest.json", "hash": "sha256:<exact>", "version": 1},
+  "candidate_ref": {"path": "case-001/candidate.md", "hash": "sha256:<exact>", "version": 1},
+  "author_execution_ref": {"kind": "HOST_AGENT_ATTEMPT", "id": "anon-author-case-001"}
+}
+```
+
+```text
+python3 <installed-skill-root>/scripts/bpg_runner.py \
+  --operation writing-eval.prepare \
+  --run-id <exact-eval-run-id> \
+  --payload-file <project-relative-writing-eval-prepare.json>
+```
+
+The Controller returns the exact `writing-eval.review` dispatch and a dynamic
+preregistration checkpoint created before any result. The independent subagent reads
+only the returned Controller-owned immutable snapshot, isolated inputs, and installed
+instruction, produces the closed `document-experience-reader-eval.v3.1` result, and
+submits it through:
+
+```text
+python3 <installed-skill-root>/scripts/bpg_runner.py \
+  --operation writing-eval.review \
+  --run-id <exact-eval-run-id> \
+  --payload-file <project-relative-writing-eval-result.json>
+```
+
+Completion means only that one Agent evaluation result was recorded. Evaluator
+scoring and human reader observation are separate evidence; human reader validation
+remains `NOT_RUN` unless actually performed.
 
 ## Interaction control
 

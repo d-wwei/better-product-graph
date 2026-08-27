@@ -1,0 +1,70 @@
+{
+  "schema_version": "prd-readability-expected-envelope.v0.3",
+  "suite_id": "better-product-graph-prd-readability-v0.3",
+  "cases": {
+    "simple-linear-no-visual": {
+      "agent_case_id": "case-001",
+      "visual_model": "NOT_NEEDED",
+      "material_finding": false
+    },
+    "complex-flow-missing-visual": {
+      "agent_case_id": "case-002",
+      "visual_model": "NEEDED_MISSING",
+      "material_finding": true,
+      "categories": [
+        "FLOW",
+        "VISUAL_MODEL"
+      ],
+      "allowed_repairs": [
+        "VISUALIZE",
+        "LAYER"
+      ],
+      "acceptable_revision_outcomes": [
+        "增加一张能同时展示三方主路径、超时、退回和回收失败恢复的最小流程图。",
+        "先用分层总览展示主路径，再把异常与恢复放到第二层图或紧邻的恢复表。"
+      ]
+    },
+    "misleading-visual": {
+      "agent_case_id": "case-003",
+      "visual_model": "PRESENT_MISLEADING",
+      "material_finding": true,
+      "categories": [
+        "TRUST_BOUNDARY",
+        "VISUAL_MODEL"
+      ],
+      "allowed_repairs": [
+        "BOUNDARY",
+        "VISUALIZE",
+        "REORDER"
+      ],
+      "acceptable_revision_outcomes": [
+        "修正现有图，明确负责人批准之后仍必须经过权限服务授权。",
+        "替换误导图，用一张区分业务审批和权限授权的图并保留等价文字摘要。"
+      ]
+    },
+    "verbose-repeated-contracts": {
+      "agent_case_id": "case-004",
+      "visual_model": "NOT_NEEDED",
+      "categories": [
+        "OVERLOAD",
+        "REDUNDANCY"
+      ],
+      "allowed_repairs": [
+        "LAYER",
+        "MERGE",
+        "MOVE",
+        "TRIM"
+      ],
+      "acceptable_revision_outcomes": [
+        "保留一个正式状态合同，把其他重复说明改成短摘要和精确引用。",
+        "合并重复规则与验收，只保留能帮助不同读者执行动作的分层说明。",
+        "把实现提醒移出主阅读路径，同时完整保留产品状态、异常和验收合同。"
+      ]
+    },
+    "layered-svg-pass": {
+      "agent_case_id": "case-005",
+      "visual_model": "PASS",
+      "material_finding": false
+    }
+  }
+}

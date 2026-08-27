@@ -13,7 +13,12 @@ from src.bpg.handoff import prepare_local_handoff
 from src.bpg.host_runtime import HostRuntime
 from src.bpg.prd_contract import assemble_prd
 from src.bpg.product_memory import persist_decision_proposal
-from src.bpg.receipts import READY_RULES_VERSION
+from src.bpg.receipts import (
+    READY_RULES_VERSION,
+    ReceiptError,
+    evaluate_receipt_subjects,
+    normalize_subject_refs,
+)
 from src.bpg.ready import PRDNotReady, calculate_prd_ready, ready_and_release
 from src.bpg.state_controller import StateConflict, StateController, TransitionRejected
 from src.bpg.storage import (
@@ -33,6 +38,7 @@ from tests.test_prd_contract import (
     complete_experiment_contract,
     prd_submission,
 )
+from tests.writing_review_fixtures import attach_zero_finding_writing_coverage
 
 
 GRAPH = REPO_ROOT / "src" / "core" / "graph" / "manifest.json"
@@ -791,6 +797,220 @@ class ReviewsReadyTests(unittest.TestCase):
         result = calculate_prd_ready(complete_ready_input(self.candidate_ref))
         self.assertEqual(result.status, "READY")
         self.assertEqual(result.unmet, [])
+
+    def _compact_v3_receipt_fixture(
+        self, *, incomplete: bool = False
+    ) -> tuple[list[dict], dict, dict]:
+        artifact = self.project / "artifacts" / "prds" / "archived" / "V3"
+        artifact.mkdir(parents=True)
+        candidate = artifact / "V3_v0.1.md"
+        candidate.write_text("# V3 PRD\n\n正文。\n", encoding="utf-8")
+        candidate_identity = {
+            "path": candidate.relative_to(self.project).as_posix(),
+            "hash": sha256_file(candidate),
+            "version": "v0.1",
+        }
+        context = {
+            "schema_version": "writing-review-dispatch.v3",
+            "candidate_ref": candidate_identity,
+            "candidate_tree_hash": "sha256:pre-finalize-candidate-tree",
+            "profile_ref": {
+                "path": "references/policies/prd-writing-profile-v0.4.json",
+                "hash": "sha256:profile-v0.4",
+                "version": "0.4.0",
+            },
+            "guide_ref": {
+                "path": "references/policies/prd-writing-guide-v0.4.md",
+                "hash": "sha256:guide-v0.4",
+                "version": "0.4.0",
+            },
+            "review_contract_ref": {
+                "path": "references/reviewer-profiles/prd-writing-reader-review-v3.json",
+                "hash": "sha256:reader-review-v3",
+                "version": "v3",
+            },
+            "output_contract_ref": {
+                "path": "references/templates/contracts/prd-v0.2.json",
+                "hash": "sha256:output-contract",
+                "version": "better-product-graph.prd.general.0.2",
+            },
+            "author_execution_ref": {
+                "kind": "HOST_AGENT_ATTEMPT",
+                "id": "attempt-author-v3",
+            },
+            "required_rule_ids": [],
+            "required_check_ids": [],
+        }
+        context["isolated_input_refs"] = [
+            context["candidate_ref"],
+            context["profile_ref"],
+            context["guide_ref"],
+            context["review_contract_ref"],
+            context["output_contract_ref"],
+        ]
+        dispatch = {
+            "attempt_id": "review-v3",
+            "writing_review_context": context,
+        }
+        review_result = {"semantic_output": {}, "artifact_refs": []}
+        writing_ref = attach_zero_finding_writing_coverage(
+            self.project, dispatch, review_result
+        )
+        if incomplete:
+            writing = self.project / writing_ref["path"]
+            payload = read_json(writing)
+            payload.pop("reader_readback")
+            atomic_write_json(writing, payload)
+            writing_ref = {**writing_ref, "hash": sha256_file(writing)}
+
+        evidence = self.project / ".better-product-graph" / "test-review-evidence"
+        evidence.mkdir(parents=True, exist_ok=True)
+        aggregate = evidence / "review-aggregate.json"
+        atomic_write_json(
+            aggregate,
+            {
+                "schema_version": "review-aggregate.v1",
+                "authority": "ADVISORY_ONLY",
+                "candidate_ref": candidate_identity,
+                "attempts": [
+                    {
+                        "attempt_id": "review-v3",
+                        "status": "COMPLETED",
+                        "roles_covered": [
+                            "product",
+                            "engineering_feasibility",
+                            "testability",
+                        ],
+                    }
+                ],
+                "findings": [],
+                "disagreements": [],
+                "writing_coverage_ref": writing_ref,
+            },
+        )
+        dispositions = evidence / "review-dispositions.json"
+        atomic_write_json(
+            dispositions,
+            {
+                "schema_version": "review-dispositions.v1",
+                "candidate_hash": candidate_identity["hash"],
+                "candidate_version": "v0.1",
+                "dispositions": [],
+            },
+        )
+        aggregate_ref = {
+            "path": aggregate.relative_to(self.project).as_posix(),
+            "hash": sha256_file(aggregate),
+            "version": 1,
+        }
+        disposition_ref = {
+            "path": dispositions.relative_to(self.project).as_posix(),
+            "hash": sha256_file(dispositions),
+            "version": 1,
+        }
+        companion = artifact / "V3_v0.1.review.json"
+        atomic_write_json(
+            companion,
+            {
+                "schema_version": "prd-review-companion.v1",
+                "status": "FINALIZED",
+                "authority": "ADVISORY_ONLY",
+                "candidate_hash": candidate_identity["hash"],
+                "version": "v0.1",
+                "finding_count": 0,
+                "aggregate_ref": aggregate_ref,
+                "dispositions_ref": disposition_ref,
+                "writing_coverage_ref": writing_ref,
+            },
+        )
+        candidate_ref = {
+            **candidate_identity,
+            "artifact_path": artifact.relative_to(self.project).as_posix(),
+            "tree_hash": hash_tree(artifact),
+            "review_path": companion.relative_to(self.project).as_posix(),
+            "review_hash": sha256_file(companion),
+        }
+        subjects = normalize_subject_refs(
+            self.project,
+            "review_finalize",
+            [
+                {"role": "candidate_document", **candidate_identity},
+                {
+                    "role": "review_companion",
+                    "path": companion.relative_to(self.project).as_posix(),
+                    "hash": sha256_file(companion),
+                },
+                {"role": "review_aggregate", **aggregate_ref},
+                {"role": "review_dispositions", **disposition_ref},
+                {"role": "writing_coverage", **writing_ref},
+            ],
+        )
+        return subjects, candidate_ref, context
+
+    def test_review_finalize_receipt_accepts_complete_compact_v3_writing_review(self) -> None:
+        subjects, candidate_ref, context = self._compact_v3_receipt_fixture()
+
+        observed = evaluate_receipt_subjects(
+            self.project,
+            "review_finalize",
+            subjects,
+            run_id="run-v3",
+            node_id="prd.ready.gate",
+            attempt_id="attempt-v3",
+            candidate_ref=candidate_ref,
+            template_selection={},
+            writing_review_context=context,
+        )
+
+        self.assertEqual(observed["status"], "PASS")
+        self.assertEqual(
+            observed["observed"],
+            {"review_status": "FINALIZED", "finding_count": 0},
+        )
+
+    def test_review_finalize_receipt_rejects_incomplete_v3_writing_review(self) -> None:
+        subjects, candidate_ref, context = self._compact_v3_receipt_fixture(
+            incomplete=True
+        )
+
+        with self.assertRaisesRegex(ReceiptError, "reader_readback"):
+            evaluate_receipt_subjects(
+                self.project,
+                "review_finalize",
+                subjects,
+                run_id="run-v3",
+                node_id="prd.ready.gate",
+                attempt_id="attempt-v3",
+                candidate_ref=candidate_ref,
+                template_selection={},
+                writing_review_context=context,
+            )
+
+    def test_controller_recovers_v3_context_from_exact_consumed_review_dispatch(self) -> None:
+        subjects, _, context = self._compact_v3_receipt_fixture()
+        controller = StateController(self.project, GRAPH)
+        state = {
+            "dispatch_attempts": [
+                {
+                    "attempt_id": "review-v3",
+                    "node_id": "review.parallel",
+                    "contract": {"writing_review_context": context},
+                }
+            ],
+            "consumed_attempts": ["review-v3"],
+        }
+        current_context = {**context, "candidate_tree_hash": "sha256:finalized-tree"}
+
+        with patch.object(
+            controller,
+            "writing_review_context",
+            return_value=current_context,
+        ):
+            recovered = controller._writing_review_context_for_receipt(
+                "review_finalize", state, subjects
+            )
+
+        self.assertEqual(recovered, context)
 
     def test_ready_fails_closed_when_prd_lifecycle_claim_conflicts_with_authority(self) -> None:
         cases = (

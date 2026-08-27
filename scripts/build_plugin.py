@@ -19,6 +19,7 @@ if __package__ in {None, ""}:
 
 from scripts.promote_prd_template import sync_prd_template_v02
 from scripts.promote_prd_writing_profile import sync_prd_writing_profile_v02
+from src.bpg.reference_catalog import EXPECTED_REFERENCE_RESOURCE_IDS
 
 
 class BuildError(RuntimeError):
@@ -277,6 +278,7 @@ def _inventory(plugin_root: Path) -> list[dict[str, Any]]:
         if path.is_file() and path.name != "build-manifest.json":
             relative = relative_path.as_posix()
             entries.append({"path": relative, "sha256": _sha256_file(path), "size": path.stat().st_size})
+    entries.sort(key=lambda item: item["path"])
     return entries
 
 
@@ -339,10 +341,12 @@ def _validate_reference_catalog(output_root: Path) -> None:
         *catalog.get("reviewer_profiles", []),
         extraction,
     ]
+    resource_ids = {item.get("resource_id") for item in refs[:-1]}
     if (
         catalog.get("discoverable") is not False
         or len(catalog.get("cognitive_bases", [])) != 20
-        or len({item.get("resource_id") for item in refs[:-1]}) != 29
+        or len(refs[:-1]) != len(EXPECTED_REFERENCE_RESOURCE_IDS)
+        or resource_ids != EXPECTED_REFERENCE_RESOURCE_IDS
     ):
         raise BuildError("internal reference catalog membership is invalid")
     for ref in refs:

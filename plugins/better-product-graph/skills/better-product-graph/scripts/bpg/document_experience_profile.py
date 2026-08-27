@@ -101,12 +101,24 @@ def resolve_prd_document_experience(policy_root: Path | None = None) -> dict[str
     profile = read_json(profile_path)
     if policy.get("schema_version") != selected.get("base_policy_version"):
         raise DocumentExperienceProfileError("base policy version differs from registry")
+    immutable_evaluated_promotion = (
+        selected.get("lifecycle_authority")
+        == "REGISTRY_PROMOTION_OVER_IMMUTABLE_EVALUATED_ARTIFACT"
+        and expected_default["version"] == "0.5.0"
+        and profile.get("status") == "CANDIDATE"
+        and profile.get("runtime_status") == "CANDIDATE_NON_DEFAULT"
+    )
     if (
         profile.get("schema_version") != "document-experience-profile.v1"
         or profile.get("profile_id") != selected["id"]
         or profile.get("profile_version") != expected_default["version"]
-        or profile.get("status") != "RELEASED"
-        or profile.get("runtime_status") != "ACTIVE"
+        or (
+            not immutable_evaluated_promotion
+            and (
+                profile.get("status") != "RELEASED"
+                or profile.get("runtime_status") != "ACTIVE"
+            )
+        )
         or profile.get("artifact_type") != "PRD"
         or profile.get("template_independent") is not True
     ):

@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "product-eval-review.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "execution_status",
+    "reviewer_role",
+    "reviewer_authority",
+    "reviewer",
+    "reviewed_at",
+    "subjects",
+    "independence_receipt",
+    "findings",
+    "new_high_findings",
+    "evidence_boundary"
+  ],
+  "properties": {
+    "schema_version": {"const": "product-eval-review.v1"},
+    "status": {"const": "REVIEWED"},
+    "execution_status": {"const": "NOT_RUN"},
+    "reviewer_role": {"const": "INDEPENDENT_TESTABILITY_REVIEWER"},
+    "reviewer_authority": {"const": "ADVISORY_ONLY"},
+    "reviewer": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "reviewed_at": {"type": "string", "minLength": 1},
+    "subjects": {
+      "type": "object",
+      "required": ["prd_draft_ref", "fixtures_ref", "eval_pack_ref"],
+      "properties": {
+        "prd_draft_ref": {
+          "type": "object",
+          "required": ["path", "hash", "version"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "version": {"type": ["string", "integer"]}
+          },
+          "additionalProperties": false
+        },
+        "fixtures_ref": {
+          "type": "object",
+          "required": ["path", "hash", "version"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "version": {"type": ["string", "integer"]}
+          },
+          "additionalProperties": false
+        },
+        "eval_pack_ref": {
+          "type": "object",
+          "required": ["path", "hash", "version"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "version": {"type": ["string", "integer"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "independence_receipt": {
+      "type": "object",
+      "required": ["different_instance", "isolated_context", "frozen_read_only_inputs", "first_round_findings_isolated"],
+      "properties": {
+        "different_instance": {"const": true},
+        "isolated_context": {"const": true},
+        "frozen_read_only_inputs": {"const": true},
+        "first_round_findings_isolated": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "finding_id",
+          "severity",
+          "location",
+          "concern",
+          "impact",
+          "recommendation",
+          "status",
+          "disposition"
+        ],
+        "properties": {
+          "finding_id": {"type": "string", "minLength": 1},
+          "severity": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+          "location": {"type": "string", "minLength": 1},
+          "concern": {"type": "string", "minLength": 1},
+          "impact": {"type": "string", "minLength": 1},
+          "recommendation": {"type": "string", "minLength": 1},
+          "status": {"enum": ["CLOSED", "DISPOSITIONED"]},
+          "disposition": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "new_high_findings": {"const": 0},
+    "evidence_boundary": {
+      "type": "object",
+      "required": ["runtime_execution", "test_execution", "independent_reader_validation"],
+      "properties": {
+        "runtime_execution": {"const": "NOT_RUN"},
+        "test_execution": {"const": "NOT_RUN"},
+        "independent_reader_validation": {"const": "NOT_RUN"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

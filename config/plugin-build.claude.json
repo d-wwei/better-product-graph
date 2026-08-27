@@ -39,6 +39,26 @@
           "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation configure-template \\"
         },
         {
+          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation prepare-evals \\",
+          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation prepare-evals \\"
+        },
+        {
+          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation stage-evals \\",
+          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation stage-evals \\"
+        },
+        {
+          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation fulfill-evals \\",
+          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation fulfill-evals \\"
+        },
+        {
+          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation writing-eval.prepare \\",
+          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation writing-eval.prepare \\"
+        },
+        {
+          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation writing-eval.review \\",
+          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation writing-eval.review \\"
+        },
+        {
           "from": "Map explicit `$better-product-graph` and equivalent natural language through the same Host parser:",
           "to": "Map explicit `/better-product-graph:better-product-graph <intent>` entries and equivalent natural language through the same Host parser:"
         },

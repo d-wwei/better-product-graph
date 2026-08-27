@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "better-product-graph/visual-source-scan.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "candidate_access_mode",
+    "candidate_ref",
+    "issues",
+    "safe_visual_pairs",
+    "render_status"
+  ],
+  "properties": {
+    "schema_version": {"const": "visual-source-scan.v1"},
+    "status": {"enum": ["REVIEWABLE_SAFE_NOT_RENDERED", "REVIEWABLE_UNSAFE_NOT_RENDERED"]},
+    "candidate_access_mode": {"enum": ["SOURCE_TEXT_ONLY", "SOURCE_AND_VALIDATED_VISUALS"]},
+    "candidate_ref": {"type": "object"},
+    "issues": {"type": "array"},
+    "safe_visual_pairs": {"type": "array"},
+    "render_status": {"const": "NOT_RENDERED"}
+  },
+  "additionalProperties": false
+}

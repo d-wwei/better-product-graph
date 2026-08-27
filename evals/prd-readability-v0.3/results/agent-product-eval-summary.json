@@ -1,0 +1,175 @@
+{
+  "schema_version": "prd-readability-agent-eval-summary.v0.3",
+  "suite_id": "better-product-graph-prd-readability-v0.3",
+  "evaluated_at": "2026-08-26",
+  "source_commit": "cbfbb1195307bacf7af820dd4b317fbfbc019e0c",
+  "installed_build": {
+    "plugin_name": "better-product-graph",
+    "plugin_version": "0.2.16",
+    "host_id": "codex",
+    "git_commit": "cbfbb1195307bacf7af820dd4b317fbfbc019e0c",
+    "git_dirty": false,
+    "artifact_hash": "sha256:ccb30bf4e098a14ed90a2c46fee144cbfe7bb7eec4c5d7adae4158599a8e4fba",
+    "build_manifest_hash": "sha256:c925ea960998a0309a59af1d454b202284a36f5eaf5868f5773f78f1678e6cb7",
+    "self_check_valid": true,
+    "public_controller_ref": {
+      "path": "skills/better-product-graph/scripts/bpg_runner.py",
+      "hash": "sha256:ac6f63c68a8b05403dcf6ffc1ae40554a2afa45373eb043005fb44c8ca0c8d35",
+      "version": "0.2.16"
+    }
+  },
+  "exact_contract_refs": {
+    "profile_ref": {
+      "path": "references/policies/prd-writing-profile-v0.3.json",
+      "hash": "sha256:2d58aff838e7fd071c4840e6fbbc23e324046a7fd27e8fd11cb5476070ba14dc",
+      "version": "0.3.0"
+    },
+    "guide_ref": {
+      "path": "references/policies/prd-writing-guide-v0.3.md",
+      "hash": "sha256:dafd119eac9c7274ebe26fd3c263e21bd8047f9404f50c4bbdca77725468a47f",
+      "version": "0.3.0"
+    },
+    "review_contract_ref": {
+      "path": "references/reviewer-profiles/prd-writing-eval-reader-review-v2.1.json",
+      "hash": "sha256:6647e025c0f53d58827517b3f070f35230e5cb228793b178722b0665dd11f86a",
+      "version": "v2.1"
+    },
+    "output_contract_ref": {
+      "path": "references/templates/contracts/prd-v0.2.json",
+      "hash": "sha256:33270d0d8c30bc384e5c6f9f2f9a5e59cacb06b2be27da2f3f5b20eeebfc08a0",
+      "version": "better-product-graph.prd.general.0.2"
+    }
+  },
+  "contract_status": "CONTRACT_PASS",
+  "fixture_agent_runtime_status": "FAIL",
+  "fixture_completion": "5/5",
+  "fixture_threshold_pass_count": 3,
+  "fixture_threshold_fail_count": 2,
+  "real_prd_agent_runtime_status": "NOT_RUN",
+  "agent_runtime_status": "FAIL",
+  "human_reader_validation": "NOT_RUN",
+  "promotion_eligible": false,
+  "profile_disposition": {
+    "default_profile_version": "0.2.0",
+    "default_profile_status": "RELEASED_DEFAULT",
+    "candidate_profile_version": "0.3.0",
+    "candidate_profile_status": "CANDIDATE_NON_DEFAULT",
+    "registry_ref": {
+      "path": "src/core/policies/document-experience-profiles.json",
+      "hash": "sha256:999c76a26abda51a87ffb39a4bd2c924957c5a1f3f9d49b3bfd744e043974f73",
+      "version": 1
+    }
+  },
+  "case_results": {
+    "simple-linear-no-visual": {
+      "status": "PASS",
+      "run_id": "run-writing-eval-cbfb-case-001",
+      "review_attempt_id": "attempt-cef406c96e34498492e2d9aec7274cc5",
+      "reviewer_execution_ref": {"kind": "HOST_SUBAGENT_ATTEMPT", "id": "writing-reviewer-cbfb-case-001"},
+      "candidate_ref": {"path": "artifacts/prds/archived/WRITING-EVAL-run-writing-eval-cbfb-case-001/WRITING-EVAL-run-writing-eval-cbfb-case-001.md", "hash": "sha256:544596499422842b66fc2a90d346b3d2ab16b6e0688a0e505e0836c490cdfedf", "version": "1"},
+      "writing_review_ref": {"path": "reviewer-output/case-001/writing-review.json", "hash": "sha256:afb087a56659cbbd0aeb675abbd6970cced136b85dda72d6bdca3f767a1512f7", "version": 1},
+      "runtime_result_ref": {"path": ".better-product-graph/runs/run-writing-eval-cbfb-case-001/attempts/attempt-cef406c96e34498492e2d9aec7274cc5/node-result.json", "hash": "sha256:a206d92a36b52a965eab06e7f40ed6c095d59a8492188310d10e8ce29c2ed2c2", "version": 1},
+      "preregistration_ref": {"path": "evaluator-private/preregistrations/challenge-3161f9e12cca9d9c15ea46fff9367e7fdddf4b634c823990.json", "hash": "sha256:ee8e620c0782094da992e0ec53384f80eb3e316894824acd86c45973e19a90cd", "version": 1},
+      "runtime_event_head": "sha256:a64e2f02a0c63139c5febfdc0f66cd873209e1589a3626e00479125e02a62e12",
+      "issues": []
+    },
+    "complex-flow-missing-visual": {
+      "status": "PASS",
+      "run_id": "run-writing-eval-cbfb-case-002",
+      "review_attempt_id": "attempt-3a5113f178cd4bfda24bfc28062bee37",
+      "reviewer_execution_ref": {"kind": "HOST_SUBAGENT_ATTEMPT", "id": "writing-reviewer-cbfb-case-002"},
+      "candidate_ref": {"path": "artifacts/prds/archived/WRITING-EVAL-run-writing-eval-cbfb-case-002/WRITING-EVAL-run-writing-eval-cbfb-case-002.md", "hash": "sha256:df0ea54fbfc3c5f413881d774583169dea3d7bff63248a9aaa4d4708cf52d5e9", "version": "1"},
+      "writing_review_ref": {"path": "reviewer-output/case-002/writing-review.json", "hash": "sha256:646d82d662bae0fc2e021eb465ddf592fefc67f823feedc7726bf8d4dd539b79", "version": 1},
+      "runtime_result_ref": {"path": ".better-product-graph/runs/run-writing-eval-cbfb-case-002/attempts/attempt-3a5113f178cd4bfda24bfc28062bee37/node-result.json", "hash": "sha256:d1b7bea479c3fb5831d862535c404f9ce3da92b8178fb562751f74cf5439cdfa", "version": 1},
+      "preregistration_ref": {"path": "evaluator-private/preregistrations/challenge-b717d8e587692afbf100f8b9aa845423b674eda582223fee.json", "hash": "sha256:0330bb4aeafe3da3daeb211ad679a57e8fb800d3089d29d7c73d80d35d3be8e6", "version": 1},
+      "runtime_event_head": "sha256:846e2bb2a354dbbbee39b42f968342070801b88f81114e32563869ef8016169e",
+      "issues": []
+    },
+    "misleading-visual": {
+      "status": "PASS",
+      "run_id": "run-writing-eval-cbfb-case-003",
+      "review_attempt_id": "attempt-fac1bf8654434c4f9979f3b8f26c01f8",
+      "reviewer_execution_ref": {"kind": "HOST_SUBAGENT_ATTEMPT", "id": "writing-reviewer-cbfb-case-003"},
+      "candidate_ref": {"path": "artifacts/prds/archived/WRITING-EVAL-run-writing-eval-cbfb-case-003/WRITING-EVAL-run-writing-eval-cbfb-case-003.md", "hash": "sha256:4fa0defd928aa21879d97b321ae2712bef32170e8f385ec09c1bcf2e6a5d1856", "version": "1"},
+      "writing_review_ref": {"path": "reviewer-output/case-003/writing-review.json", "hash": "sha256:0195b22c005a5f5ffa972d8fa5ceab6fd5556312a870ac464d446868c11ed24e", "version": 1},
+      "runtime_result_ref": {"path": ".better-product-graph/runs/run-writing-eval-cbfb-case-003/attempts/attempt-fac1bf8654434c4f9979f3b8f26c01f8/node-result.json", "hash": "sha256:c0478f0a852d6a80a535c2540e4b3a847cf3a8f63286d68692dd61dc80dbabd1", "version": 1},
+      "preregistration_ref": {"path": "evaluator-private/preregistrations/challenge-b1073927e2f56e9e65e6cea2f3239374cbc91bfc00cebc2f.json", "hash": "sha256:a510787242e99ac6ef139592059d6ac744fe8b40ea2f7b23f020196e579aa655", "version": 1},
+      "runtime_event_head": "sha256:9728e5344b39fe07fec742e3d3114ab3e76f8859b061b9e51514992e1461290d",
+      "issues": []
+    },
+    "verbose-repeated-contracts": {
+      "status": "FAIL",
+      "run_id": "run-writing-eval-cbfb-case-004",
+      "review_attempt_id": "attempt-c1ef55a9ed764573ab29e70e5b34299e",
+      "reviewer_execution_ref": {"kind": "HOST_SUBAGENT_ATTEMPT", "id": "writing-reviewer-cbfb-case-004"},
+      "candidate_ref": {"path": "artifacts/prds/archived/WRITING-EVAL-run-writing-eval-cbfb-case-004/WRITING-EVAL-run-writing-eval-cbfb-case-004.md", "hash": "sha256:5207f832bf19def95e815583347f499387b2c00b8d630569d1c351eea1d98e99", "version": "1"},
+      "writing_review_ref": {"path": "reviewer-output/case-004/writing-review.json", "hash": "sha256:d5337a9354b2f9dce490ff03a308c99975ee20c65a9fb7c5d5525ec15b42b57d", "version": 1},
+      "runtime_result_ref": {"path": ".better-product-graph/runs/run-writing-eval-cbfb-case-004/attempts/attempt-c1ef55a9ed764573ab29e70e5b34299e/node-result.json", "hash": "sha256:6ed63cb57750b814138e232c2a1e5811605db0402eb428bc2509accc4ba357b4", "version": 1},
+      "preregistration_ref": {"path": "evaluator-private/preregistrations/challenge-fc6907a8e16fdf4b50015568ce25f3be6283701db1e497ba.json", "hash": "sha256:e6eef6a53d381a8561317e233330a2947c7899f6a6595e358f8f3e357b621077", "version": 1},
+      "runtime_event_head": "sha256:7faabe98b5af02d01dd4c3e6909109d14383032ddba5829f73cb4512c593fd09",
+      "issues": ["visual_model mismatch: expected NOT_NEEDED, got NEEDED_MISSING"]
+    },
+    "layered-svg-pass": {
+      "status": "FAIL",
+      "run_id": "run-writing-eval-cbfb-case-005",
+      "review_attempt_id": "attempt-ede12ba4f948437ea10b334eec1697dd",
+      "reviewer_execution_ref": {"kind": "HOST_SUBAGENT_ATTEMPT", "id": "writing-reviewer-cbfb-case-005"},
+      "candidate_ref": {"path": "artifacts/prds/archived/WRITING-EVAL-run-writing-eval-cbfb-case-005/WRITING-EVAL-run-writing-eval-cbfb-case-005.md", "hash": "sha256:d014d8c989b34469db701761962ec9b9870f1fc4c611ee5d2cd1ec86c8941c86", "version": "1"},
+      "writing_review_ref": {"path": "reviewer-output/case-005/writing-review.json", "hash": "sha256:4d440478f5effb90ee937ea4ad6818132a27fd71f088fd864d2752eec3cf20a8", "version": 1},
+      "runtime_result_ref": {"path": ".better-product-graph/runs/run-writing-eval-cbfb-case-005/attempts/attempt-ede12ba4f948437ea10b334eec1697dd/node-result.json", "hash": "sha256:31f3be3c1a357f3b0f70b29de21387cfde01b15afb862b3a67e80423602e683e", "version": 1},
+      "preregistration_ref": {"path": "evaluator-private/preregistrations/challenge-be0d861c36f17969b15db19bf4b20f81f320e04c3b961f43.json", "hash": "sha256:1196353aee38ef7e5abf1b3a0c5002c459433c86def71661bed2ff211f183ce1", "version": 1},
+      "runtime_event_head": "sha256:33d953aa7bbaa0744aed5218b57402c6714f01021bbdeb70b9c676f04af2e2d6",
+      "issues": ["visual_model mismatch: expected PASS, got PRESENT_MISLEADING", "material Finding mismatch: expected false, got true"]
+    }
+  },
+  "real_prd_evaluation": {
+    "status": "PREPARED_ONLY_NOT_RUN",
+    "source_ref": {"path": "docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md", "hash": "sha256:4be16286ad6d84b1876cb90d6ff8f3107e2520a1fdf4ea9977251c4b0820a3bb", "version": 1},
+    "candidate_ref": {"path": "artifacts/prds/archived/WRITING-EVAL-run-writing-eval-cbfb-real-prd/WRITING-EVAL-run-writing-eval-cbfb-real-prd.md", "hash": "sha256:4be16286ad6d84b1876cb90d6ff8f3107e2520a1fdf4ea9977251c4b0820a3bb", "version": "1"},
+    "run_id": "run-writing-eval-cbfb-real-prd",
+    "review_attempt_id": "attempt-339814afa3774e38afdcbc0b120f3c11",
+    "runtime_status": "ACTIVE",
+    "current_node": "review.parallel",
+    "consumed_attempts": [],
+    "prepare_evidence_ref": {"path": "prepare-real-prd.json", "hash": "sha256:b7075fcb779800b77a03bbded8fe5837d96032c3efb7f898339af728f94cdfe3", "version": 1},
+    "runtime_state_ref": {"path": ".better-product-graph/runs/run-writing-eval-cbfb-real-prd/state.json", "hash": "sha256:77340ece764b3cf829cd341be4f830906da743c9a14b894e81f29bd2e1d45a18", "version": 1},
+    "runtime_events_ref": {"path": ".better-product-graph/runs/run-writing-eval-cbfb-real-prd/events.jsonl", "hash": "sha256:83cb48eb23be0fa9e1d1b798abac2b7a479558e7cfafc83ff52e22bb8c3b9b0f", "version": 1},
+    "runtime_result_ref": null,
+    "controller_receipt_ref": null,
+    "reason": "Fixture threshold failed before the independent real-PRD Reviewer was executed; preparation and dispatch are not Review evidence."
+  },
+  "failure_summary": [
+    {"case_id": "verbose-repeated-contracts", "expected": "visual_model=NOT_NEEDED", "actual": "visual_model=NEEDED_MISSING", "impact": "The Reviewer added a visualization requirement outside this fixture's preregistered acceptance envelope."},
+    {"case_id": "layered-svg-pass", "expected": "visual_model=PASS and no material Finding", "actual": "visual_model=PRESENT_MISLEADING and material Findings present", "impact": "The Reviewer did not recognize the preregistered passing fixture as a pass."}
+  ],
+  "post_eval_diagnosis": {
+    "changes_recorded_scorer_outcome": false,
+    "changes_promotion_eligibility": false,
+    "threshold_was_lowered": false,
+    "findings": [
+      {
+        "case_id": "verbose-repeated-contracts",
+        "diagnosis": "FIXTURE_EXPECTED_PROFILE_CONFLICT",
+        "detail": "The fixture contains five states plus failure and recovery paths, which trigger the v0.3 Profile's visual-model rule. Its preregistered NOT_NEEDED expectation conflicts with the Profile being evaluated; the raw scorer FAIL remains unchanged."
+      },
+      {
+        "case_id": "layered-svg-pass",
+        "diagnosis": "MIXED_FIXTURE_AND_REVIEWER_ISSUES",
+        "detail": "Independent post-eval review found the visual PRESENT_MISLEADING judgment unsupported, but found the UNDERSTAND and LOCATE findings valid. The supposedly clean-pass fixture is therefore not a valid no-material-Finding control, while the visual judgment also needs refinement; the raw scorer FAIL remains unchanged."
+      }
+    ],
+    "next_eval_rule": "Revise the fixture/expected contract and Reviewer guidance explicitly, version or re-register the evaluation, and rerun. Do not lower the existing threshold or relabel this FAIL as PASS."
+  },
+  "evidence_location": {
+    "recorded_source_root": "/tmp/bpg-readability-eval-cbfbb11.CiBjTG",
+    "durability": "TEMPORARY_LOCAL_EVIDENCE",
+    "note": "The source runtime tree is temporary and may be removed by the operating system. This committed summary preserves exact relative paths, hashes, Run/attempt identities, scorer outcomes, and claim boundaries; it does not copy the large runtime tree into the repository."
+  },
+  "claim_boundaries": {
+    "controller": "Controller receipts prove accepted bytes, exact refs, event-chain continuity, attempt consumption, and structural validity; they do not prove semantic correctness or external identity.",
+    "reviewer": "Reviewer readback, diagnoses, visual observations, and findings are Agent attestations. OBSERVED is not Controller perception proof.",
+    "evaluator": "The evaluator-held pre-registration checkpoints are local custody evidence, not external cryptographic proof.",
+    "promotion": "Five fixtures completed, but only 3/5 met the preregistered threshold and the real PRD review was NOT_RUN. v0.3 is not eligible for promotion.",
+    "human_reader": "No observation-based human reader study was run."
+  }
+}

@@ -92,7 +92,7 @@ class ExperimentEvalsRecoveryTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "EVALS_FULFILLMENT_REQUIRED")
         self.assertEqual(result["execution_status"], "NOT_RUN")
-        self.assertEqual(result["repair_operation"], "fulfill-evals")
+        self.assertEqual(result["repair_operation"], "prepare-evals")
         self.assertEqual(state["current_node"], "prd.ready.gate")
         self.assertEqual(state["next_allowed_nodes"], ["review.parallel"])
         self.assertEqual(state["ready_receipts"], [])
@@ -145,7 +145,7 @@ class ExperimentEvalsRecoveryTests(unittest.TestCase):
 
         for result in (first, repeated):
             self.assertEqual(result["status"], "EVALS_FULFILLMENT_REQUIRED")
-            self.assertEqual(result["repair_operation"], "fulfill-evals")
+            self.assertEqual(result["repair_operation"], "prepare-evals")
             self.assertEqual(result["execution_status"], "NOT_RUN")
             self.assertEqual(result["next_nodes"], ["review.parallel"])
             self.assertEqual(set(result["candidate_ref"]), {"path", "hash", "version"})

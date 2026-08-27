@@ -1,0 +1,63 @@
+{
+  "schema_version": "writing-reader-eval-contract.v3.1",
+  "resource_id": "prd-writing-eval-reader-review-v3.1",
+  "version": "v3.1",
+  "authority": "EVALUATION_ONLY_ADVISORY",
+  "result_schema": "document-experience-reader-eval.v3.1",
+  "node_id": "writing-eval.review",
+  "terminal_behavior": "CLOSE_EVAL_RUN_WITHOUT_PRODUCT_AUTHORITY",
+  "supported_profile_id": "prd-plain-language-zh-CN",
+  "supported_profile_version": "0.4.0",
+  "reader_outcomes": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "diagnostic_categories": [
+    "SEMANTIC_REPETITION",
+    "FLAT_PEER_OVERLOAD",
+    "REPRESENTATION_COLLISION",
+    "DETAIL_IN_MAIN_PATH",
+    "DENSE_TABLE",
+    "JARGON_INTRUSION",
+    "CHECKLIST_FUNCTION_LOSS",
+    "COMPLETION_SEMANTICS_AMBIGUOUS",
+    "ARTIFACT_MATURITY_OVERCLAIM"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "GROUP",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "REFERENCE",
+    "MOVE",
+    "TRIM",
+    "RESTORE_FUNCTION",
+    "BOUNDARY"
+  ],
+  "independence": {
+    "author_kind": "HOST_AGENT_ATTEMPT",
+    "reviewer_kind": "HOST_SUBAGENT_ATTEMPT",
+    "different_ids_required": true,
+    "expected_custody": "EVALUATOR_ONLY_EXCLUDED"
+  },
+  "preregistration_required_refs": [
+    "suite_ref",
+    "case_ref",
+    "candidate_ref",
+    "profile_ref",
+    "guide_ref",
+    "instruction_ref",
+    "reviewer_resource_ref",
+    "output_contract_ref",
+    "installed_build_ref",
+    "dispatch_ref"
+  ],
+  "claim_boundary": "AGENT_EVAL_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN"
+}

@@ -107,7 +107,9 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         self.assertIsNotNone(spec.loader)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        legacy_hash = "sha256:aa3bdd94c736ed005238c5bd85c9add81654e6fed73a57b20ba5025d289723b9"
+        legacy_hash = (
+            "sha256:ede0efeed0da5e54043a5eab56558002f7e0ce84959aec06cb87ceb0fb4e18c0"
+        )
         result = {
             "dispatch": {
                 "node_id": "review.aggregate",
@@ -329,7 +331,22 @@ class InstalledExecutionSpineTests(unittest.TestCase):
             "--requested-node", "evidence.collect",
         )
         self.assertEqual(prepared_context["dispatch"]["node_id"], "evidence.collect")
-        self.assertIn("README.md", prepared_context["dispatch"]["input_refs"])
+        self.assertNotIn("README.md", prepared_context["dispatch"]["input_refs"])
+        snapshots = [
+            ref
+            for ref in prepared_context["state"]["artifact_refs"].values()
+            if ref.get("role") == "planning_context_snapshot"
+        ]
+        self.assertEqual(len(snapshots), 1)
+        self.assertEqual(snapshots[0]["source_ref"], overview_ref)
+        self.assertIn(
+            snapshots[0]["path"],
+            prepared_context["dispatch"]["input_refs"],
+        )
+        self.assertEqual(
+            (self.project / snapshots[0]["path"]).read_bytes(),
+            overview.read_bytes(),
+        )
 
     def test_installed_planning_context_rejects_sensitive_material_without_run_writes(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)

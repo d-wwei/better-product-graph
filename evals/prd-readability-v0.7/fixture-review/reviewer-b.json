@@ -1,0 +1,277 @@
+{
+  "schema_version": "prd-readability-v0.7-fixture-review.v1",
+  "review_status": "CURRENT",
+  "reviewer_identity": {
+    "kind": "HOST_SUBAGENT_ATTEMPT",
+    "id": "fixture-review-v07-b2-20260826"
+  },
+  "fixture_tree": {
+    "worktree": ".",
+    "commit": "8316141a90cf4c0397ab7334ecb0ae1fd8022bd9",
+    "manifest_path": "evals/prd-readability-v0.7/fixture-tree.json",
+    "schema_version": "prd-readability-v0.7-fixture-tree.v1",
+    "suite_id": "better-product-graph-prd-readability-v0.7",
+    "tree_hash": "sha256:26d3d4895de069d698eb4645beb40d4e464e1f08b34615c175fde03c076df83f",
+    "manifest_file_sha256": "sha256:355935ab97ed44b84f23f6e6361e939735742c13cfcb607fc78c52ba9128938d",
+    "all_manifest_entry_hashes_and_sizes_verified": true
+  },
+  "policy_inputs": {
+    "profile": {
+      "path": "policies/document-experience/PRD_WRITING_PROFILE_v0.5.json",
+      "profile_id": "prd-plain-language-zh-CN",
+      "profile_version": "0.5.0",
+      "sha256": "sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0"
+    },
+    "guide": {
+      "path": "policies/document-experience/PRD_WRITING_GUIDE_v0.5.md",
+      "version": "0.5.0",
+      "sha256": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962"
+    }
+  },
+  "excluded_inputs": [
+    "expected artifacts",
+    "preregistration artifacts",
+    "scorer artifacts",
+    "Suite v0.4, v0.5, and v0.6 result artifacts",
+    "other reviewer opinions or verdicts",
+    "planned allowed pairs",
+    "Agent semantic eval",
+    "all files outside the explicit allowlist, including project memory and .assistant"
+  ],
+  "prior_review_disposition": "superseded_by_fixture_change",
+  "prior_verdict_reused": false,
+  "cases": [
+    {
+      "case_id": "case-001",
+      "intended_objective": "让大量同层验收信息可扫读。",
+      "single_primary_capability": {
+        "applicable": true,
+        "result": true,
+        "primary": "FLAT_PEER_OVERLOAD / GROUP",
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": false,
+        "result": null
+      },
+      "visual_observation": {
+        "assets_observed": [],
+        "result": "NO_VISUAL_PRESENT_OR_NEEDED"
+      },
+      "basis": "主要断点集中在二十条可观察验收全部平铺，资格、状态、恢复、权限、通知和追溯没有结果分组。条目本身属于产品验收，不是误入正文的执行细节；目标、规则、风险和下一步均清楚，未发现第二个同等严重问题。"
+    },
+    {
+      "case_id": "case-002",
+      "intended_objective": "保持排序规则只有一个权威定义。",
+      "single_primary_capability": {
+        "applicable": true,
+        "result": true,
+        "primary": "SEMANTIC_REPETITION / REFERENCE_OR_MERGE",
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": false,
+        "result": null
+      },
+      "visual_observation": {
+        "assets_observed": [],
+        "result": "NO_VISUAL_PRESENT_OR_NEEDED"
+      },
+      "basis": "安全告警、履约提醒、营销消息的固定优先级在概览、处理流程和验收中被完整重述，形成多个近似权威位置。其他规则各自承担独立产品语义，没有第二个同等严重的理解断点。"
+    },
+    {
+      "case_id": "case-003",
+      "intended_objective": "删除同一权限关系的冗余表达，只保留一种主要表示。",
+      "single_primary_capability": {
+        "applicable": true,
+        "result": true,
+        "primary": "REPRESENTATION_COLLISION / TRIM",
+        "multiple_equally_reasonable_primary_judgments": false,
+        "diagnostic_note": "SEMANTIC_REPETITION 可作宽泛描述，但三种表示承载同一关系使 REPRESENTATION_COLLISION 明显更具体。"
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": false,
+        "result": null
+      },
+      "visual_observation": {
+        "assets_observed": [
+          "inline text relationship diagram",
+          "permission matrix"
+        ],
+        "result": "CONSISTENT_WITH_PROSE_BUT_INTENTIONALLY_REDUNDANT"
+      },
+      "basis": "权限文字、文本关系图和矩阵对三种身份与动作给出一致结果，没有语义冲突；唯一主要问题是同一关系被三种主要形式重复表达。"
+    },
+    {
+      "case_id": "case-004",
+      "intended_objective": "压缩上线材料时保留清单的核对、追溯和交稿确认功能。",
+      "single_primary_capability": {
+        "applicable": true,
+        "result": true,
+        "primary": "CHECKLIST_FUNCTION_LOSS / RESTORE_FUNCTION",
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": false,
+        "result": null
+      },
+      "visual_observation": {
+        "assets_observed": [],
+        "result": "NO_VISUAL_PRESENT_OR_NEEDED"
+      },
+      "basis": "上线摘要把租户抽样、回滚演练、客服告知和旧链接兼容压成一句，并明确不再保留结论、负责人、证据和未关闭事项。丢失的是清单功能本身；下一步仍如实保留 NOT_RUN，完成语义不构成独立主问题。"
+    },
+    {
+      "case_id": "case-005",
+      "intended_objective": "澄清状态图标所代表的完成含义和证据边界。",
+      "single_primary_capability": {
+        "applicable": true,
+        "result": true,
+        "primary": "COMPLETION_SEMANTICS_AMBIGUOUS / BOUNDARY",
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": false,
+        "result": null
+      },
+      "visual_observation": {
+        "assets_observed": [],
+        "result": "STATUS_ICONS_OBSERVED_IN_TEXT_WITHOUT_LEGEND"
+      },
+      "basis": "✅、🟡、⬜ 没有图例或证据边界，读者无法判断其表示已设计、已实现、已测试、部分完成还是仅有入口。正文没有另一处明确声称这些能力已经验证，因此成熟度过度声明不是更强的独立主判断。"
+    },
+    {
+      "case_id": "case-006",
+      "intended_objective": "澄清文档及能力的真实成熟度。",
+      "single_primary_capability": {
+        "applicable": true,
+        "result": true,
+        "primary": "ARTIFACT_MATURITY_OVERCLAIM / BOUNDARY",
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": false,
+        "result": null
+      },
+      "visual_observation": {
+        "assets_observed": [],
+        "result": "NO_VISUAL_PRESENT_OR_NEEDED"
+      },
+      "basis": "“当前能力”宣称引擎已在线、路径已覆盖且页面可直接发布，与后文 PROPOSED_NOT_IMPLEMENTED、全部 NOT_RUN 及“再决定是否进入实现”正面冲突。各处均是同一成熟度过度声明问题的证据。"
+    },
+    {
+      "case_id": "case-007",
+      "intended_objective": "证明字段稳定、用于比较和映射且导航清楚的大矩阵可以通过。",
+      "single_primary_capability": {
+        "applicable": false,
+        "result": null,
+        "primary": null,
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": true,
+        "result": true
+      },
+      "visual_observation": {
+        "assets_observed": [
+          "permission matrix"
+        ],
+        "result": "CONSISTENT_WITH_RULES_AND_ACCEPTANCE"
+      },
+      "basis": "矩阵字段稳定，适合按身份、资料范围、动作、条件和结果逐项定位；阅读导航提供直接入口，正文保留全局规则，矩阵没有被另一种表示重复。多个身份叠加被如实列为风险与未知，不构成写作缺陷。"
+    },
+    {
+      "case_id": "case-008",
+      "intended_objective": "证明主路径完整、附录入口明确的长 PRD 无需因长度或视觉触发信号而失败。",
+      "single_primary_capability": {
+        "applicable": false,
+        "result": null,
+        "primary": null,
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": true,
+        "result": true
+      },
+      "visual_observation": {
+        "assets_observed": [],
+        "result": "NO_MATERIAL_VISUAL_GAP",
+        "basis": "主路径用连续叙述即可合理传达提交、确认、失败保留和恢复关系；附录表格承担兼容、本地化和分析映射，不需要机械增加流程图。"
+      },
+      "basis": "正文主路径短而完整并明确链接三个附录；附录补充客户端映射、本地化展示和事件含义，没有取代或重复定义核心成功边界。长度、表格行数和视觉触发信号均不构成自动 Finding。"
+    },
+    {
+      "case_id": "case-009",
+      "intended_objective": "证明三类恢复路径通过最小视觉表达、文字替代和正文能够一致且易于复述。",
+      "single_primary_capability": {
+        "applicable": false,
+        "result": null,
+        "primary": null,
+        "multiple_equally_reasonable_primary_judgments": false
+      },
+      "unintended_material_issue": {
+        "result": false,
+        "issue": null
+      },
+      "positive_fixture_complete": {
+        "applicable": true,
+        "result": true
+      },
+      "visual_observation": {
+        "assets_observed": [
+          "evals/prd-readability-v0.7/assets/case-009-recovery-flow.svg",
+          "evals/prd-readability-v0.7/assets/case-009-recovery-flow@2x.png"
+        ],
+        "observation_method": [
+          "SVG was rendered directly from the exact vector asset in memory at 2400x1200 and visually inspected",
+          "PNG was opened at its original 2400x1200 resolution and visually inspected"
+        ],
+        "svg_png_consistency": true,
+        "visual_text_consistency": true,
+        "exact_route_count": 3,
+        "routes": [
+          "可安全重试 → 自动重试 → 服务端确认",
+          "缺资料 → 等待补齐 → 按时补齐后服务端确认；超时则停止并告知",
+          "需人工 → 人工核查 → 放行后服务端确认；拒绝则停止并告知"
+        ],
+        "prior_fourth_route_present": false,
+        "result": "PASS"
+      },
+      "basis": "当前图从“识别恢复路径”只分出可安全重试、缺资料和需人工三路，与一页结论及文字替代完全一致；旧版未陈述的第四条直达确认路径已不存在。三条继续路径都汇入服务端确认，只有确认成功进入恢复成功；补交超时、人工拒绝和确认失败均进入停止并告知。SVG 与 PNG 的节点、线路、标签和箭头一致，颜色不是唯一语义来源。右上失败线路较紧凑，但标签仍可辨认且来源可追踪，不构成实质问题。"
+    }
+  ],
+  "concerns": [],
+  "verdict": "APPROVED"
+}

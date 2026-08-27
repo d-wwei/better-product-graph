@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" role="img" aria-labelledby="title desc">
+  <title id="title">异常订单恢复分流</title>
+  <desc id="desc">异常订单依次判断能否安全重试、是否需要用户资料和是否属于高风险；用户按时补齐资料后继续恢复，超时或无法补齐则停止并告知。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#344054"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="480" fill="#FFFFFF"/>
+
+  <rect x="30" y="190" width="140" height="64" rx="16" fill="#EEF4FF" stroke="#344054" stroke-width="2"/>
+  <text x="100" y="222" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">异常订单</text>
+
+  <path d="M220 222 L300 152 L380 222 L300 292 Z" fill="#FFF6E8" stroke="#344054" stroke-width="2"/>
+  <text x="300" y="213" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#101828">可安全</text>
+  <text x="300" y="235" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#101828">自动恢复？</text>
+
+  <rect x="430" y="60" width="150" height="64" rx="16" fill="#E9F8F0" stroke="#344054" stroke-width="2"/>
+  <text x="505" y="92" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">自动重试</text>
+
+  <path d="M425 222 L505 152 L585 222 L505 292 Z" fill="#FFF6E8" stroke="#344054" stroke-width="2"/>
+  <text x="505" y="213" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#101828">需要用户</text>
+  <text x="505" y="235" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="700" fill="#101828">补充资料？</text>
+
+  <rect x="640" y="60" width="150" height="64" rx="16" fill="#EEF4FF" stroke="#344054" stroke-width="2"/>
+  <text x="715" y="92" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">用户补充</text>
+
+  <path d="M635 222 L715 152 L795 222 L715 292 Z" fill="#FFF6E8" stroke="#344054" stroke-width="2"/>
+  <text x="715" y="228" text-anchor="middle" font-size="17" font-family="sans-serif" font-weight="700" fill="#101828">高风险？</text>
+
+  <rect x="810" y="190" width="120" height="64" rx="16" fill="#FFF0F0" stroke="#344054" stroke-width="2"/>
+  <text x="870" y="222" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">人工核查</text>
+
+  <rect x="380" y="370" width="170" height="64" rx="16" fill="#E9F8F0" stroke="#344054" stroke-width="2"/>
+  <text x="465" y="402" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">恢复成功</text>
+
+  <rect x="650" y="370" width="180" height="64" rx="16" fill="#FFF0F0" stroke="#344054" stroke-width="2"/>
+  <text x="740" y="402" text-anchor="middle" dominant-baseline="middle" font-size="18" font-family="sans-serif" font-weight="700" fill="#101828">停止并告知</text>
+
+  <path d="M170 222 H218" fill="none" stroke="#344054" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M300 152 V92 H428" fill="none" stroke="#344054" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="323" y="80" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">是</text>
+  <path d="M380 222 H423" fill="none" stroke="#344054" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="393" y="211" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">否</text>
+  <path d="M505 152 V126" fill="none" stroke="#344054" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="515" y="145" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">是</text>
+  <path d="M585 222 H633" fill="none" stroke="#344054" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="599" y="211" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">否</text>
+  <path d="M715 152 V126" fill="none" stroke="#344054" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="725" y="145" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">是</text>
+  <path d="M795 222 H808" fill="none" stroke="#344054" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="786" y="211" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">是</text>
+
+  <path d="M505 124 V140 H400 V340 H465 V368" fill="none" stroke="#257A4B" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="405" y="332" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">成功</text>
+  <path d="M580 92 V30 H870 V188" fill="none" stroke="#B42318" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="704" y="23" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">仍失败</text>
+  <path d="M715 124 V140 H610 V340 H510 V368" fill="none" stroke="#257A4B" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="615" y="332" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">按时补齐</text>
+  <path d="M790 92 H945 V350 H832 V368" fill="none" stroke="#B42318" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="800" y="82" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">超时/无法补齐</text>
+  <path d="M850 254 V320 H540 V368" fill="none" stroke="#257A4B" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="790" y="312" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">可恢复</text>
+  <path d="M890 254 V345 H770 V368" fill="none" stroke="#B42318" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="815" y="338" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">不可恢复</text>
+  <path d="M715 292 V368" fill="none" stroke="#B42318" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="725" y="330" font-size="14" font-family="sans-serif" font-weight="700" fill="#344054">否</text>
+</svg>

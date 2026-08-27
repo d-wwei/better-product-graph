@@ -1,0 +1,34 @@
+{
+  "schema_version": "prd-readability-v0.8-calibration-draft.v1",
+  "suite_id": "better-product-graph-prd-readability-v0.8",
+  "status": "BLIND_FIXTURE_CALIBRATION_PENDING",
+  "scored_case_ids": [
+    "case-001",
+    "case-002",
+    "case-003",
+    "case-004",
+    "case-005",
+    "case-006",
+    "case-007",
+    "case-008",
+    "case-009"
+  ],
+  "future_attempt_count": 27,
+  "repeats_per_case": 3,
+  "calibration_only_document": "calibration/notification-priority-positive.md",
+  "previous_suite_id": "better-product-graph-prd-readability-v0.7",
+  "prior_failure_ref": {
+    "commit": "518d8830bf6309cbda81896fb812388f1561f482",
+    "path": "docs/release/PRD_WRITING_REVIEWER_v0.7_RC4_AGENT_EVAL_REPORT.md",
+    "hash": "sha256:49a1154aa932d24315db9b97d2fceb1e5bf855b0b2f1db3dcbfa3c86c530eab7",
+    "score": "24/27 FAIL"
+  },
+  "contract_policy": {
+    "profile": "PRD_WRITING_PROFILE_v0.5.json",
+    "guide": "PRD_WRITING_GUIDE_v0.5.md",
+    "instruction": "prd-writing-eval-review-v3.2",
+    "output_schema": "document-experience-reader-eval.v3.1",
+    "semantics_changed": false
+  },
+  "next_gate": "TWO_FRESH_BLIND_FIXTURE_REVIEWS"
+}

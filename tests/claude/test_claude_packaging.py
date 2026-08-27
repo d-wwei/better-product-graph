@@ -14,6 +14,7 @@ from scripts.package_plugin import package_plugin
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_RUNNER = REPO_ROOT / "evals" / "plugin-contract" / "run_contract.py"
+CANDIDATE_VERSION = "0.2.18"
 
 
 def _safe_extract(package: Path, destination: Path) -> None:
@@ -35,11 +36,15 @@ class ClaudePackagingTests(unittest.TestCase):
         self.tempdir.cleanup()
 
     def test_two_claude_packages_are_byte_identical_with_one_claude_plugin_root(self) -> None:
-        first = self.root / "claude-a.zip"
-        second = self.root / "claude-b.zip"
+        first = self.root / f"better-product-graph-claude-{CANDIDATE_VERSION}-a.zip"
+        second = self.root / f"better-product-graph-claude-{CANDIDATE_VERSION}-b.zip"
         first_report = package_plugin(REPO_ROOT, first, host="claude")
         second_report = package_plugin(REPO_ROOT, second, host="claude")
 
+        self.assertEqual(first_report["plugin"]["version"], CANDIDATE_VERSION)
+        self.assertEqual(second_report["plugin"]["version"], CANDIDATE_VERSION)
+        self.assertEqual(Path(first_report["path"]).name, first.name)
+        self.assertEqual(Path(second_report["path"]).name, second.name)
         self.assertEqual(first.read_bytes(), second.read_bytes())
         self.assertEqual(first_report["sha256"], second_report["sha256"])
         self.assertEqual(first_report["host"], "claude")

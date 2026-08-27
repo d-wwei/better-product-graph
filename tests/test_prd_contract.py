@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from src.bpg.prd_contract import PRDContractError, assemble_prd, prd_stem
+from src.bpg.storage import sha256_file
 from src.bpg.templates import TemplateRegistry
 
 
@@ -179,6 +182,34 @@ class PRDContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.selection = TemplateRegistry(TEMPLATES).resolve(REPO_ROOT)
 
+    def _selection_with_required_table_row(self, directory: str):
+        contract_path = Path(directory) / "OUTPUT_CONTRACT.json"
+        contract = json.loads(
+            self.selection.output_contract_path.read_text(encoding="utf-8")
+        )
+        contract["contract_version"] = "test.required-table-rows.v1"
+        contract["structures"]["legacy"]["required_table_rows"] = {
+            "验收标准": {
+                "allowed_statuses": ["不涉及", "已确认", "待确认"],
+                "reason_required_statuses": ["不涉及"],
+                "rows": [
+                    {
+                        "label": "安全重试不会重复扣款",
+                        "status_column_index": 1,
+                    }
+                ],
+            }
+        }
+        contract_path.write_text(
+            json.dumps(contract, ensure_ascii=False), encoding="utf-8"
+        )
+        return replace(
+            self.selection,
+            output_contract_path=contract_path,
+            output_contract_sha256=sha256_file(contract_path),
+            output_contract_version=contract["contract_version"],
+        )
+
     def test_agent_authored_prd_is_validated_and_not_rewritten(self) -> None:
         submission = prd_submission()
         assembled = assemble_prd(submission, self.selection)
@@ -191,7 +222,7 @@ class PRDContractTests(unittest.TestCase):
         )
         self.assertEqual(
             assembled.metadata["document_experience"]["profile_ref"]["version"],
-            "0.2.0",
+            "0.5.0",
         )
 
     def test_agent_cannot_substitute_a_different_document_experience_binding(self) -> None:
@@ -321,6 +352,53 @@ class PRDContractTests(unittest.TestCase):
             "unique Markdown H1 identity must exactly equal archive filename stem",
         ):
             assemble_prd(submission, self.selection)
+
+    def test_exact_output_contract_rejects_a_missing_required_table_row(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            selection = self._selection_with_required_table_row(directory)
+
+            with self.assertRaisesRegex(
+                PRDContractError, "required table row missing.*安全重试不会重复扣款"
+            ):
+                assemble_prd(prd_submission(), selection)
+
+    def test_required_table_row_enforces_status_and_reason_then_accepts_valid_row(
+        self,
+    ) -> None:
+        original = (
+            "- AC-1: Given 首次提交失败，When 用户重试，Then 只产生一次有效结算且看到最终状态。"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            selection = self._selection_with_required_table_row(directory)
+            cases = (
+                (
+                    "invalid status",
+                    "| 安全重试不会重复扣款 | 完成 | AC-1 |",
+                    "status is invalid",
+                ),
+                (
+                    "not applicable without reason",
+                    "| 安全重试不会重复扣款 | 不涉及 | AC-1 |",
+                    "status needs a reason",
+                ),
+            )
+            for label, row, expected in cases:
+                with self.subTest(label=label):
+                    markdown = prd_markdown().replace(
+                        original,
+                        "| 检查项 | 状态 | 证据 |\n|---|---|---|\n" + row,
+                    )
+                    with self.assertRaisesRegex(PRDContractError, expected):
+                        assemble_prd(prd_submission(markdown), selection)
+
+            valid = prd_markdown().replace(
+                original,
+                "| 检查项 | 状态 | 证据 |\n|---|---|---|\n"
+                "| 安全重试不会重复扣款 | 已确认 | AC-1 |",
+            )
+            assembled = assemble_prd(prd_submission(valid), selection)
+
+            self.assertIn("| 安全重试不会重复扣款 | 已确认 | AC-1 |", assembled.markdown)
 
     def test_localized_prd_identity_rejects_unsafe_paths_and_invalid_language_tags(self) -> None:
         cases = (

@@ -1,0 +1,137 @@
+{
+  "schema_version": "document-experience-profile.v1",
+  "profile_id": "prd-plain-language-zh-CN",
+  "profile_version": "0.3.0",
+  "status": "CANDIDATE",
+  "artifact_type": "PRD",
+  "audience": "SMART_ZERO_CONTEXT_PRODUCT_MANAGER",
+  "language": "zh-CN",
+  "template_independent": true,
+  "base_policy_ref": {
+    "path": "references/policies/document-experience.json",
+    "schema_version": "document-experience.v1",
+    "hash": "sha256:60b11a0da0a6e0db7d591e7da5a0e89f25493680dafb2aa8e52897ff012c44b4"
+  },
+  "writing_guide_ref": {
+    "path": "references/policies/prd-writing-guide-v0.3.md",
+    "version": "0.3.0",
+    "hash": "sha256:dafd119eac9c7274ebe26fd3c263e21bd8047f9404f50c4bbdca77725468a47f"
+  },
+  "reader_outcomes": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "truth_boundary": "FACT_JUDGMENT_ASSUMPTION_UNKNOWN_AND_MUTABLE_STATUS_DISTINGUISHABLE",
+  "review_contract_id": "prd-writing-reader-review-v2",
+  "diagnostic_categories": [
+    "ORIENTATION",
+    "MENTAL_MODEL",
+    "TERM",
+    "FLOW",
+    "DECISION",
+    "NAVIGATION",
+    "OVERLOAD",
+    "TRUST_BOUNDARY",
+    "VISUAL_MODEL",
+    "REDUNDANCY"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "MOVE",
+    "TRIM",
+    "BOUNDARY"
+  ],
+  "visual_model_verdicts": [
+    "NOT_NEEDED",
+    "NEEDED_MISSING",
+    "PRESENT_INEFFECTIVE",
+    "PRESENT_MISLEADING",
+    "PASS"
+  ],
+  "supporting_expression_rules": [
+    "CONCRETE_EVENT_BEFORE_ABSTRACTION",
+    "CONCLUSION_BEFORE_EXPLANATION",
+    "GLOBAL_FRAME_BEFORE_LOCAL_DETAIL",
+    "ONE_MAIN_POINT_PER_PARAGRAPH",
+    "ONE_NEW_CONCEPT_AT_A_TIME",
+    "PLAIN_LANGUAGE_BEFORE_FIRST_TECHNICAL_TERM",
+    "CHINESE_PROSE_WITH_EXACT_MACHINE_TERMS_PRESERVED",
+    "EXAMPLES_MAP_BACK_TO_REAL_MECHANISM",
+    "MEANINGFUL_VISUAL_FOR_NON_TRIVIAL_RELATIONSHIPS",
+    "EVIDENCE_JUDGMENT_ASSUMPTION_UNKNOWN_SEPARATED",
+    "SIMPLIFICATION_MUST_PRESERVE_BOUNDARIES",
+    "OMIT_NOT_APPLICABLE_BODY_KEEP_CHECKLIST_DISPOSITION",
+    "PRODUCT_REQUIREMENT_BEFORE_ENGINEERING_SOLUTION"
+  ],
+  "conditional_content_policy": {
+    "body": "OMIT_HEADING_TABLE_AND_PLACEHOLDER_WHEN_TRULY_NOT_APPLICABLE",
+    "checklist": "KEEP_ITEM_WITH_NOT_APPLICABLE_AND_CONCRETE_REASON",
+    "unknown_or_not_done": "KEEP_VISIBLE_WITH_REAL_STATUS_OWNER_IMPACT_OR_NEXT_ACTION",
+    "mandatory_semantics": "NEVER_OMIT",
+    "template_interaction": "PROFILE_MAY_OMIT_CONDITIONAL_PRESENTATION_ONLY_WHEN_OUTPUT_CONTRACT_ALLOWS"
+  },
+  "visual_policy": {
+    "required_when": [
+      "NON_TRIVIAL_SEQUENCE_OR_TRANSFORMATION",
+      "BRANCH_FAILURE_OR_RECOVERY",
+      "THREE_OR_MORE_INTERACTING_MODULES_OR_ACTORS",
+      "RESPONSIBILITY_OR_CONTAINMENT",
+      "STATE_TRANSITION",
+      "OPTION_COMPARISON_OR_TRADEOFF",
+      "ONE_CAUSE_MULTIPLE_DOWNSTREAM_EFFECTS"
+    ],
+    "requirements": [
+      "QUESTION_ANSWERED_VISIBLE",
+      "SCOPE_VISIBLE",
+      "SEMANTIC_ROLE_FOR_EACH_VISUAL_ELEMENT",
+      "TEXT_ALTERNATIVE_PRESENT",
+      "COLOR_NOT_SOLE_MEANING",
+      "ACTUAL_RENDER_OBSERVATION_REQUIRED",
+      "NO_DECORATIVE_VISUAL",
+      "NO_NODE_BY_NODE_TEXT_DUPLICATION"
+    ]
+  },
+  "visual_delivery_policy": {
+    "markdown_primary": "STATIC_SVG",
+    "fallback": "SAME_STEM_PNG_AT_2X",
+    "mermaid": "AUTHORING_SOURCE_ONLY_NOT_FINAL_DEFAULT",
+    "html": "SELF_CONTAINED_RESPONSIVE_HTML_WITH_INLINE_SVG_WHEN_EXPLICITLY_REQUESTED",
+    "screenshot_or_photo": "PNG_OR_WEBP",
+    "text_alternative": "REQUIRED"
+  },
+  "information_density_policy": {
+    "word_count_gate": "FORBIDDEN",
+    "requires_global_frame": true,
+    "requires_navigation_path": true,
+    "duplicate_authority": "ONE_CANONICAL_SOURCE_WITH_REFERENCES"
+  },
+  "prd_spec_boundary": {
+    "prd_owns": [
+      "PRODUCT_PROBLEM",
+      "USER_OUTCOME",
+      "SCOPE",
+      "PRODUCT_RULES",
+      "OBSERVABLE_ACCEPTANCE",
+      "EXTERNAL_BEHAVIOR_AND_SAFETY_BOUNDARIES"
+    ],
+    "engineering_spec_owns": [
+      "INTERNAL_SCHEMA",
+      "STORAGE_LAYOUT",
+      "CLASS_AND_OBJECT_SPLIT",
+      "INTERNAL_LINEARIZATION",
+      "IMPLEMENTATION_ALGORITHM"
+    ]
+  },
+  "binding_rule": "RESOLVE_SEPARATELY_FROM_TEMPLATE_AND_BIND_EXACT_PATH_VERSION_HASH",
+  "runtime_status": "CANDIDATE_NON_DEFAULT",
+  "validation_status": "CONTRACT_VALIDATED_AGENT_EVAL_NOT_RUN"
+}

@@ -26,6 +26,8 @@ from .upstream_authority import (
     validate_ready_decision,
     validate_ready_evidence,
 )
+from .writing_review import WritingReviewError, validate_writing_coverage
+from .visual_assets import VisualAssetError, inspect_reader_visible_visual_assets
 
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -179,6 +181,7 @@ def evaluate_receipt_subjects(
     attempt_id: str,
     candidate_ref: dict[str, Any],
     template_selection: dict[str, Any],
+    writing_review_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Recompute the exact fact named by a receipt kind."""
 
@@ -243,6 +246,72 @@ def evaluate_receipt_subjects(
             for item in disposition_items
             if isinstance(item, dict) and item.get("status")
         ]
+        writing_schema = writing_coverage.get("schema_version")
+        if writing_schema == "document-experience-reader-review.v3":
+            if not isinstance(writing_review_context, dict):
+                raise ReceiptError(
+                    "review_finalize v3 requires exact Controller Writing Review context"
+                )
+            candidate_path = root / subjects["candidate_document"]["path"]
+            try:
+                line_count = max(
+                    1,
+                    len(candidate_path.read_text(encoding="utf-8").splitlines()),
+                )
+                validate_writing_coverage(
+                    writing_coverage,
+                    expected_candidate_ref=writing_review_context.get("candidate_ref"),
+                    expected_candidate_tree_hash=writing_review_context.get(
+                        "candidate_tree_hash"
+                    ),
+                    expected_profile_ref=writing_review_context.get("profile_ref"),
+                    expected_guide_ref=writing_review_context.get("guide_ref"),
+                    expected_review_contract_ref=writing_review_context.get(
+                        "review_contract_ref"
+                    ),
+                    expected_output_contract_ref=writing_review_context.get(
+                        "output_contract_ref"
+                    ),
+                    expected_author_execution_ref=writing_review_context.get(
+                        "author_execution_ref"
+                    ),
+                    required_rule_ids=(),
+                    required_check_ids=(),
+                    candidate_line_count=line_count,
+                    available_finding_ids={
+                        finding_id
+                        for finding_id in finding_ids
+                        if isinstance(finding_id, str)
+                    },
+                    expected_visual_pairs=inspect_reader_visible_visual_assets(
+                        root, candidate_path
+                    ),
+                )
+            except (OSError, UnicodeError, WritingReviewError, VisualAssetError) as error:
+                raise ReceiptError(
+                    f"review_finalize Writing Review v3 invalid: {error}"
+                ) from error
+        writing_evidence_valid = (
+            writing_coverage.get("candidate_ref", {}).get("path")
+            == candidate_ref.get("path")
+            and writing_coverage.get("candidate_ref", {}).get("hash")
+            == candidate_ref.get("hash")
+            and writing_coverage.get("candidate_ref", {}).get("version")
+            == candidate_ref.get("version")
+            and set(writing_coverage.get("finding_refs", []))
+            == writing_finding_ids
+            and (
+                (
+                    writing_schema == "document-experience-coverage.v1"
+                    and len(writing_coverage.get("required_rule_results", [])) == 13
+                    and len(writing_coverage.get("delivery_check_results", [])) == 10
+                )
+                or (
+                    writing_schema == "document-experience-reader-review.v3"
+                    and isinstance(writing_review_context, dict)
+                )
+            )
+        )
         if (
             companion.get("schema_version") != "prd-review-companion.v1"
             or companion.get("status") != "FINALIZED"
@@ -283,17 +352,7 @@ def evaluate_receipt_subjects(
                 key: subjects["writing_coverage"].get(key)
                 for key in ("path", "hash", "version")
             }
-            or writing_coverage.get("schema_version")
-            != "document-experience-coverage.v1"
-            or writing_coverage.get("candidate_ref", {}).get("path")
-            != candidate_ref.get("path")
-            or writing_coverage.get("candidate_ref", {}).get("hash")
-            != candidate_ref.get("hash")
-            or writing_coverage.get("candidate_ref", {}).get("version")
-            != candidate_ref.get("version")
-            or len(writing_coverage.get("required_rule_results", [])) != 13
-            or len(writing_coverage.get("delivery_check_results", [])) != 10
-            or set(writing_coverage.get("finding_refs", [])) != writing_finding_ids
+            or not writing_evidence_valid
         ):
             raise ReceiptError(
                 "review_finalize Finding/disposition evidence is not an exact finalized advisory review"

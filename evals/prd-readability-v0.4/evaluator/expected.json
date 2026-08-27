@@ -1,0 +1,55 @@
+{
+  "schema_version": "prd-readability-expected-envelope.v0.4",
+  "suite_id": "better-product-graph-prd-readability-v0.4",
+  "custody": "EVALUATOR_ONLY_DO_NOT_COPY_TO_AGENT_WORKSPACE",
+  "cases": {
+    "flat-18-acceptance-rows": {
+      "agent_case_id": "case-001",
+      "required_result": "FINDING",
+      "required_primary_diagnosis": "FLAT_PEER_OVERLOAD",
+      "required_repair_technique": "GROUP"
+    },
+    "duplicate-eight-questions-and-blocks": {
+      "agent_case_id": "case-002",
+      "required_result": "FINDING",
+      "required_primary_diagnosis": "SEMANTIC_REPETITION",
+      "required_repair_technique": "REFERENCE"
+    },
+    "list-diagram-table-same-model": {
+      "agent_case_id": "case-003",
+      "required_result": "FINDING",
+      "required_primary_diagnosis": "REPRESENTATION_COLLISION",
+      "required_repair_technique": "TRIM"
+    },
+    "trim-removes-useful-checklist": {
+      "agent_case_id": "case-004",
+      "required_result": "FINDING",
+      "required_primary_diagnosis": "CHECKLIST_FUNCTION_LOSS",
+      "required_repair_technique": "RESTORE_FUNCTION"
+    },
+    "checked-boxes-without-legend": {
+      "agent_case_id": "case-005",
+      "required_result": "FINDING",
+      "required_primary_diagnosis": "COMPLETION_SEMANTICS_AMBIGUOUS",
+      "required_repair_technique": "EXPLAIN"
+    },
+    "proposed-contract-looks-implemented": {
+      "agent_case_id": "case-006",
+      "required_result": "FINDING",
+      "required_primary_diagnosis": "ARTIFACT_MATURITY_OVERCLAIM",
+      "required_repair_technique": "BOUNDARY"
+    },
+    "large-necessary-state-table": {
+      "agent_case_id": "case-007",
+      "required_result": "PASS"
+    },
+    "long-appendix-short-main-path": {
+      "agent_case_id": "case-008",
+      "required_result": "PASS"
+    },
+    "reader-first-layered-prd": {
+      "agent_case_id": "case-009",
+      "required_result": "PASS"
+    }
+  }
+}

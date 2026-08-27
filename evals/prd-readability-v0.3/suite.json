@@ -1,0 +1,85 @@
+{
+  "schema_version": "prd-readability-suite.v0.3",
+  "suite_id": "better-product-graph-prd-readability-v0.3",
+  "case_ids": [
+    "simple-linear-no-visual",
+    "complex-flow-missing-visual",
+    "misleading-visual",
+    "verbose-repeated-contracts",
+    "layered-svg-pass"
+  ],
+  "case_hashes": {
+    "simple-linear-no-visual": "sha256:544596499422842b66fc2a90d346b3d2ab16b6e0688a0e505e0836c490cdfedf",
+    "complex-flow-missing-visual": "sha256:df0ea54fbfc3c5f413881d774583169dea3d7bff63248a9aaa4d4708cf52d5e9",
+    "misleading-visual": "sha256:4fa0defd928aa21879d97b321ae2712bef32170e8f385ec09c1bcf2e6a5d1856",
+    "verbose-repeated-contracts": "sha256:5207f832bf19def95e815583347f499387b2c00b8d630569d1c351eea1d98e99",
+    "layered-svg-pass": "sha256:d014d8c989b34469db701761962ec9b9870f1fc4c611ee5d2cd1ec86c8941c86"
+  },
+  "source_asset_hashes": {
+    "visual-001.svg": "sha256:577152b4bdd1fada6f32cac763fbc56220819633e7fb6156f9e81fbd2f076dab",
+    "visual-001@2x.png": "sha256:a701b4617f62c397b98e404a99a742438abdd6be1e4b04e7d34f1072e966109d",
+    "visual-002.svg": "sha256:d581f71dbb200fc362210993db6588cd2943655df2b7322723bf77eb839adfe7",
+    "visual-002@2x.png": "sha256:29f2d73e82dac19737728e9e45c8c1f400a1a4bdae811267a26e1fb5813d01c1"
+  },
+  "agent_visible_case_file": "candidate.md",
+  "evaluator_only_files": [
+    "expected.json"
+  ],
+  "review_schema": "document-experience-review.v2",
+  "reader_task_ids": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "visual_model_verdicts": [
+    "NOT_NEEDED",
+    "NEEDED_MISSING",
+    "PRESENT_INEFFECTIVE",
+    "PRESENT_MISLEADING",
+    "PASS"
+  ],
+  "diagnostic_categories": [
+    "ORIENTATION",
+    "MENTAL_MODEL",
+    "TERM",
+    "FLOW",
+    "DECISION",
+    "NAVIGATION",
+    "OVERLOAD",
+    "TRUST_BOUNDARY",
+    "VISUAL_MODEL",
+    "REDUNDANCY"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "MOVE",
+    "TRIM",
+    "BOUNDARY"
+  ],
+  "material_concern_levels": [
+    "KEY_ATTENTION",
+    "CRITICAL"
+  ],
+  "evidence_policy": {
+    "contract_pass_implies_agent_runtime_pass": false,
+    "fixture_pass_implies_full_agent_product_eval_pass": false,
+    "synthetic_runtime_max_status": "SYNTHETIC_CONTRACT_PASS",
+    "preregistered_controller_evidence_is_external_crypto_proof": false,
+    "agent_runtime_status_before_real_prd_eval": "NOT_RUN",
+    "human_reader_validation": "NOT_RUN"
+  },
+  "full_eval_requirements": {
+    "adversarial_cases": 5,
+    "real_prd_cases_minimum": 1,
+    "independent_reviewer_required": true,
+    "installed_public_host_path_required": true
+  }
+}

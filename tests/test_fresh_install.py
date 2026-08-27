@@ -10,6 +10,7 @@ from scripts.package_plugin import package_plugin
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CODEX = Path("/Applications/ChatGPT.app/Contents/Resources/codex")
+CANDIDATE_VERSION = "0.2.18"
 
 
 class FreshInstallTests(unittest.TestCase):
@@ -18,8 +19,8 @@ class FreshInstallTests(unittest.TestCase):
             self.skipTest("bundled Codex CLI is unavailable")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            package = root / "better-product-graph.zip"
-            package_plugin(REPO_ROOT, package)
+            package = root / f"better-product-graph-codex-{CANDIDATE_VERSION}.zip"
+            package_report = package_plugin(REPO_ROOT, package)
             report = fresh_install_smoke(
                 REPO_ROOT,
                 package,
@@ -28,6 +29,8 @@ class FreshInstallTests(unittest.TestCase):
             )
 
             self.assertEqual(report["status"], "PASS")
+            self.assertEqual(package_report["plugin"]["version"], CANDIDATE_VERSION)
+            self.assertEqual(Path(report["package"]).name, package.name)
             self.assertEqual(report["isolated_codex_home"], True)
             self.assertTrue(report["installed_identity"]["valid"])
             self.assertEqual(report["plugin_contract_status"], "PASS")
