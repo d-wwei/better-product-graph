@@ -49,7 +49,7 @@ class PluginContractSuiteTests(unittest.TestCase):
         installed_manifest = json.loads(
             (self.plugin / "build-manifest.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(installed_manifest["plugin"]["version"], "0.2.19")
+        self.assertEqual(installed_manifest["plugin"]["version"], "0.2.20")
         required = {
             "discovery",
             "direct_activation",

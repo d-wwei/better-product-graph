@@ -34,6 +34,58 @@ Map explicit `$better-product-graph` and equivalent natural language through the
 
 No intent means guided help with no mutation. Do not register or accept `$bpg`, `$prd-graph`, `review.gate`, legacy aliases, or internal node IDs as public entry points.
 
+## Opt-in BPG 2.0 single-PRD Alpha
+
+Use the isolated BPG 2.0 path only when the user explicitly says `BPG 2.0 Alpha`
+or invokes `$better-product-graph alpha`. Never silently route an ordinary BPG
+request into this experimental path. Before the first mutation, run installed
+self-check and read the complete installed
+`references/alpha/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md`. That document
+owns product semantics; the Alpha Controller owns only exact identity,
+authority, state, Candidate, Review, Ready, and Local Handoff bindings.
+
+The Alpha always creates or resumes state under `.better-product-graph/v2/`.
+Never import, migrate, alias, or resume a pre-2.0 Run. Drive the installed runner
+with one temporary JSON object per operation:
+
+```text
+python3 <installed-skill-root>/scripts/bpg_runner.py \
+  --operation alpha \
+  --payload-file <absolute-json-payload>
+```
+
+The payload's `action` is one of `start`, `status`, `update-record`,
+`freeze-candidate`, `review`, `decision-route`, `pause`, `resume`, `handoff`, or
+`retrospective`. Copy the exact `run_id`, `state_version`, Candidate ref, and
+operation basis returned by the immediately preceding Controller response. Use
+a fresh, stable `operation_id` for each intended state change; exact replay is
+idempotent, while reusing an ID with different content is forbidden.
+
+Follow the five semantic stages in the installed Alpha reference. Keep one
+continuously updated `planning-record.md`; freeze it as `PROBLEM`, then
+`DECISION`, and finally freeze exactly one `PRD` Release Set from the current
+Run's `work/prd/` directory. The Host Agent writes and revises product meaning.
+The Controller must not decide problem quality, value, risk, reversibility,
+return stage, Reviewer applicability, PRD quality, or Product Evals
+applicability.
+
+Each formal Review must run in a genuinely independent Agent attempt over the
+frozen Candidate. A revision uses a new Candidate, has at most two automatic
+rounds, and requires both difference review and whole-product regression. Save
+`return_target`, `return_reason`, and `affected_scope` exactly. After a passing
+Decision Review, only the Owner may choose `STOP`, `WAIT`, `RESEARCH`,
+`EXPERIMENT`, or `FUTURE_ROADMAP`. Agent `COMMIT_NOW` is legal only when the
+exact local-planning preauthorization and all Controller checks pass; otherwise
+return to the Owner.
+
+For PRD delivery, preserve truthful Product Evals status:
+`NOT_NEEDED / RECOMMENDED / REQUIRED` and `NOT_RUN / NOT_AVAILABLE`. A missing
+`REQUIRED` attachment blocks Ready. Ready permits only Local Handoff, followed
+by a non-blocking planning retrospective. Report external delivery, engineering
+receipt, implementation tests, and product-effect validation as `NOT_RUN`
+unless separately observed. Never call this path multi-PRD, production-ready,
+externally delivered, or backward compatible.
+
 For `resume`, the user never needs to remember a repair command. If the
 Controller returns `STALE_RUN_RECOVERED`, it has matched one exact legacy
 Run contract, retired only its unconsumed side-effect-free dispatch, preserved

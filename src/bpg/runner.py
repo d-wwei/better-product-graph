@@ -5,10 +5,46 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from .alpha_runtime import BPG2AlphaController
 from .git_preflight import GitPreflight, preflight_project, validate_project_root
 from .host_runtime import HostRuntime
 from .storage import read_json
 from .template_packs import configure_project_template as configure_template
+
+
+def apply_alpha(project_root: Path, command: dict[str, Any]) -> dict[str, Any]:
+    """Apply one JSON-shaped BPG 2.0 Alpha Host command.
+
+    Product semantics stay in the calling Host Agent.  This adapter only maps
+    an explicit action to the corresponding deterministic Controller method.
+    """
+
+    root = validate_project_root(project_root)
+    if not isinstance(command, dict):
+        raise TypeError("BPG 2.0 Alpha command must be an object")
+    action = command.get("action")
+    methods = {
+        "start": "start_run",
+        "status": "load_run",
+        "update-record": "update_planning_record",
+        "freeze-candidate": "freeze_candidate",
+        "review": "submit_review",
+        "decision-route": "submit_decision_route",
+        "pause": "pause_run",
+        "resume": "resume_run",
+        "handoff": "prepare_local_handoff",
+        "retrospective": "record_retrospective",
+    }
+    method_name = methods.get(action)
+    if method_name is None:
+        raise ValueError(f"unsupported BPG 2.0 Alpha action: {action!r}")
+    values = {key: value for key, value in command.items() if key != "action"}
+    if action == "freeze-candidate" and values.get("source_dir") is not None:
+        values["source_dir"] = Path(values["source_dir"])
+        if not values["source_dir"].is_absolute():
+            values["source_dir"] = root / values["source_dir"]
+    controller = BPG2AlphaController(root)
+    return getattr(controller, method_name)(**values)
 
 
 def _plugin_root(skill_root: Path) -> Path:

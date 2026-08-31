@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.20 — 2026-08-31 — Opt-in BPG 2.0 single-PRD internal Alpha
+
+- Add an isolated `BPG_2_0_ALPHA` runtime for one complete single-PRD product-planning path: Signal & Route, one planning record, UNDERSTAND, DIAGNOSE & VALUE, frozen Problem/Decision/PRD Candidates, independent Reviews, six exact decision outcomes, whole-part-whole planning, one formal or experimental PRD, unique Ready, Local Handoff, and a post-handoff retrospective.
+- Keep product meaning with the Host Agent and deterministic authority with the thin Controller. Enforce exact Run/Candidate/version refs, independent author and Reviewer attempts, at most two automatic revisions, difference review plus whole-product regression, explicit Owner choices, and narrowly preauthorized Agent `COMMIT_NOW`.
+- Preserve truthful Product Evals applicability and execution states. Missing REQUIRED material blocks Ready; RECOMMENDED may remain `NOT_AVAILABLE / NOT_RUN`. Local Handoff never claims external delivery, engineering receipt, implementation tests, or product-effect validation.
+- Add a dependency-free self-contained HTML reading view with Markdown plus assets as the editing truth, and expose the new runtime through one JSON-shaped installed runner operation.
+- Expose BPG 2.0 only through the explicit `BPG 2.0 Alpha` / `$better-product-graph alpha` opt-in trigger. Ordinary BPG requests retain the 0.x path. Old Runs are not imported, migrated, aliased, or resumed by the Alpha.
+- Verify the release-candidate development tree at `792/792 PASS`; the preceding Alpha branch and merged `main` each passed `791/791`. One real Codex Host Alpha Run reached `LOCAL_HANDOFF_COMPLETE` after independent Problem, Decision, and PRD Review. Human owner testing, external delivery, implementation, and product-effect validation remain separate and `NOT_RUN`.
+
 ## 0.2.19 — 2026-08-27 — Exact stale-Run recovery hotfix
 
 - Add five exact, fail-closed recovery contracts for known `0.2.18` predecessor Runs while preserving the original Run ID, append-only attempts, events, receipts, and artifacts. Unknown stale combinations remain read-only `BLOCKED_STALE`.

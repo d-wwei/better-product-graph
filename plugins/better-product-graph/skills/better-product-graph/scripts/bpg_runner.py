@@ -130,6 +130,7 @@ def main() -> int:
             "writing-eval.prepare",
             "writing-eval.review",
             "configure-template",
+            "alpha",
         ),
         default="entry",
     )
@@ -158,7 +159,7 @@ def main() -> int:
         return 1
     if args.operation == "entry" and not args.entry:
         parser.error("A stable Better Product Graph intent is required through the Host Skill")
-    if args.operation not in {"entry", "configure-template"} and not args.run_id:
+    if args.operation not in {"entry", "configure-template", "alpha"} and not args.run_id:
         parser.error("--run-id is required for installed non-entry operations")
     if args.operation == "configure-template" and not args.pack_path:
         parser.error("--pack-path is required for project Template configuration")
@@ -169,9 +170,11 @@ def main() -> int:
         "fulfill-evals",
         "writing-eval.prepare",
         "writing-eval.review",
+        "alpha",
     } and not args.payload_file:
         parser.error("--payload-file is required for installed mutation operations")
     from bpg.runner import (
+        apply_alpha,
         dispatch,
         fulfill_evals,
         handle_entry,
@@ -201,6 +204,11 @@ def main() -> int:
         )
     elif args.operation == "prepare-evals":
         result = prepare_evals(Path.cwd(), graph, args.run_id, skill_root=skill_root)
+    elif args.operation == "alpha":
+        payload = json.loads(Path(args.payload_file).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            parser.error("--payload-file must contain one JSON object")
+        result = apply_alpha(Path.cwd(), payload)
     else:
         payload = json.loads(Path(args.payload_file).read_text(encoding="utf-8"))
         if not isinstance(payload, dict):

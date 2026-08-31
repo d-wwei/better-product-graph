@@ -48,11 +48,11 @@ class DistributionContractTests(unittest.TestCase):
         )
         self.assertFalse(any(path.is_symlink() for path in self.output.rglob("*")))
         self.assertEqual(manifest["plugin"]["name"], "better-product-graph")
-        self.assertEqual(manifest["plugin"]["version"], "0.2.19")
+        self.assertEqual(manifest["plugin"]["version"], "0.2.20")
         installed_manifest = json.loads(
             (self.output / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(installed_manifest["version"], "0.2.19")
+        self.assertEqual(installed_manifest["version"], "0.2.20")
         self.assertEqual(manifest["architecture_baseline"]["version"], "V1.4")
         self.assertEqual(manifest["roadmap_baseline"]["version"], "v0.17")
         self.assertTrue((self.output / "LICENSE").is_file())

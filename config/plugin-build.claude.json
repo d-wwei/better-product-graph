@@ -35,6 +35,14 @@
       "target_source": "host-adapters/claude/public-skill/better-product-graph/SKILL.md",
       "substitutions": [
         {
+          "from": "or invokes `$better-product-graph alpha`. Never silently route an ordinary BPG",
+          "to": "or invokes `/better-product-graph:better-product-graph alpha`. Never silently route an ordinary BPG"
+        },
+        {
+          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation alpha \\",
+          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation alpha \\"
+        },
+        {
           "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation configure-template \\",
           "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation configure-template \\"
         },

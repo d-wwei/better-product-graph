@@ -1,15 +1,15 @@
 {
   "schema_version": "better-product-graph.release-source.v2",
-  "generated_at": "2026-08-27",
+  "generated_at": "2026-08-31",
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
   "development_branch": "main",
-  "development_snapshot_commit": "8953634c294801f1a3d886d08a7c16259c095427",
-  "artifact_build_source_commit": "8953634c294801f1a3d886d08a7c16259c095427",
+  "development_snapshot_commit": "16d4209c8ae5c9f5e963f3274046c5bfeeae6601",
+  "artifact_build_source_commit": "16d4209c8ae5c9f5e963f3274046c5bfeeae6601",
   "artifact_build_source_dirty": false,
-  "plugin_version": "0.2.19",
+  "plugin_version": "0.2.20",
   "release_channel": "Developer Alpha",
-  "intended_tag": "v0.2.19",
+  "intended_tag": "v0.2.20",
   "public_identity_binding": "The public snapshot commit, tag and GitHub Release are external final-publication evidence. This file intentionally contains no self-referential public commit.",
   "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
   "documents": {
@@ -23,6 +23,11 @@
       "version": "V1.4",
       "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
     },
+    "bpg2_alpha_product_method": {
+      "path": "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md",
+      "version": "v0.2",
+      "sha256": "b15b859a2672f0baefbd8a6b93c36b7dcef245a59911db8deff0cd93bd52fa0b"
+    },
     "roadmap": {
       "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md",
       "version": "v0.17",
@@ -33,33 +38,47 @@
       "version": "general@0.2.0",
       "sha256": "c276e951bba16ff868f5b2cf7dacb1642adf5eac512fb2a3898f4ad825ad64a4"
     },
+    "bpg2_alpha_prd_template": {
+      "path": "src/core/templates/general/PRD_TEMPLATE_v2.0-alpha.md",
+      "version": "2.0-alpha.1",
+      "sha256": "762ae2df48106d8986c220b6f9c40a27a8dea34c69ab79bde29731325b218389"
+    },
     "installation": {
-      "path": "docs/release/INSTALL_v0.2.19.md",
-      "sha256": "c1ea173fcd7d3e81945656c90883e83c02d9bc0c1081673c9ba10755fe4c4a1f"
+      "path": "docs/release/INSTALL_v0.2.20.md",
+      "sha256": "2d61e87328de577b2e7b10b48544e59a6094fc78810011943f256cf38fa5c0ed"
     },
     "release_notes": {
-      "path": "docs/release/RELEASE_NOTES_v0.2.19.md",
-      "sha256": "80a5025f3bd38903dba8330fda6be8d47e288cd950a75167183576b7b73ee769"
+      "path": "docs/release/RELEASE_NOTES_v0.2.20.md",
+      "sha256": "2a1bdaf6e8a8cdd437aae9b9c8f81e89db4b235dd725aac6da8170b2cbe326ea"
     }
   },
   "release_artifacts": {
     "codex_marketplace_zip": {
-      "name": "better-product-graph-codex-0.2.19.zip",
-      "sha256": "49eed28ad307cc01ce1959bd16c79fd4e9e06eaf353bd6e05be715f8cbe62953",
-      "bytes": 431270,
-      "plugin_artifact_hash": "sha256:6a272679ceb02ab2661618485e41d855c0fa0ffcae660e2b9873492208c09016"
+      "name": "better-product-graph-codex-0.2.20.zip",
+      "sha256": "3c731d364a2d58ffab2ba5d85db0317a0eb430be31297a7676162fd34dbdb19a",
+      "bytes": 509277,
+      "plugin_artifact_hash": "sha256:54cc61fd25558b9b0a238c0e5d09bb76b15a7c59585fc3763f0bcc9c41d74dc2"
     },
     "claude_marketplace_zip": {
-      "name": "better-product-graph-claude-0.2.19.zip",
-      "sha256": "50f6a90045f2b6f6f964030e61d161d7436eb6749205a18b0a700b1fb98e7a8d",
-      "bytes": 432585,
-      "plugin_artifact_hash": "sha256:4b33fdc9a0d57f330d10502d527c28f78b427c4857fcb19bd958066ab9d72a8d"
+      "name": "better-product-graph-claude-0.2.20.zip",
+      "sha256": "7e214fc1333214dc4838ff7a4aa43e22ee19deed35f4930e53c5ecdca36cbfc0",
+      "bytes": 510676,
+      "plugin_artifact_hash": "sha256:657a94425d2625978b18ddb1a42b14c942cac8949ec2708f442939aadf785870"
     },
-    "core_tree_fingerprint": "sha256:158c80c7ea39800439b75ff22412bf5b640ba7cb568078538d02ba1fc7365131",
+    "core_tree_fingerprint": "sha256:b2c67e6e84aedcd1ebce9b3bbed4835f2ac6d33b390822913eb569f5860f72bd",
     "asset_policy": "The GitHub Release must reuse these exact evaluated ZIP bytes. A package rebuilt from the public snapshot is a source-reproducibility check only and cannot replace either gated asset."
   },
   "release_evidence": {
-    "development_source_tests": "773/773 PASS on the exact development tree committed as 8953634c294801f1a3d886d08a7c16259c095427",
+    "development_source_tests": "792/792 PASS on the exact development tree committed as 16d4209c8ae5c9f5e963f3274046c5bfeeae6601",
+    "public_snapshot_source_tests": "712 tests discovered; OK; skipped=1 in the curated public snapshot before publication",
+    "bpg2_alpha_mechanical_contract": "PASS; 19 focused Alpha tests cover the installed opt-in entry, six decision outcomes, review independence and revision limits, WAIT versus PAUSE, Ready, self-contained HTML and Local Handoff",
+    "bpg2_alpha_real_codex_host": "LOCAL_HANDOFF_COMPLETE for bpg2-run-alpha-dogfood-20260829; independent Problem, Decision and PRD Reviews; final PRD v3 DIFF_AND_REGRESSION PASS",
+    "bpg2_alpha_product_evals": "RECOMMENDED / NOT_AVAILABLE / NOT_RUN in the real Host Run; nonblocking by contract",
+    "bpg2_alpha_external_delivery": "NOT_RUN",
+    "bpg2_alpha_engineering_receipt": "NOT_RUN",
+    "bpg2_alpha_implementation_tests": "NOT_RUN",
+    "bpg2_alpha_product_effect_validation": "NOT_RUN",
+    "bpg2_alpha_human_owner_test": "NOT_RUN",
     "stale_run_recovery": "APPROVED; five exact recovery contracts plus one existing migration; six historical Run copies reached current legal work orders under the original Run IDs",
     "concurrent_resume": "PASS; ACTIVE, PAUSED forward, PAUSED reverse and unrelated-suffix fail-closed interleavings each repeated 50/50; focused suite 12 tests x 10 rounds",
     "rc5_agent_eval": "27/27 PASS",

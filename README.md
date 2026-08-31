@@ -16,7 +16,7 @@ Better Product Graph（BPG）是一个运行在 Codex 和 Claude Code 里的本�
 
 它不会把每个 Signal 都强行写成 PRD。合理的结果也可以是：立即处理线上事故、提交 Bug 核查包、继续研究、做可逆实验、等待条件成熟，或者明确停止。
 
-> **当前版本：`0.2.19` Developer Alpha。** 核心 Product Loop、双 Host Adapter、本地版本/审计/恢复和 Handoff 已可运行；本版为 `0.2.18` 的兼容性热修复，让已审计的旧 Run 能在原 Run ID 上安全恢复。PRD Writing Reviewer 语义合同未改。陌生项目的完整共享知识仍需要后续 Knowledge Maintenance Graph。
+> **当前版本：`0.2.20` Developer Alpha。** 本版新增一个必须显式启用的 BPG 2.0“单 PRD 完整主链路”内部 Alpha，同时保留 0.x 稳定入口。它覆盖理解、诊断与价值、独立 Candidate Review、六类决策、整体—局部—整体规划、一份正式或实验型 PRD、唯一 Ready 合同和 Local Handoff；不迁移旧 Run，也不代表外部交付、研发接收、实现或产品效果已验证。
 
 ### 来自对 eli 的蒸馏
 
@@ -87,12 +87,12 @@ Idea / 用户反馈 / 线上 Issue
 
 ### 安装
 
-完整步骤与精确校验方法见 [0.2.19 安装指南](docs/release/INSTALL_v0.2.19.md)。最快方式：
+完整步骤与精确校验方法见 [0.2.20 安装指南](docs/release/INSTALL_v0.2.20.md)。最快方式：
 
 Codex：
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.19
+codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.20
 codex plugin add better-product-graph@better-product-graph
 ```
 
@@ -122,7 +122,9 @@ $better-product-graph new <产品想法、用户反馈或 Issue>
 
 ### 当前证据
 
-- `0.2.19` 最终开发树测试为 `773/773 PASS`；四种并发 Resume 时序各独立重复 `50/50 PASS`，六个历史 Run 均在完整临时副本中到达当前合法工作单。
+- `0.2.20` 发行候选开发树测试为 `792/792 PASS`；合并前 Alpha 分支与合并后 `main` 还分别通过 `791/791`，新增的一项测试锁定了安装包中必须显式触发的 2.0 Alpha 入口与权威基线。
+- 真实 Codex Host Alpha Run `bpg2-run-alpha-dogfood-20260829` 从 Signal 走到 `LOCAL_HANDOFF_COMPLETE`；Problem、Decision 和最终 PRD 都由独立 Reviewer 检查，最终 PRD v3 的差异复查与整体回归为 `PASS`。外部发送、研发接收、实现测试和产品效果验证仍为 `NOT_RUN`。
+- `0.2.19` 的精确旧 Run 恢复能力继续保留；BPG 2.0 Alpha 与旧 Run 完全隔离，不导入、不迁移、不续跑。
 - Writing Profile、Guide、Reviewer Instruction 和评测合同与 `0.2.18` 字节一致；冻结 RC5 与最终公开候选包的 PRD Writing Reviewer Agent Eval 均为 `27/27 PASS`，本热修复没有重跑或扩大该语义声明。
 - 4 个独立 Reviewer 对 Evals Generator PRD v0.6 完成普通 Review 并记录 6 项关注；Ready 随后因 raw inline SVG 在零 receipt 状态 fail closed，因此该 PRD 不是 Ready、Released、已实现或已测试。
 - 两个 Host 的确定性包、installed identity、隔离安装和共享 Core 一致性均进入发行检查；观察式真人读者验证仍为 `NOT_RUN`。
@@ -150,7 +152,7 @@ Better Product Graph (BPG) is a local product workflow for Codex and Claude Code
 
 It does not force every signal into a PRD. A valid outcome may be an incident brief, a bug investigation packet, more research, a reversible experiment, a deliberate wait, or a recorded stop.
 
-> **Current release: `0.2.19` Developer Alpha.** The core Product Loop, both Host Adapters, local versioning, audit, recovery, and Handoff are available. This compatibility hotfix lets audited legacy Runs resume safely under the same Run ID. The PRD Writing Reviewer semantic contract is unchanged from `0.2.18`. Complete shared context for an unfamiliar project remains future Knowledge Maintenance Graph work.
+> **Current release: `0.2.20` Developer Alpha.** This release adds an explicitly opt-in BPG 2.0 single-PRD end-to-end internal Alpha while retaining the stable 0.x entry path. It covers understanding, diagnosis and value, independent Candidate Review, six decision outcomes, whole-part-whole planning, one formal or experimental PRD, the unique Ready contract, and Local Handoff. It does not migrate legacy Runs or claim external delivery, engineering receipt, implementation, or product-effect validation.
 
 ### Distilled from eli
 
@@ -221,12 +223,12 @@ It is not yet a fit if you need:
 
 ### Install
 
-See the [0.2.19 installation guide](docs/release/INSTALL_v0.2.19.md) for checksum verification. The shortest path is:
+See the [0.2.20 installation guide](docs/release/INSTALL_v0.2.20.md) for checksum verification. The shortest path is:
 
 Codex:
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.19
+codex plugin marketplace add d-wwei/better-product-graph --ref v0.2.20
 codex plugin add better-product-graph@better-product-graph
 ```
 
@@ -256,7 +258,9 @@ Both Hosts expose the same eleven intents: `new`, `capture`, `inbox`, `status`, 
 
 ### Current evidence
 
-- The final `0.2.19` development tree passed `773/773` tests. Four concurrent Resume interleavings each passed `50/50` independent repetitions, and all six audited historical Runs reached a current legal work order in full temporary copies.
+- The `0.2.20` release-candidate development tree passed `792/792` tests. Before release metadata, both the Alpha branch and merged `main` independently passed `791/791`; one added test locks the installed opt-in Alpha entry and authoritative reference.
+- Real Codex Host Alpha Run `bpg2-run-alpha-dogfood-20260829` reached `LOCAL_HANDOFF_COMPLETE`. Independent Reviewers checked the Problem, Decision, and final PRD; PRD v3 passed both difference review and whole-product regression. External delivery, engineering receipt, implementation tests, and product-effect validation remain `NOT_RUN`.
+- The exact legacy-Run recovery from `0.2.19` remains available. BPG 2.0 Alpha is isolated and never imports, migrates, or resumes an old Run.
 - The Writing Profile, Guide, Reviewer Instruction, and evaluation contracts are byte-identical to `0.2.18`. The frozen RC5 and final public-candidate Writing Reviewer Agent Eval phases remain `27/27 PASS`; this hotfix did not rerun or broaden that semantic claim.
 - Four independent reviewers completed an ordinary Review of Evals Generator PRD v0.6 and recorded six concerns. Ready then failed closed on raw inline SVG with zero receipts, so that PRD is not Ready, Released, implemented, or tested.
 - Deterministic dual-Host packages, installed identity, isolated installation, and shared-Core consistency are release-gated. Observed human-reader validation remains `NOT_RUN`.
