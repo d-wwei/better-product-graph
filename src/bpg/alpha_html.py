@@ -13,6 +13,9 @@ _IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 _INLINE_CODE = re.compile(r"`([^`]+)`")
 _BOLD = re.compile(r"\*\*([^*]+)\*\*")
 _TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")
+_LIST_ITEM = re.compile(
+    r"^(?P<indent>[ \t]*)(?:(?P<number>\d+)[.)]|(?P<bullet>[-*+]))\s+(?P<text>.*)$"
+)
 
 
 def _safe_asset_path(value: str) -> str:
@@ -53,6 +56,88 @@ def _inline(value: str, assets: dict[str, bytes]) -> str:
 
 def _cells(line: str) -> list[str]:
     return [item.strip() for item in line.strip().strip("|").split("|")]
+
+
+def _indent_width(value: str) -> int:
+    return len(value.expandtabs(4))
+
+
+def _list_marker(line: str) -> tuple[int, str, str, int | None] | None:
+    match = _LIST_ITEM.match(line)
+    if match is None:
+        return None
+    number = match.group("number")
+    return (
+        _indent_width(match.group("indent")),
+        "ol" if number is not None else "ul",
+        match.group("text"),
+        int(number) if number is not None else None,
+    )
+
+
+def _render_list(
+    lines: list[str],
+    index: int,
+    assets: dict[str, bytes],
+) -> tuple[str, int]:
+    first = _list_marker(lines[index])
+    if first is None:
+        raise ValueError("list rendering requires a list item")
+    base_indent, list_kind, _, first_number = first
+    items: list[str] = []
+    expected_number = first_number
+
+    while index < len(lines):
+        marker = _list_marker(lines[index])
+        if marker is None:
+            break
+        indent, kind, text, number = marker
+        if indent != base_indent or kind != list_kind:
+            break
+
+        item_parts = [_inline(text, assets)]
+        item_number = number
+        index += 1
+        while index < len(lines):
+            if not lines[index].strip():
+                next_index = index
+                while next_index < len(lines) and not lines[next_index].strip():
+                    next_index += 1
+                next_marker = (
+                    _list_marker(lines[next_index]) if next_index < len(lines) else None
+                )
+                if next_marker is None or next_marker[0] < base_indent:
+                    break
+                index = next_index
+                if next_marker[0] == base_indent:
+                    break
+                continue
+
+            nested = _list_marker(lines[index])
+            if nested is not None:
+                if nested[0] <= base_indent:
+                    break
+                nested_html, index = _render_list(lines, index, assets)
+                item_parts.append(nested_html)
+                continue
+
+            leading = lines[index][: len(lines[index]) - len(lines[index].lstrip(" \t"))]
+            if _indent_width(leading) <= base_indent:
+                break
+            item_parts.append(f"<p>{_inline(lines[index].strip(), assets)}</p>")
+            index += 1
+
+        value_attribute = ""
+        if list_kind == "ol" and item_number != expected_number:
+            value_attribute = f' value="{item_number}"'
+        items.append(f"<li{value_attribute}>{''.join(item_parts)}</li>")
+        if list_kind == "ol" and item_number is not None:
+            expected_number = item_number + 1
+
+    start_attribute = (
+        f' start="{first_number}"' if list_kind == "ol" and first_number != 1 else ""
+    )
+    return f"<{list_kind}{start_attribute}>{''.join(items)}</{list_kind}>", index
 
 
 def _render_body(markdown: str, assets: dict[str, bytes]) -> str:
@@ -115,21 +200,10 @@ def _render_body(markdown: str, assets: dict[str, bytes]) -> str:
                 for row in rows
             ) + "</tbody></table>")
             continue
-        if re.match(r"^[-*+]\s+", stripped):
+        if _list_marker(line) is not None:
             flush_paragraph()
-            items: list[str] = []
-            while index < len(lines) and re.match(r"^\s*[-*+]\s+", lines[index]):
-                items.append(re.sub(r"^\s*[-*+]\s+", "", lines[index]))
-                index += 1
-            output.append("<ul>" + "".join(f"<li>{_inline(item, assets)}</li>" for item in items) + "</ul>")
-            continue
-        if re.match(r"^\d+[.)]\s+", stripped):
-            flush_paragraph()
-            items = []
-            while index < len(lines) and re.match(r"^\s*\d+[.)]\s+", lines[index]):
-                items.append(re.sub(r"^\s*\d+[.)]\s+", "", lines[index]))
-                index += 1
-            output.append("<ol>" + "".join(f"<li>{_inline(item, assets)}</li>" for item in items) + "</ol>")
+            rendered_list, index = _render_list(lines, index, assets)
+            output.append(rendered_list)
             continue
         if stripped.startswith(">"):
             flush_paragraph()

@@ -1,15 +1,15 @@
 {
   "plugin_name": "better-product-graph",
-  "plugin_version": "0.2.20",
+  "plugin_version": "2.0.0",
   "architecture_baseline": {
     "path": "docs/architecture/PRD_GRAPH_v1.4.md",
     "version": "V1.4",
     "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
   },
   "roadmap_baseline": {
-    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md",
-    "version": "v0.17",
-    "sha256": "ad4c049767e52ed26234c409cdbaeaf67a2589e66b88b6a42b0baf3e373c4feb"
+    "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.2.md",
+    "version": "BPG-2.x-v0.2",
+    "sha256": "8cdcfee2dfb5b9bdcda45b7e70acb2383e65f67da8e2bea0326acfcd6eb6141b"
   },
   "shared_exact_files": [
     {

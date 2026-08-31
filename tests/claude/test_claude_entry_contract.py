@@ -12,19 +12,6 @@ from scripts.build_plugin import build_plugin
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_COMMANDS = (
-    "new",
-    "capture",
-    "inbox",
-    "status",
-    "resume",
-    "pause",
-    "handoff",
-    "connectors",
-    "audit",
-    "interview",
-    "help",
-)
 
 
 def _load_installed_intents(plugin_root: Path):
@@ -38,7 +25,7 @@ def _load_installed_intents(plugin_root: Path):
 
 
 class ClaudeEntryContractTests(unittest.TestCase):
-    """The Claude installed copy resolves the same eleven intents through the same parser."""
+    """The Claude installed copy exposes BPG 2.0 as its only public product route."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -52,20 +39,26 @@ class ClaudeEntryContractTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls._tempdir.cleanup()
 
-    def test_public_skill_documents_exactly_the_eleven_public_intents(self) -> None:
+    def test_public_skill_documents_the_default_bpg2_route_and_no_legacy_control_plane(self) -> None:
         skill = (self.plugin / "skills" / "better-product-graph" / "SKILL.md").read_text(
             encoding="utf-8"
         )
-        for command in PUBLIC_COMMANDS:
-            self.assertIn(f"`{command}`", skill)
+        self.assertIn("Default BPG 2.0 single-PRD runtime", skill)
+        self.assertIn("legacy 0.x public route is removed", skill)
+        self.assertIn("does not need to type `alpha`", skill)
+        self.assertNotIn("## Stable intents", skill)
+        self.assertNotIn("--operation submit", skill)
 
     def test_namespaced_claude_entry_is_documented_as_the_determinate_entry(self) -> None:
         skill = (self.plugin / "skills" / "better-product-graph" / "SKILL.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("/better-product-graph:better-product-graph <intent>", skill)
+        self.assertIn(
+            "/better-product-graph:better-product-graph <product task>",
+            skill,
+        )
 
-    def test_installed_parser_maps_every_public_command_to_one_core_intent(self) -> None:
+    def test_retained_legacy_parser_stays_internally_consistent(self) -> None:
         expected = {
             "new": "signal.activate",
             "capture": "signal.submit",
@@ -116,7 +109,7 @@ class ClaudeEntryContractTests(unittest.TestCase):
                 result = self.intents.parse_host_entry(entry)
                 self.assertNotIn(result.activation, {"ACCEPTED", "ACTIVATE"})
 
-    def test_installed_runner_activates_a_run_inside_the_project_root_only(self) -> None:
+    def test_installed_runner_routes_an_ordinary_entry_to_bpg2_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             completed = subprocess.run(
@@ -129,8 +122,11 @@ class ClaudeEntryContractTests(unittest.TestCase):
             payload = json.loads(completed.stdout)
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertEqual(payload["status"], "ACTIVATED")
-            self.assertTrue((project / ".better-product-graph").is_dir())
+            self.assertEqual(payload["status"], "HOST_AGENT_ACTION_REQUIRED")
+            self.assertEqual(payload["runtime"], "BPG_2_0_ALPHA")
+            self.assertEqual(payload["instructions"]["legacy_public_route"], "REMOVED")
+            self.assertFalse(payload["instructions"]["alpha_keyword_required"])
+            self.assertFalse((project / ".better-product-graph").exists())
             self.assertEqual(list(self.plugin.rglob(".better-product-graph")), [])
 
     def test_installed_runner_refuses_an_empty_entry(self) -> None:

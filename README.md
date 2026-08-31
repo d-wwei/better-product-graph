@@ -16,7 +16,7 @@ Better Product Graph（BPG）是一个运行在 Codex 和 Claude Code 里的本�
 
 它不会把每个 Signal 都强行写成 PRD。合理的结果也可以是：立即处理线上事故、提交 Bug 核查包、继续研究、做可逆实验、等待条件成熟，或者明确停止。
 
-> **当前版本：`0.2.20` Developer Alpha。** 本版新增一个必须显式启用的 BPG 2.0“单 PRD 完整主链路”内部 Alpha，同时保留 0.x 稳定入口。它覆盖理解、诊断与价值、独立 Candidate Review、六类决策、整体—局部—整体规划、一份正式或实验型 PRD、唯一 Ready 合同和 Local Handoff；不迁移旧 Run，也不代表外部交付、研发接收、实现或产品效果已验证。
+> **公开源码版本：`2.0.0` Developer Alpha，尚未创建 GitHub Release。** BPG 2.0 的单 PRD 完整主链路已经取代旧 0.x 入口，普通请求默认进入新架构。当前最新冻结 GitHub Release 仍是 `0.2.20`；`2.0.0` 不迁移旧 Run，也不代表外部交付、研发接收、实现或产品效果已验证。
 
 ### 来自对 eli 的蒸馏
 
@@ -30,32 +30,29 @@ Better Product Graph 来自对 **eli 的产品工作方式**的蒸馏：不要�
 Idea / 用户反馈 / 线上 Issue
               │
               ▼
-   Signal Intake + Router
-      ├─ Incident：快速形成处置摘要
-      ├─ Bug：实现偏差核查，或产品逻辑重定义
-      └─ Product Discovery
+      Signal & Route
               │
               ▼
-  Evidence → Assumption Audit → Learning Loop
+ UNDERSTAND → DIAGNOSE & VALUE
               │
               ▼
-       Problem Definition
+  Problem Candidate → 独立 Review
               │
               ▼
- Product Decision：STOP / WAIT / RESEARCH /
-                   EXPERIMENT / COMMIT
+ 方案发现 → Decision Candidate → 独立 Review
               │
               ▼
-  Outcome-first Plan → 模块拆分 + 迭代拆分
+ STOP / WAIT / RESEARCH / EXPERIMENT /
+ COMMIT NOW / FUTURE ROADMAP
               │
               ▼
-        1..N 个版本化 PRD
+   PLAN THE PRODUCT SYSTEM
               │
               ▼
-   并行专业 Review ↔ 有界修订 Loop
+ 一份正式或实验型 PRD → 内容与写作 Review
               │
               ▼
-       Local Release + Handoff
+ Ready → 可选格式的 Local Handoff
 ```
 
 最需要智能的工作——研究、访谈、质疑、问题定义、决策建议、规划和 PRD 写作——由 Host Agent 完成。Python Controller 只负责状态、权限、版本、证据引用、校验、恢复和确定性落盘，不假装会做产品判断。
@@ -64,7 +61,7 @@ Idea / 用户反馈 / 线上 Issue
 
 - **先决定，再写 PRD。** 用户原话、事实、推断、假设和未知不会混在一起。
 - **AI 会反过来挑战 PM。** Better Question 和 20 个认知基座按当前最有价值的未知动态工作，不是固定 Checklist。
-- **规划完整，交付克制。** 一个大方向可以形成一个 Product Plan 和多个高内聚、低耦合的小 PRD。
+- **规划完整，交付克制。** 当前主链把完整产品系统规划收敛为一份高内聚 PRD；多 PRD 拆分属于后续 2.1。
 - **审查不演戏。** 产品、UX、研发可行性、可测试性和合规 Reviewer 可以并行工作；它们只给建议，不冒充最终审批人。
 - **中断后能继续。** Run、Evidence、Decision、版本、审查意见和 Handoff 都保存在项目本地，不依赖聊天记录维持记忆。
 - **宿主可替换，Core 不复制。** Codex 与 Claude Code 使用不同 Host Adapter，但共享同一 Product Graph Core。
@@ -87,7 +84,9 @@ Idea / 用户反馈 / 线上 Issue
 
 ### 安装
 
-完整步骤与精确校验方法见 [0.2.20 安装指南](docs/release/INSTALL_v0.2.20.md)。最快方式：
+`2.0.0` 当前只发布源码快照，尚无 Tag 或 GitHub Release。需要冻结安装资产时，继续使用 [0.2.20 安装指南](docs/release/INSTALL_v0.2.20.md)；需要试用 `2.0.0` 时，应从当前公开仓 `main` 获取源码，并将精确 commit 视为候选身份，而不是 Release 身份。
+
+当前冻结 Release 的最快安装方式：
 
 Codex：
 
@@ -106,11 +105,11 @@ claude plugin install better-product-graph@better-product-graph --scope user
 安装后请打开新任务/新会话。你可以直接用自然语言，也可以显式调用：
 
 ```text
-$better-product-graph new <产品想法、用户反馈或 Issue>
-/better-product-graph:better-product-graph new <product signal>
+$better-product-graph <产品想法、用户反馈或 Issue>
+/better-product-graph:better-product-graph <product signal>
 ```
 
-两个 Host 都支持相同的 11 个意图：`new`、`capture`、`inbox`、`status`、`resume`、`pause`、`handoff`、`connectors`、`audit`、`interview`、`help`。
+普通请求默认使用 BPG 2.0。用户可以直接开始、查看、继续、暂停或准备本地交接；内部 Controller action 不作为需要用户记忆的命令公开。
 
 ### 数据、权限与边界
 
@@ -122,7 +121,7 @@ $better-product-graph new <产品想法、用户反馈或 Issue>
 
 ### 当前证据
 
-- `0.2.20` 发行候选开发树测试为 `792/792 PASS`；合并前 Alpha 分支与合并后 `main` 还分别通过 `791/791`，新增的一项测试锁定了安装包中必须显式触发的 2.0 Alpha 入口与权威基线。
+- `2.0.0` 源码候选完整测试为 `808/808 PASS`；聚焦 Runtime 与 Host 测试为 `31/31 PASS`。双 Host 构建、隔离安装、自检和 Plugin Contract 分别验证，不能替代真实产品效果测试。
 - 真实 Codex Host Alpha Run `bpg2-run-alpha-dogfood-20260829` 从 Signal 走到 `LOCAL_HANDOFF_COMPLETE`；Problem、Decision 和最终 PRD 都由独立 Reviewer 检查，最终 PRD v3 的差异复查与整体回归为 `PASS`。外部发送、研发接收、实现测试和产品效果验证仍为 `NOT_RUN`。
 - `0.2.19` 的精确旧 Run 恢复能力继续保留；BPG 2.0 Alpha 与旧 Run 完全隔离，不导入、不迁移、不续跑。
 - Writing Profile、Guide、Reviewer Instruction 和评测合同与 `0.2.18` 字节一致；冻结 RC5 与最终公开候选包的 PRD Writing Reviewer Agent Eval 均为 `27/27 PASS`，本热修复没有重跑或扩大该语义声明。
@@ -132,7 +131,7 @@ $better-product-graph new <产品想法、用户反馈或 Issue>
 - Claude Code 的 `0.2.0` 真实 Host 试跑为 6/7：关键可写、权限、恢复和 Handoff 路径通过；只读 Help 没有 runner 调用证据，因此严格结果仍是 `PARTIAL`。
 - 自然语言 Auto-selection 与真实 Product Golden Agent judgment 仍是 `NOT_RUN`，不会被机械测试冒充。
 
-更多边界见 [Roadmap v0.17](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md) 与 [产品 PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md)。
+更多边界见 [BPG 2.x Roadmap](docs/roadmap/BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.2.md)、[Roadmap v0.17](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md) 与 [产品 PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md)。
 
 ### 反馈与贡献
 
@@ -152,7 +151,7 @@ Better Product Graph (BPG) is a local product workflow for Codex and Claude Code
 
 It does not force every signal into a PRD. A valid outcome may be an incident brief, a bug investigation packet, more research, a reversible experiment, a deliberate wait, or a recorded stop.
 
-> **Current release: `0.2.20` Developer Alpha.** This release adds an explicitly opt-in BPG 2.0 single-PRD end-to-end internal Alpha while retaining the stable 0.x entry path. It covers understanding, diagnosis and value, independent Candidate Review, six decision outcomes, whole-part-whole planning, one formal or experimental PRD, the unique Ready contract, and Local Handoff. It does not migrate legacy Runs or claim external delivery, engineering receipt, implementation, or product-effect validation.
+> **Public source version: `2.0.0` Developer Alpha; no GitHub Release has been created yet.** The BPG 2.0 single-PRD path replaces the legacy 0.x entry and is now the default for ordinary requests. The latest frozen GitHub Release remains `0.2.20`. Version `2.0.0` does not migrate old Runs or claim external delivery, engineering receipt, implementation, or product-effect validation.
 
 ### Distilled from eli
 
@@ -166,32 +165,29 @@ This is not a personality clone, and it is not an “AI product manager” that 
 Idea / feedback / production issue
                 │
                 ▼
-     Signal Intake + Router
-       ├─ Incident: short action brief
-       ├─ Bug: implementation check or product redefinition
-       └─ Product Discovery
+          Signal & Route
                 │
                 ▼
- Evidence → Assumption Audit → Learning Loop
+    UNDERSTAND → DIAGNOSE & VALUE
                 │
                 ▼
-         Problem Definition
+    Problem Candidate → independent Review
                 │
                 ▼
- Product Decision: STOP / WAIT / RESEARCH /
-                   EXPERIMENT / COMMIT
+ Solution discovery → Decision Candidate → Review
                 │
                 ▼
- Outcome-first Plan → module map + iteration map
+ STOP / WAIT / RESEARCH / EXPERIMENT /
+ COMMIT NOW / FUTURE ROADMAP
                 │
                 ▼
-          1..N versioned PRDs
+       PLAN THE PRODUCT SYSTEM
                 │
                 ▼
- Parallel professional Review ↔ bounded revision Loop
+ One formal or experimental PRD → content and writing Review
                 │
                 ▼
-        Local Release + Handoff
+       Ready → optional-format Local Handoff
 ```
 
 The Host Agent performs the work that needs judgment: research, interviews, challenge, problem framing, decision advice, planning, and PRD writing. The Python Controller handles state, permissions, versions, evidence references, validation, recovery, and deterministic persistence. It does not pretend to make product judgments.
@@ -200,7 +196,7 @@ The Host Agent performs the work that needs judgment: research, interviews, chal
 
 - **Decide before writing.** User statements, facts, inferences, assumptions, and unknowns stay distinct.
 - **The Agent may challenge the PM.** Better Question and twenty cognitive lenses are routed to the current most valuable unknown instead of becoming a fixed checklist.
-- **Plan broadly, deliver narrowly.** A large direction can become one Product Plan and several cohesive, decoupled PRDs.
+- **Plan broadly, deliver narrowly.** The current main path turns a complete product-system plan into one cohesive PRD; multi-PRD decomposition is planned for 2.1.
 - **Review without theater.** Product, UX, engineering-feasibility, testability, and compliance reviewers may run in parallel. They remain advisory and do not impersonate final approval.
 - **Resume after interruption.** Runs, evidence, decisions, versions, review notes, and handoffs live in the project rather than disappearing with chat history.
 - **Change the Host, not the Core.** Codex and Claude Code use different Host Adapters over the same Product Graph Core.
@@ -223,7 +219,9 @@ It is not yet a fit if you need:
 
 ### Install
 
-See the [0.2.20 installation guide](docs/release/INSTALL_v0.2.20.md) for checksum verification. The shortest path is:
+Version `2.0.0` is currently a public source snapshot without a Tag or GitHub Release. Use the [0.2.20 installation guide](docs/release/INSTALL_v0.2.20.md) when you need frozen assets. To test `2.0.0`, use the current public `main` source and treat its exact commit as a candidate identity, not a Release identity.
+
+The shortest frozen-Release path is:
 
 Codex:
 
@@ -242,11 +240,11 @@ claude plugin install better-product-graph@better-product-graph --scope user
 Open a new task or session after installation. Use natural language or an explicit entry:
 
 ```text
-$better-product-graph new <product idea, feedback, or issue>
-/better-product-graph:better-product-graph new <product signal>
+$better-product-graph <product idea, feedback, or issue>
+/better-product-graph:better-product-graph <product signal>
 ```
 
-Both Hosts expose the same eleven intents: `new`, `capture`, `inbox`, `status`, `resume`, `pause`, `handoff`, `connectors`, `audit`, `interview`, and `help`.
+Ordinary requests use BPG 2.0 by default. Users can start, inspect, resume, pause, or prepare a local handoff directly; internal Controller actions are not user syntax.
 
 ### Data, authority, and boundaries
 
@@ -258,7 +256,7 @@ Both Hosts expose the same eleven intents: `new`, `capture`, `inbox`, `status`, 
 
 ### Current evidence
 
-- The `0.2.20` release-candidate development tree passed `792/792` tests. Before release metadata, both the Alpha branch and merged `main` independently passed `791/791`; one added test locks the installed opt-in Alpha entry and authoritative reference.
+- The `2.0.0` source candidate passed `808/808` source tests; the focused Runtime and Host suite passed `31/31`. Dual-Host builds, isolated installation, self-check, and Plugin Contract are verified separately and do not substitute for product-effect testing.
 - Real Codex Host Alpha Run `bpg2-run-alpha-dogfood-20260829` reached `LOCAL_HANDOFF_COMPLETE`. Independent Reviewers checked the Problem, Decision, and final PRD; PRD v3 passed both difference review and whole-product regression. External delivery, engineering receipt, implementation tests, and product-effect validation remain `NOT_RUN`.
 - The exact legacy-Run recovery from `0.2.19` remains available. BPG 2.0 Alpha is isolated and never imports, migrates, or resumes an old Run.
 - The Writing Profile, Guide, Reviewer Instruction, and evaluation contracts are byte-identical to `0.2.18`. The frozen RC5 and final public-candidate Writing Reviewer Agent Eval phases remain `27/27 PASS`; this hotfix did not rerun or broaden that semantic claim.
@@ -268,7 +266,7 @@ Both Hosts expose the same eleven intents: `new`, `capture`, `inbox`, `status`, 
 - The real Claude Code `0.2.0` trial scored 6/7: the tested writable, permission, recovery, and Handoff paths passed; read-only Help did not produce runner evidence, so the strict result remains `PARTIAL`.
 - Natural-language auto-selection and real Product Golden Agent judgment remain `NOT_RUN`; mechanical tests do not substitute for them.
 
-See [Roadmap v0.17](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md) and the [product PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md) for the exact scope.
+See the [BPG 2.x Roadmap](docs/roadmap/BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.2.md), [Roadmap v0.17](docs/roadmap/BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md), and the [product PRD](docs/released/prd/BETTER_PRODUCT_GRAPH_PRD.md) for the exact scope.
 
 ### Feedback and contributions
 

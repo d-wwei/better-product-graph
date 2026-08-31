@@ -26,6 +26,8 @@ from .storage import (
     sha256_bytes,
     sha256_file,
 )
+from .visual_assets import VisualAssetError, scan_reader_visible_visual_source
+from .writing_review import WritingReviewError, load_and_validate_writing_coverage
 
 
 class AlphaContractError(RuntimeError):
@@ -69,6 +71,75 @@ REVIEW_TARGETS = frozenset(
         "OWNER",
     }
 )
+STAGE4_ARTIFACT_IDS = frozenset(
+    {
+        "SCOPE_REQUIREMENTS_MATRIX",
+        "TARGET_EXPERIENCE_CORE_FLOW",
+        "PRODUCT_EXPERIENCE_INFORMATION_STRUCTURE",
+        "LOGICAL_PRODUCT_SYSTEM",
+        "MODULE_MAP_AND_DETAILS",
+        "GLOBAL_RULES_SHARED_CONTRACTS",
+        "COMPLETE_SYSTEM_ITERATION_STRUCTURE",
+        "COHERENCE_COVERAGE_TRACEABILITY",
+        "DATA_COLLECTION_APPLICABILITY",
+    }
+)
+REVIEW_RESPONSIBILITY_IDS = frozenset(
+    {
+        "PRODUCT_GOAL_AND_REQUIREMENTS",
+        "USER_EXPERIENCE_AND_CONTENT",
+        "PRODUCT_SYSTEM_COHERENCE",
+        "ENGINEERING_FEASIBILITY",
+        "ACCEPTANCE_AND_PRODUCT_EVALS",
+        "DOCUMENT_EXPERIENCE",
+    }
+)
+HANDOFF_DELIVERY_MODES = frozenset(
+    {
+        "LOCAL_HTML",
+        "LOCAL_DOCUMENT",
+        "FEISHU_DOCUMENT",
+        "PROJECT_MANAGEMENT_MCP",
+    }
+)
+IMPLEMENTED_HANDOFF_DELIVERY_MODES = frozenset({"LOCAL_HTML"})
+DEFAULT_HANDOFF_DELIVERY_OPTIONS = {
+    "LOCAL_HTML": True,
+    "LOCAL_DOCUMENT": False,
+    "FEISHU_DOCUMENT": False,
+    "PROJECT_MANAGEMENT_MCP": False,
+}
+RETROSPECTIVE_CONFORMANCE_IDS = frozenset(
+    {
+        "PLANNING_RECORD_REPLACEMENT_SAFETY",
+        "STAGE4_DISPOSITIONS",
+        "DOCUMENT_EXPERIENCE",
+        "REVIEW_BASIS",
+        "SIX_REVIEW_RESPONSIBILITIES",
+        "WRITING_REVIEW",
+        "HANDOFF_DELIVERY_RENDERING",
+        "NOT_RUN_BOUNDARIES",
+    }
+)
+PROTECTED_PLANNING_SECTIONS = frozenset({"Signal 与当前边界"})
+SECTION_REMOVAL_TARGETS = {
+    "DIAGNOSE_VALUE": frozenset({"UNDERSTAND"}),
+    "DISCOVER_SOLUTIONS_DECIDE": frozenset({"UNDERSTAND", "DIAGNOSE_VALUE"}),
+    "PLAN_PRODUCT_SYSTEM": frozenset(
+        {"UNDERSTAND", "DIAGNOSE_VALUE", "DISCOVER_SOLUTIONS_DECIDE"}
+    ),
+    "PRD_AUTHORING": frozenset(
+        {
+            "UNDERSTAND",
+            "DIAGNOSE_VALUE",
+            "DISCOVER_SOLUTIONS_DECIDE",
+            "PLAN_PRODUCT_SYSTEM",
+        }
+    ),
+    "RESEARCH": frozenset(
+        {"UNDERSTAND", "DIAGNOSE_VALUE", "DISCOVER_SOLUTIONS_DECIDE"}
+    ),
+}
 CANDIDATE_POSITION = {
     "PROBLEM": ("DIAGNOSE_VALUE", "PROBLEM_REVIEW"),
     "DECISION": ("DISCOVER_SOLUTIONS_DECIDE", "DECISION_REVIEW"),
@@ -106,6 +177,15 @@ def _same_ref(left: Any, right: Any) -> bool:
     return all(left.get(key) == right.get(key) for key in keys)
 
 
+def _h2_sections(markdown: str) -> list[str]:
+    """Return stable second-level Markdown headings without judging their meaning."""
+
+    return [
+        match.group(1).strip()
+        for match in re.finditer(r"^##[ \t]+(.+?)[ \t]*$", markdown, flags=re.MULTILINE)
+    ]
+
+
 class BPG2AlphaController:
     """Minimal single-PRD Controller; no product meaning is inferred here."""
 
@@ -121,16 +201,45 @@ class BPG2AlphaController:
         return run_id
 
     @staticmethod
-    def _template_source() -> Path:
+    def _core_reference_source(relative: str) -> Path:
         module = Path(__file__).resolve()
         candidates = (
-            module.parents[1] / "core" / "templates" / "general" / "PRD_TEMPLATE_v2.0-alpha.md",
-            module.parents[2] / "references" / "templates" / "general" / "PRD_TEMPLATE_v2.0-alpha.md",
+            module.parents[1] / "core" / relative,
+            module.parents[2] / "references" / relative,
         )
-        template = next((path for path in candidates if path.is_file() and not path.is_symlink()), None)
-        if template is None:
-            raise AlphaContractError("BPG 2.0 Alpha general PRD template is unavailable")
-        return template
+        source = next((path for path in candidates if path.is_file() and not path.is_symlink()), None)
+        if source is None:
+            raise AlphaContractError(f"BPG 2.0 Alpha reference is unavailable: {relative}")
+        return source
+
+    @classmethod
+    def _template_source(cls) -> Path:
+        return cls._core_reference_source("templates/general/PRD_TEMPLATE_v2.0-alpha.md")
+
+    @classmethod
+    def _review_authority_sources(cls) -> dict[str, tuple[Path, str]]:
+        return {
+            "output_contract": (
+                cls._core_reference_source(
+                    "templates/general/PRD_OUTPUT_CONTRACT_v2.0-alpha.json"
+                ),
+                "2.0-alpha.1",
+            ),
+            "writing_profile": (
+                cls._core_reference_source("policies/prd-writing-profile-v0.5.json"),
+                "0.5.0",
+            ),
+            "writing_guide": (
+                cls._core_reference_source("policies/prd-writing-guide-v0.5.md"),
+                "0.5.0",
+            ),
+            "writing_review_contract": (
+                cls._core_reference_source(
+                    "reviewer-profiles/prd-writing-reader-review-v3.1.json"
+                ),
+                "v3.1",
+            ),
+        }
 
     def run_path(self, run_id: str) -> Path:
         return self.root / "runs" / self._validate_run_id(run_id)
@@ -151,7 +260,11 @@ class BPG2AlphaController:
                 "BPG 2.0 Run does not exist; old BPG Runs are never imported, migrated, or resumed"
             )
         state = read_json(path)
-        if state.get("runtime") != RUNTIME or state.get("run_id") != run_id:
+        if (
+            state.get("runtime") != RUNTIME
+            or state.get("run_id") != run_id
+            or state.get("schema_version") != "bpg2-alpha-run.v2"
+        ):
             raise AlphaContractError("BPG 2.0 Run identity is invalid")
         return state
 
@@ -163,6 +276,9 @@ class BPG2AlphaController:
             "path": managed.relative_to(self.project_root).as_posix(),
             "hash": sha256_file(managed),
         }
+
+    def versioned_file_ref(self, path: Path, version: int | str) -> dict[str, Any]:
+        return {**self.file_ref(path), "version": version}
 
     def _verify_file_ref(self, ref: Any) -> Path:
         if not isinstance(ref, dict):
@@ -261,7 +377,7 @@ class BPG2AlphaController:
             created = _now()
             state: dict[str, Any] = {
                 "runtime": RUNTIME,
-                "schema_version": "bpg2-alpha-run.v1",
+                "schema_version": "bpg2-alpha-run.v2",
                 "run_id": resolved_run_id,
                 "status": "ACTIVE",
                 "position": "UNDERSTAND",
@@ -293,7 +409,61 @@ class BPG2AlphaController:
             atomic_write_json(self._state_path(resolved_run_id), state)
             return state
 
-    def update_planning_record(
+    @staticmethod
+    def _validate_stage4_dispositions(value: Any) -> list[dict[str, Any]]:
+        if not isinstance(value, list):
+            raise AlphaContractError("Stage 4 dispositions must be a complete list")
+        normalized: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for raw in value:
+            if not isinstance(raw, dict):
+                raise AlphaContractError("each Stage 4 disposition must be an object")
+            allowed = {"artifact_id", "status", "rationale"}
+            if raw.get("status") == "BLOCKED":
+                allowed.update({"missing_input", "owner", "recovery"})
+            if set(raw) != allowed:
+                raise AlphaContractError("Stage 4 disposition fields are incomplete or unknown")
+            artifact_id = _nonempty(raw.get("artifact_id"), "Stage 4 artifact_id")
+            if artifact_id not in STAGE4_ARTIFACT_IDS or artifact_id in seen:
+                raise AlphaContractError("Stage 4 artifact coverage must be exact and unique")
+            seen.add(artifact_id)
+            status = raw.get("status")
+            if status not in {"COMPLETE", "NOT_APPLICABLE", "BLOCKED"}:
+                raise AlphaContractError("Stage 4 disposition status is invalid")
+            _nonempty(raw.get("rationale"), "Stage 4 disposition rationale")
+            if status == "BLOCKED":
+                _nonempty(raw.get("missing_input"), "Stage 4 blocked missing_input")
+                _nonempty(raw.get("owner"), "Stage 4 blocked owner")
+                _nonempty(raw.get("recovery"), "Stage 4 blocked recovery")
+            normalized.append(deepcopy(raw))
+        if seen != STAGE4_ARTIFACT_IDS:
+            missing = sorted(STAGE4_ARTIFACT_IDS - seen)
+            raise AlphaContractError(f"Stage 4 dispositions are incomplete: {missing}")
+        return normalized
+
+    @staticmethod
+    def _validate_removal_basis(
+        value: Any,
+        *,
+        position: str,
+        missing_sections: list[str],
+    ) -> dict[str, Any]:
+        if not isinstance(value, dict) or set(value) != {
+            "return_target",
+            "reason",
+            "removed_sections",
+        }:
+            raise AlphaContractError("section removal requires one closed upstream return basis")
+        return_target = value.get("return_target")
+        if return_target not in SECTION_REMOVAL_TARGETS.get(position, frozenset()):
+            raise AlphaContractError("section removal return_target is not an earlier legal stage")
+        _nonempty(value.get("reason"), "section removal reason")
+        removed = value.get("removed_sections")
+        if not isinstance(removed, list) or removed != missing_sections:
+            raise AlphaContractError("section removal must name the exact removed sections")
+        return deepcopy(value)
+
+    def replace_planning_record(
         self,
         run_id: str,
         *,
@@ -301,10 +471,17 @@ class BPG2AlphaController:
         operation_id: str,
         author_attempt_id: str,
         position: str,
+        mode: str,
+        base_hash: str,
         markdown: str,
         next_position: str | None = None,
+        removal_basis: dict[str, Any] | None = None,
+        stage4_dispositions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         author_attempt_id = _nonempty(author_attempt_id, "author_attempt_id")
+        if mode != "REPLACE_FULL":
+            raise AlphaContractError("planning record mode must be REPLACE_FULL")
+        base_hash = _nonempty(base_hash, "base_hash")
         markdown = _nonempty(markdown, "planning record")
         legal_next = {
             "UNDERSTAND": {None, "DIAGNOSE_VALUE"},
@@ -317,21 +494,91 @@ class BPG2AlphaController:
         if position not in legal_next or next_position not in legal_next[position]:
             raise AlphaContractError("planning record transition is not legal")
         payload = self._operation_payload(
-            "update_planning_record",
+            "replace_planning_record",
             author_attempt_id=author_attempt_id,
             position=position,
+            mode=mode,
+            base_hash=base_hash,
             markdown=markdown,
             next_position=next_position,
+            removal_basis=removal_basis,
+            stage4_dispositions=stage4_dispositions,
         )
 
         def apply(state: dict[str, Any]) -> None:
             if state.get("status") != "ACTIVE" or state.get("position") != position:
-                raise AlphaContractError("planning record update does not match the current position")
+                raise AlphaContractError("planning record replacement does not match the current position")
             path = self.run_path(run_id) / "planning-record.md"
+            current_ref = self.file_ref(path)
+            if state.get("planning_record_ref") != current_ref or base_hash != current_ref["hash"]:
+                raise AlphaContractError("base_hash does not match the current Planning Record")
+            current_markdown = path.read_text(encoding="utf-8")
+            current_sections = _h2_sections(current_markdown)
+            new_sections = set(_h2_sections(markdown))
+            missing_sections = [item for item in current_sections if item not in new_sections]
+            protected_missing = [
+                item for item in missing_sections if item in PROTECTED_PLANNING_SECTIONS
+            ]
+            if protected_missing:
+                raise AlphaContractError(
+                    "full replacement cannot remove protected sections: "
+                    + ", ".join(protected_missing)
+                )
+            normalized_removal = None
+            if missing_sections:
+                if removal_basis is None:
+                    raise AlphaContractError(
+                        "full replacement would remove existing sections: "
+                        + ", ".join(missing_sections)
+                    )
+                if next_position is not None:
+                    raise AlphaContractError(
+                        "section removal cannot advance while returning to an earlier stage"
+                    )
+                normalized_removal = self._validate_removal_basis(
+                    removal_basis,
+                    position=position,
+                    missing_sections=missing_sections,
+                )
+            elif removal_basis is not None:
+                raise AlphaContractError("section removal basis is forbidden when no section is removed")
+
+            normalized_stage4 = None
+            if position == "PLAN_PRODUCT_SYSTEM" and next_position == "PRD_AUTHORING":
+                normalized_stage4 = self._validate_stage4_dispositions(stage4_dispositions)
+                if any(item["status"] == "BLOCKED" for item in normalized_stage4):
+                    raise AlphaContractError("Stage 4 BLOCKED dispositions prevent PRD authoring")
+            elif stage4_dispositions is not None:
+                raise AlphaContractError(
+                    "Stage 4 dispositions are accepted only when entering PRD authoring"
+                )
+
             atomic_write_bytes(path, markdown.encode("utf-8"))
-            state["planning_record_ref"] = self.file_ref(path)
+            new_ref = self.file_ref(path)
+            state["planning_record_ref"] = new_ref
             state["last_author_attempt_id"] = author_attempt_id
-            if next_position is not None:
+            state["last_record_replacement"] = {
+                "mode": "REPLACE_FULL",
+                "old_hash": current_ref["hash"],
+                "new_hash": new_ref["hash"],
+                "removed_sections": missing_sections,
+                "message": "submitted Markdown is the complete Planning Record truth source",
+            }
+            if normalized_stage4 is not None:
+                state["stage4_dispositions"] = {
+                    "record_ref": deepcopy(new_ref),
+                    "author_attempt_id": author_attempt_id,
+                    "items": normalized_stage4,
+                }
+            if normalized_removal is not None:
+                state["position"] = normalized_removal["return_target"]
+                state["candidate_required"] = True
+                candidate = state.get("current_candidate")
+                if isinstance(candidate, dict):
+                    candidate["status"] = "STALE"
+                state["upstream_return"] = normalized_removal
+                state["ready"] = {"status": "NOT_EVALUATED", "unmet": []}
+            elif next_position is not None:
                 state["position"] = next_position
 
         return self._mutate(
@@ -402,18 +649,76 @@ class BPG2AlphaController:
                 raise AlphaContractError("Product Evals spec Review cannot claim execution")
         return deepcopy(evals)
 
+    def _validate_document_experience(
+        self,
+        value: Any,
+        *,
+        source_dir: Path,
+        author_attempt_id: str,
+    ) -> dict[str, Any]:
+        expected_fields = {
+            "schema_version",
+            "author_attempt_id",
+            "draft_ref",
+            "profile_id",
+            "profile_version",
+            "guide_id",
+            "guide_version",
+            "diagnoses",
+            "actions",
+            "zero_context_reading_path",
+            "split_assessment",
+            "claim_boundary",
+        }
+        if not isinstance(value, dict) or set(value) != expected_fields:
+            raise AlphaContractError("PRD document experience evidence is incomplete")
+        if value.get("schema_version") != "bpg2-alpha-document-experience.v1":
+            raise AlphaContractError("PRD document experience schema is invalid")
+        if value.get("author_attempt_id") != author_attempt_id:
+            raise AlphaContractError("PRD document experience must bind the author attempt")
+        expected_draft = self.file_ref(source_dir / "PRD.md")
+        if value.get("draft_ref") != expected_draft:
+            raise AlphaContractError("PRD document experience draft_ref is stale")
+        if (
+            value.get("profile_id") != "prd-plain-language-zh-CN"
+            or value.get("profile_version") != "0.5.0"
+            or value.get("guide_id") != "prd-writing-guide-v0.5"
+            or value.get("guide_version") != "0.5.0"
+        ):
+            raise AlphaContractError("PRD document experience authority is stale")
+        for field in ("diagnoses", "actions"):
+            items = value.get(field)
+            if (
+                not isinstance(items, list)
+                or not items
+                or not all(isinstance(item, str) and item.strip() for item in items)
+            ):
+                raise AlphaContractError(f"PRD document experience {field} must be non-empty")
+        _nonempty(value.get("zero_context_reading_path"), "zero-context reading path")
+        split = value.get("split_assessment")
+        if not isinstance(split, dict) or set(split) != {"decision", "rationale"}:
+            raise AlphaContractError("PRD document experience split assessment is incomplete")
+        if split.get("decision") != "KEEP_SINGLE":
+            raise AlphaContractError("single-PRD Alpha cannot freeze a split-required document")
+        _nonempty(split.get("rationale"), "single-PRD rationale")
+        if value.get("claim_boundary") != "AUTHOR_SELF_CHECK_NOT_INDEPENDENT_APPROVAL":
+            raise AlphaContractError("PRD document experience claim boundary is invalid")
+        return deepcopy(value)
+
     def _write_prd_candidate(
         self,
         run_id: str,
         version: int,
         source_dir: Path,
+        author_attempt_id: str,
         evals: dict[str, Any],
+        document_experience: dict[str, Any],
         planning_record_ref: dict[str, Any],
         decision_candidate_ref: dict[str, Any],
         accepted_decision: dict[str, Any],
         decision_review_ref: dict[str, Any],
         delivery_intent: str,
-    ) -> tuple[Path, dict[str, Any]]:
+    ) -> tuple[Path, dict[str, Any], dict[str, Any]]:
         decision_candidate_ref = self._candidate_ref(decision_candidate_ref)
         expected_source = self.prd_draft_path(run_id).resolve()
         if source_dir.resolve() != expected_source or source_dir.is_symlink():
@@ -425,32 +730,32 @@ class BPG2AlphaController:
         if candidate_dir.exists():
             raise AlphaContractError("immutable Candidate path already exists")
         candidate_dir.mkdir(parents=True)
-        source_files: list[Path] = []
         for path in sorted(source_dir.rglob("*")):
             if path.is_symlink():
                 raise AlphaContractError("PRD Release Set cannot contain symlinks")
             if path.is_file():
-                source_files.append(path)
                 relative = path.relative_to(source_dir)
                 target = candidate_dir / relative
                 atomic_write_bytes(target, path.read_bytes())
-        assets = {
-            path.relative_to(source_dir).as_posix(): path.read_bytes()
-            for path in source_files
-            if path.relative_to(source_dir).as_posix().startswith("assets/")
-        }
-        html_bytes = render_self_contained_prd_html(
-            markdown_path.read_text(encoding="utf-8"), assets
-        ).encode("utf-8")
-        atomic_write_bytes(candidate_dir / "PRD.html", html_bytes)
         machine_dir = candidate_dir / ".machine"
         planning_snapshot = machine_dir / "planning-record-snapshot.md"
-        template_snapshot = machine_dir / "PRD_TEMPLATE_v2.0-alpha.md"
+        review_basis_dir = machine_dir / "review-basis"
+        template_snapshot = review_basis_dir / "PRD_TEMPLATE_v2.0-alpha.md"
         atomic_write_bytes(
             planning_snapshot,
             (self.run_path(run_id) / "planning-record.md").read_bytes(),
         )
         atomic_write_bytes(template_snapshot, self._template_source().read_bytes())
+        authority_sources = self._review_authority_sources()
+        authority_targets = {
+            "output_contract": review_basis_dir / "PRD_OUTPUT_CONTRACT_v2.0-alpha.json",
+            "writing_profile": review_basis_dir / "prd-writing-profile-v0.5.json",
+            "writing_guide": review_basis_dir / "prd-writing-guide-v0.5.md",
+            "writing_review_contract": review_basis_dir
+            / "prd-writing-reader-review-v3.1.json",
+        }
+        for role, target in authority_targets.items():
+            atomic_write_bytes(target, authority_sources[role][0].read_bytes())
         files = []
         for path in sorted(candidate_dir.rglob("*")):
             if path.is_file():
@@ -461,6 +766,87 @@ class BPG2AlphaController:
                         "size": path.stat().st_size,
                     }
                 )
+        candidate_tree_hash = sha256_bytes(canonical_json_bytes(files))
+        prd_ref = self.versioned_file_ref(candidate_dir / "PRD.md", version)
+        planning_snapshot_ref = self.versioned_file_ref(planning_snapshot, version)
+        template_exact_ref = self.versioned_file_ref(template_snapshot, "2.0-alpha.1")
+        authority_refs = {
+            role: self.versioned_file_ref(target, authority_sources[role][1])
+            for role, target in authority_targets.items()
+        }
+        decision_basis_ref = {
+            key: deepcopy(decision_candidate_ref[key])
+            for key in ("path", "hash", "version")
+        }
+        raw_decision_review_ref = decision_review_ref.get("review_ref")
+        self._verify_file_ref(raw_decision_review_ref)
+        decision_review_basis_ref = {
+            **deepcopy(raw_decision_review_ref),
+            "version": decision_candidate_ref["version"],
+        }
+        product_eval_refs = [
+            self.versioned_file_ref(candidate_dir / relative, version)
+            for relative in evals.get("attachment_paths", [])
+        ]
+        review_basis_refs = {
+            "prd": prd_ref,
+            "planning_record": planning_snapshot_ref,
+            "decision_candidate": decision_basis_ref,
+            "decision_review": decision_review_basis_ref,
+            "template": template_exact_ref,
+            "output_contract": authority_refs["output_contract"],
+            "writing_profile": authority_refs["writing_profile"],
+            "writing_guide": authority_refs["writing_guide"],
+            "writing_review_contract": authority_refs["writing_review_contract"],
+            "product_eval_attachments": product_eval_refs,
+        }
+        try:
+            visual_source_scan = scan_reader_visible_visual_source(
+                self.project_root,
+                candidate_dir / "PRD.md",
+                candidate_ref=prd_ref,
+            )
+        except VisualAssetError as error:
+            raise AlphaContractError(
+                f"PRD visual source is not reviewable: {error}"
+            ) from error
+        writing_review_context = {
+            "schema_version": "writing-review-dispatch.v3",
+            "candidate_ref": prd_ref,
+            "candidate_tree_hash": candidate_tree_hash,
+            "profile_ref": authority_refs["writing_profile"],
+            "guide_ref": authority_refs["writing_guide"],
+            "review_contract_ref": authority_refs["writing_review_contract"],
+            "output_contract_ref": authority_refs["output_contract"],
+            "author_execution_ref": {
+                "kind": "HOST_AGENT_ATTEMPT",
+                "id": author_attempt_id,
+            },
+            "isolated_input_refs": [
+                prd_ref,
+                authority_refs["writing_profile"],
+                authority_refs["writing_guide"],
+                authority_refs["writing_review_contract"],
+                authority_refs["output_contract"],
+            ],
+            "reader_visible_visual_pairs": visual_source_scan["safe_visual_pairs"],
+            "visual_source_scan": visual_source_scan,
+        }
+        review_requirements = {
+            "schema_version": "bpg2-alpha-prd-review-requirements.v2",
+            "candidate_tree_hash": candidate_tree_hash,
+            "responsibility_ids": sorted(REVIEW_RESPONSIBILITY_IDS),
+            "review_basis_refs": review_basis_refs,
+            "writing_review_context": writing_review_context,
+            "claim_boundary": (
+                "CONTENT_AND_WRITING_REVIEW_REQUIRED_DELIVERY_RENDERING_DEFERRED"
+            ),
+        }
+        document_experience = {
+            **deepcopy(document_experience),
+            "profile_ref": authority_refs["writing_profile"],
+            "guide_ref": authority_refs["writing_guide"],
+        }
         assessment = deepcopy(accepted_decision.get("agent_assessment"))
         if isinstance(assessment, dict):
             assessment.pop("planning_record_ref", None)
@@ -474,7 +860,7 @@ class BPG2AlphaController:
             "agent_assessment": assessment,
         }
         manifest = {
-            "schema_version": "bpg2-alpha-release-set.v1",
+            "schema_version": "bpg2-alpha-release-set.v3",
             "prd_type": "FORMAL_PRD" if delivery_intent == "COMMIT_NOW" else "EXPERIMENT_PRD",
             "template_ref": {
                 "path": template_snapshot.relative_to(candidate_dir).as_posix(),
@@ -490,13 +876,16 @@ class BPG2AlphaController:
             "accepted_decision": manifest_decision,
             "decision_review_ref": deepcopy(decision_review_ref),
             "product_evals": evals,
+            "document_experience": document_experience,
+            "candidate_tree_hash": candidate_tree_hash,
+            "review_requirements": review_requirements,
             "editing_truth": "PRD.md + assets",
-            "default_reading_view": "PRD.html",
+            "delivery_rendering": "DEFERRED_TO_HANDOFF",
             "files": files,
         }
         manifest_path = candidate_dir / "machine-manifest.json"
         atomic_write_json(manifest_path, manifest)
-        return manifest_path, planning_record_ref
+        return manifest_path, planning_record_ref, review_requirements
 
     def freeze_candidate(
         self,
@@ -508,6 +897,7 @@ class BPG2AlphaController:
         author_attempt_id: str,
         source_dir: Path | None = None,
         evals: dict[str, Any] | None = None,
+        document_experience: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         kind = _nonempty(kind, "Candidate kind").upper()
         if kind not in CANDIDATE_POSITION:
@@ -519,6 +909,7 @@ class BPG2AlphaController:
             author_attempt_id=author_attempt_id,
             source_dir=str(source_dir.resolve()) if source_dir is not None else None,
             evals=evals,
+            document_experience=document_experience,
         )
 
         def apply(state: dict[str, Any]) -> None:
@@ -545,10 +936,16 @@ class BPG2AlphaController:
                 raise AlphaContractError("Candidate freeze does not match the current position")
             planning_ref = self.file_ref(self.run_path(run_id) / "planning-record.md")
             normalized_evals = None
+            review_requirements = None
             if kind == "PRD":
                 if source_dir is None:
                     raise AlphaContractError("PRD Candidate requires a source directory")
                 normalized_evals = self._validate_evals(evals, source_dir)
+                normalized_document_experience = self._validate_document_experience(
+                    document_experience,
+                    source_dir=source_dir,
+                    author_attempt_id=author_attempt_id,
+                )
                 decision_ref = state.get("decision_candidate_ref")
                 accepted_decision = state.get("decision")
                 decision_review_ref = state.get("decision_review_ref")
@@ -578,11 +975,13 @@ class BPG2AlphaController:
                     or not isinstance(decision_review_ref, dict)
                 ):
                     raise AlphaContractError("PRD Candidate requires the accepted Decision Candidate")
-                target, planning_ref = self._write_prd_candidate(
+                target, planning_ref, review_requirements = self._write_prd_candidate(
                     run_id,
                     version,
                     source_dir,
+                    author_attempt_id,
                     normalized_evals,
+                    normalized_document_experience,
                     planning_ref,
                     decision_ref,
                     accepted_decision,
@@ -614,6 +1013,9 @@ class BPG2AlphaController:
             if normalized_evals is not None:
                 state["product_evals"] = normalized_evals
                 state["ready"] = {"status": "NOT_EVALUATED", "unmet": []}
+                state["current_review_requirements"] = review_requirements
+            else:
+                state.pop("current_review_requirements", None)
 
         return self._mutate(
             run_id,
@@ -639,7 +1041,7 @@ class BPG2AlphaController:
             inventory_paths = {
                 ref.get("path") for ref in files if isinstance(ref, dict)
             }
-            if not {"PRD.md", "PRD.html"}.issubset(inventory_paths):
+            if "PRD.md" not in inventory_paths or "PRD.html" in inventory_paths:
                 raise AlphaContractError("PRD Release Set is incomplete")
             for ref in files:
                 relative = ref.get("path") if isinstance(ref, dict) else None
@@ -750,6 +1152,121 @@ class BPG2AlphaController:
             state["status"] = "ACTIVE"
             state["position"] = target
 
+    def _verify_review_basis_refs(
+        self,
+        value: Any,
+        *,
+        expected: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not isinstance(value, dict) or value != expected:
+            raise AlphaContractError("Review basis refs do not match the frozen Candidate")
+        for role, ref in value.items():
+            if role == "product_eval_attachments":
+                if not isinstance(ref, list):
+                    raise AlphaContractError("Review basis Product Evals refs must be a list")
+                for item in ref:
+                    self._verify_file_ref(item)
+            else:
+                self._verify_file_ref(ref)
+        return deepcopy(value)
+
+    @staticmethod
+    def _flatten_review_basis_refs(value: dict[str, Any]) -> list[dict[str, Any]]:
+        refs: list[dict[str, Any]] = []
+        for role, ref in value.items():
+            if role == "product_eval_attachments":
+                refs.extend(deepcopy(ref))
+            else:
+                refs.append(deepcopy(ref))
+        return refs
+
+    def _validate_responsibility_coverage(
+        self,
+        value: Any,
+        *,
+        review_basis_refs: dict[str, Any],
+        available_finding_ids: set[str],
+        author_attempt_id: str,
+        content_reviewer_attempt_id: str,
+        writing_reviewer_attempt_id: str,
+    ) -> tuple[list[dict[str, Any]], set[str]]:
+        if not isinstance(value, list):
+            raise AlphaContractError("PRD Review responsibility coverage is required")
+        allowed_basis = self._flatten_review_basis_refs(review_basis_refs)
+        normalized: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        covered_findings: set[str] = set()
+        content_attempts: set[str] = set()
+        for raw in value:
+            if not isinstance(raw, dict) or set(raw) != {
+                "responsibility_id",
+                "reviewer_attempt_id",
+                "status",
+                "rationale",
+                "basis_refs",
+                "finding_ids",
+            }:
+                raise AlphaContractError("PRD Review responsibility fields are incomplete")
+            responsibility_id = _nonempty(
+                raw.get("responsibility_id"), "Review responsibility_id"
+            )
+            if responsibility_id not in REVIEW_RESPONSIBILITY_IDS or responsibility_id in seen:
+                raise AlphaContractError("PRD Review responsibility coverage must be exact and unique")
+            seen.add(responsibility_id)
+            reviewer_id = _nonempty(
+                raw.get("reviewer_attempt_id"), "responsibility reviewer_attempt_id"
+            )
+            if reviewer_id == author_attempt_id:
+                raise AlphaContractError("responsibility Reviewer must be independent from the author")
+            if responsibility_id == "DOCUMENT_EXPERIENCE":
+                if reviewer_id != writing_reviewer_attempt_id:
+                    raise AlphaContractError(
+                        "Document Experience responsibility must bind the Writing Reviewer"
+                    )
+            else:
+                if reviewer_id == writing_reviewer_attempt_id:
+                    raise AlphaContractError(
+                        "Writing Reviewer must remain independent from content responsibility attempts"
+                    )
+                content_attempts.add(reviewer_id)
+            status = raw.get("status")
+            if status not in {"PASS", "FINDING", "NOT_APPLICABLE"}:
+                raise AlphaContractError("Review responsibility status is invalid")
+            _nonempty(raw.get("rationale"), "Review responsibility rationale")
+            basis_refs = raw.get("basis_refs")
+            if not isinstance(basis_refs, list) or not basis_refs:
+                raise AlphaContractError("Review responsibility requires exact basis refs")
+            if any(ref not in allowed_basis for ref in basis_refs):
+                raise AlphaContractError("Review responsibility basis differs from frozen authority")
+            finding_ids = raw.get("finding_ids")
+            if (
+                not isinstance(finding_ids, list)
+                or any(not isinstance(item, str) or not item for item in finding_ids)
+                or len(finding_ids) != len(set(finding_ids))
+                or not set(finding_ids).issubset(available_finding_ids)
+            ):
+                raise AlphaContractError("Review responsibility Finding refs are invalid")
+            if status == "FINDING" and not finding_ids:
+                raise AlphaContractError("FINDING responsibility requires a Review Finding")
+            if status != "FINDING" and finding_ids:
+                raise AlphaContractError("only FINDING responsibility may link Findings")
+            covered_findings.update(finding_ids)
+            normalized.append(deepcopy(raw))
+        if seen != REVIEW_RESPONSIBILITY_IDS:
+            missing = sorted(REVIEW_RESPONSIBILITY_IDS - seen)
+            raise AlphaContractError(
+                f"PRD Review responsibility coverage is incomplete: {missing}"
+            )
+        if content_reviewer_attempt_id not in content_attempts:
+            raise AlphaContractError(
+                "the formal content Reviewer attempt must cover a PRD responsibility"
+            )
+        if covered_findings != available_finding_ids:
+            raise AlphaContractError(
+                "every PRD Review Finding must belong to responsibility coverage"
+            )
+        return normalized, covered_findings
+
     def _ready_unmet(self, state: dict[str, Any]) -> list[str]:
         unmet: list[str] = []
         candidate = state.get("current_candidate")
@@ -767,6 +1284,27 @@ class BPG2AlphaController:
         ):
             unmet.append("PRD_REVIEW_PASS")
         if isinstance(review, dict):
+            requirements = state.get("current_review_requirements")
+            if (
+                review.get("schema_version") != "bpg2-alpha-review.v3"
+                or not isinstance(requirements, dict)
+                or review.get("review_basis_refs") != requirements.get("review_basis_refs")
+            ):
+                unmet.append("REVIEW_BASIS_STALE")
+            coverage = review.get("responsibility_coverage")
+            if (
+                not isinstance(coverage, list)
+                or {item.get("responsibility_id") for item in coverage if isinstance(item, dict)}
+                != REVIEW_RESPONSIBILITY_IDS
+            ):
+                unmet.append("REVIEW_RESPONSIBILITY_COVERAGE")
+            writing_ref = review.get("writing_review_ref")
+            try:
+                self._verify_file_ref(writing_ref)
+                if not isinstance(review.get("writing_review"), dict):
+                    raise AlphaContractError("missing Writing Review")
+            except AlphaContractError:
+                unmet.append("WRITING_REVIEW_REQUIRED")
             for finding in review.get("findings", []):
                 if finding.get("severity") in {"BLOCKER", "MAJOR"} and finding.get("status") in {
                     "OPEN",
@@ -809,6 +1347,21 @@ class BPG2AlphaController:
             unmet.append("ACCEPTED_DECISION")
         else:
             manifest = read_json(self.project_root / candidate["path"])
+            if not isinstance(manifest.get("document_experience"), dict):
+                unmet.append("DOCUMENT_EXPERIENCE_EVIDENCE")
+            if state.get("delivery_intent") == "COMMIT_NOW":
+                stage4 = state.get("stage4_dispositions")
+                if (
+                    not isinstance(stage4, dict)
+                    or stage4.get("record_ref") != candidate.get("planning_record_ref")
+                    or len(stage4.get("items", [])) != len(STAGE4_ARTIFACT_IDS)
+                    or any(
+                        item.get("status") == "BLOCKED"
+                        for item in stage4.get("items", [])
+                        if isinstance(item, dict)
+                    )
+                ):
+                    unmet.append("STAGE4_DISPOSITIONS")
             accepted = manifest.get("accepted_decision")
             decision = state["decision"]
             if (
@@ -820,6 +1373,36 @@ class BPG2AlphaController:
             ):
                 unmet.append("ACCEPTED_DECISION")
         return list(dict.fromkeys(unmet))
+
+    @staticmethod
+    def _ready_evidence_summary(
+        state: dict[str, Any],
+        *,
+        unmet: list[str],
+    ) -> dict[str, str]:
+        review = state.get("current_review")
+        review_pass = isinstance(review, dict) and review.get("verdict") == "PASS"
+        evals = state.get("product_evals")
+        return {
+            "contract_readiness": "PASS" if not unmet else "FAIL",
+            "agent_review": "PASS" if review_pass else "NOT_RUN",
+            "writing_review": (
+                "PASS"
+                if review_pass and isinstance(review.get("writing_review"), dict)
+                else "NOT_RUN"
+            ),
+            "handoff_rendering": "NOT_RUN",
+            "human_reader_validation": "NOT_RUN",
+            "product_eval_execution": (
+                evals.get("execution_status", "NOT_RUN")
+                if isinstance(evals, dict)
+                else "NOT_RUN"
+            ),
+            "external_delivery": state.get("external_delivery", "NOT_RUN"),
+            "engineering_received": "NOT_RUN",
+            "engineering_tests": "NOT_RUN",
+            "product_effect_validation": "NOT_RUN",
+        }
 
     def submit_review(
         self,
@@ -840,6 +1423,10 @@ class BPG2AlphaController:
         disagreements: list[dict[str, Any]] | None = None,
         professional_reviews: list[dict[str, Any]] | None = None,
         wait_condition: dict[str, Any] | None = None,
+        review_basis_refs: dict[str, Any] | None = None,
+        responsibility_coverage: list[dict[str, Any]] | None = None,
+        writing_review_ref: dict[str, Any] | None = None,
+        rendered_html_review: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         reviewer_attempt_id = _nonempty(reviewer_attempt_id, "reviewer_attempt_id")
         if verdict not in {"PASS", "REVISE", "NEEDS_OWNER"}:
@@ -868,6 +1455,10 @@ class BPG2AlphaController:
             disagreements=disagreements or [],
             professional_reviews=professional_reviews or [],
             wait_condition=wait_condition,
+            review_basis_refs=review_basis_refs,
+            responsibility_coverage=responsibility_coverage,
+            writing_review_ref=writing_review_ref,
+            rendered_html_review=rendered_html_review,
         )
 
         def apply(state: dict[str, Any]) -> None:
@@ -879,6 +1470,78 @@ class BPG2AlphaController:
                 raise AlphaContractError("Reviewer attempt must be independent from the author attempt")
             if candidate.get("status") != "FROZEN":
                 raise AlphaContractError("Candidate has already received a formal Review")
+            normalized_review_basis = None
+            normalized_responsibilities = None
+            normalized_writing_ref = None
+            normalized_writing_review = None
+            if candidate.get("kind") == "PRD":
+                requirements = state.get("current_review_requirements")
+                if not isinstance(requirements, dict):
+                    raise AlphaContractError("PRD Review requirements are unavailable")
+                manifest = read_json(self.project_root / candidate["path"])
+                if manifest.get("review_requirements") != requirements:
+                    raise AlphaContractError("PRD Review requirements are stale")
+                if rendered_html_review is not None:
+                    raise AlphaContractError(
+                        "rendered HTML evidence belongs to Handoff, not Candidate Review"
+                    )
+                normalized_review_basis = self._verify_review_basis_refs(
+                    review_basis_refs,
+                    expected=requirements["review_basis_refs"],
+                )
+                if not isinstance(writing_review_ref, dict):
+                    raise AlphaContractError("Writing Review evidence is required")
+                try:
+                    normalized_writing_review = load_and_validate_writing_coverage(
+                        self.project_root,
+                        writing_review_ref,
+                        context=requirements["writing_review_context"],
+                        available_finding_ids={
+                            finding["finding_id"] for finding in normalized_findings
+                        },
+                    )
+                except WritingReviewError as error:
+                    raise AlphaContractError(f"Writing Review evidence is invalid: {error}") from error
+                normalized_writing_ref = deepcopy(writing_review_ref)
+                writing_reviewer_attempt_id = normalized_writing_review[
+                    "reviewer_execution_ref"
+                ]["id"]
+                if writing_reviewer_attempt_id == reviewer_attempt_id:
+                    raise AlphaContractError(
+                        "Writing Reviewer must be independent from the content Reviewer"
+                    )
+                normalized_responsibilities, _ = self._validate_responsibility_coverage(
+                    responsibility_coverage,
+                    review_basis_refs=normalized_review_basis,
+                    available_finding_ids={
+                        finding["finding_id"] for finding in normalized_findings
+                    },
+                    author_attempt_id=candidate["author_attempt_id"],
+                    content_reviewer_attempt_id=reviewer_attempt_id,
+                    writing_reviewer_attempt_id=writing_reviewer_attempt_id,
+                )
+                document_coverage = next(
+                    item
+                    for item in normalized_responsibilities
+                    if item["responsibility_id"] == "DOCUMENT_EXPERIENCE"
+                )
+                expected_document_findings = set(
+                    normalized_writing_review.get("finding_refs", [])
+                )
+                if set(document_coverage["finding_ids"]) != expected_document_findings:
+                    raise AlphaContractError(
+                        "Document Experience responsibility must bind Writing Review Findings"
+                    )
+            elif any(
+                item is not None
+                for item in (
+                    review_basis_refs,
+                    responsibility_coverage,
+                    writing_review_ref,
+                    rendered_html_review,
+                )
+            ):
+                raise AlphaContractError("PRD Review evidence is forbidden for non-PRD Candidates")
             if candidate.get("revision_round", 0) > 0:
                 if (
                     review_mode != "DIFF_AND_REGRESSION"
@@ -891,7 +1554,11 @@ class BPG2AlphaController:
                 if verdict == "PASS" and global_regression != "PASS":
                     raise AlphaContractError("PASS requires a declared passing whole-product regression")
             review = {
-                "schema_version": "bpg2-alpha-review.v1",
+                "schema_version": (
+                    "bpg2-alpha-review.v3"
+                    if candidate.get("kind") == "PRD"
+                    else "bpg2-alpha-review.v1"
+                ),
                 "review_id": f"review-{candidate['candidate_id']}",
                 "candidate_ref": self._candidate_ref(candidate),
                 "reviewer_attempt_id": reviewer_attempt_id,
@@ -905,6 +1572,10 @@ class BPG2AlphaController:
                 "global_regression": global_regression,
                 "disagreements": deepcopy(disagreements or []),
                 "professional_reviews": deepcopy(professional_reviews or []),
+                "review_basis_refs": normalized_review_basis,
+                "responsibility_coverage": normalized_responsibilities,
+                "writing_review_ref": normalized_writing_ref,
+                "writing_review": normalized_writing_review,
                 "recorded_at": _now(),
             }
             review_path = self.run_path(run_id) / "reviews" / f"{candidate['candidate_id']}.json"
@@ -931,6 +1602,9 @@ class BPG2AlphaController:
                         "candidate_ref": self._candidate_ref(candidate),
                         "review_ref": review["review_ref"],
                         "unmet": unmet,
+                        "evidence_summary": self._ready_evidence_summary(
+                            state, unmet=unmet
+                        ),
                     }
                     if not unmet:
                         state["status"] = "READY"
@@ -1110,6 +1784,12 @@ class BPG2AlphaController:
                 state["status"] = "ACTIVE"
                 state["position"] = "PLAN_PRODUCT_SYSTEM"
                 state["delivery_intent"] = "COMMIT_NOW"
+                state["stage4_requirements"] = {
+                    "schema_version": "bpg2-alpha-stage4-dispositions.v1",
+                    "artifact_ids": sorted(STAGE4_ARTIFACT_IDS),
+                    "statuses": ["COMPLETE", "NOT_APPLICABLE", "BLOCKED"],
+                    "claim_boundary": "AGENT_SEMANTICS_CONTROLLER_COMPLETENESS_ONLY",
+                }
 
         return self._mutate(
             run_id,
@@ -1190,12 +1870,40 @@ class BPG2AlphaController:
         *,
         expected_state_version: int,
         operation_id: str,
+        delivery_options: dict[str, bool] | None = None,
     ) -> dict[str, Any]:
-        payload = self._operation_payload("prepare_local_handoff")
+        normalized_delivery_options = deepcopy(DEFAULT_HANDOFF_DELIVERY_OPTIONS)
+        if delivery_options is not None:
+            if not isinstance(delivery_options, dict):
+                raise AlphaContractError("Handoff delivery options must be an object")
+            for mode, enabled in delivery_options.items():
+                if mode not in HANDOFF_DELIVERY_MODES or type(enabled) is not bool:
+                    raise AlphaContractError(
+                        "Handoff delivery options require known modes and boolean values"
+                    )
+                normalized_delivery_options[mode] = enabled
+        unavailable = sorted(
+            mode
+            for mode, enabled in normalized_delivery_options.items()
+            if enabled and mode not in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+        )
+        if unavailable:
+            raise AlphaContractError(
+                f"Handoff delivery mode {', '.join(unavailable)} is NOT_IMPLEMENTED"
+            )
+        payload = self._operation_payload(
+            "prepare_local_handoff",
+            delivery_options=normalized_delivery_options,
+        )
 
         def apply(state: dict[str, Any]) -> None:
             if state.get("status") != "READY" or state.get("ready", {}).get("status") != "READY":
                 raise AlphaContractError("Local Handoff requires the unique Ready contract")
+            current_unmet = self._ready_unmet(state)
+            if current_unmet:
+                raise AlphaContractError(
+                    "Local Handoff Ready evidence is stale: " + ", ".join(current_unmet)
+                )
             candidate = state["current_candidate"]
             self._verify_candidate(candidate)
             source_dir = self.project_root / candidate["artifact_path"]
@@ -1207,14 +1915,91 @@ class BPG2AlphaController:
                 if path.is_file():
                     relative = path.relative_to(source_dir)
                     atomic_write_bytes(target / relative, path.read_bytes())
+            candidate_manifest = read_json(self.project_root / candidate["path"])
+            if candidate_manifest.get("delivery_rendering") != "DEFERRED_TO_HANDOFF":
+                raise AlphaContractError("PRD delivery rendering contract is invalid")
+            source_truth_ref = candidate_manifest["review_requirements"][
+                "review_basis_refs"
+            ]["prd"]
+            local_prd_ref = self.versioned_file_ref(
+                target / "PRD.md", candidate["version"]
+            )
+            outputs = {
+                mode: {
+                    "enabled": enabled,
+                    "implementation_status": (
+                        "IMPLEMENTED"
+                        if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+                        else "NOT_IMPLEMENTED"
+                    ),
+                    "status": (
+                        "PENDING"
+                        if enabled
+                        else (
+                            "SKIPPED_BY_USER"
+                            if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+                            else "DISABLED"
+                        )
+                    ),
+                    "output_ref": None,
+                }
+                for mode, enabled in normalized_delivery_options.items()
+            }
+            if normalized_delivery_options["LOCAL_HTML"]:
+                assets = (
+                    {
+                        path.relative_to(target).as_posix(): path.read_bytes()
+                        for path in sorted((target / "assets").rglob("*"))
+                        if path.is_file()
+                    }
+                    if (target / "assets").is_dir()
+                    else {}
+                )
+                html_bytes = render_self_contained_prd_html(
+                    (target / "PRD.md").read_text(encoding="utf-8"), assets
+                ).encode("utf-8")
+                atomic_write_bytes(target / "PRD.html", html_bytes)
+                outputs["LOCAL_HTML"] = {
+                    **outputs["LOCAL_HTML"],
+                    "status": "GENERATED",
+                    "output_ref": self.versioned_file_ref(
+                        target / "PRD.html", candidate["version"]
+                    ),
+                }
+            evidence_summary = deepcopy(state["ready"]["evidence_summary"])
+            evidence_summary["handoff_rendering"] = outputs["LOCAL_HTML"]["status"]
+            primary_reading_ref = (
+                outputs["LOCAL_HTML"]["output_ref"]
+                if outputs["LOCAL_HTML"]["status"] == "GENERATED"
+                else local_prd_ref
+            )
+            primary_reading_name = (
+                "PRD.html"
+                if outputs["LOCAL_HTML"]["status"] == "GENERATED"
+                else "PRD.md"
+            )
+            option_lines = "".join(
+                f"  - {mode}：{'ON' if option['enabled'] else 'OFF'} · "
+                f"{option['status']}\n"
+                for mode, option in outputs.items()
+            )
             note = (
                 "# Local Handoff\n\n"
                 "本交接只包含当前精确 PRD Release Set 的本地文件。\n\n"
-                "- 默认阅读：PRD.html\n"
+                f"- 默认阅读：{primary_reading_name}\n"
                 "- 编辑真源：PRD.md 与 assets\n"
-                "- 外部发送：NOT_RUN\n"
-                "- 研发接收：NOT_RUN\n"
-                "- 测试与产品效果验证：NOT_RUN\n"
+                "- Handoff 方式开关：\n"
+                f"{option_lines}"
+                f"- Contract Readiness：{evidence_summary['contract_readiness']}\n"
+                f"- Agent Review：{evidence_summary['agent_review']}\n"
+                f"- Writing Review：{evidence_summary['writing_review']}\n"
+                f"- Handoff Rendering：{evidence_summary['handoff_rendering']}\n"
+                f"- Human Reader Validation：{evidence_summary['human_reader_validation']}\n"
+                f"- Product Eval Execution：{evidence_summary['product_eval_execution']}\n"
+                f"- 外部发送：{evidence_summary['external_delivery']}\n"
+                f"- 研发接收：{evidence_summary['engineering_received']}\n"
+                f"- 工程测试：{evidence_summary['engineering_tests']}\n"
+                f"- 产品效果验证：{evidence_summary['product_effect_validation']}\n"
             )
             atomic_write_bytes(target / "HANDOFF.md", note.encode("utf-8"))
             files = []
@@ -1227,19 +2012,43 @@ class BPG2AlphaController:
                             "size": path.stat().st_size,
                         }
                     )
-            candidate_manifest = read_json(self.project_root / candidate["path"])
             manifest = {
-                "schema_version": "bpg2-alpha-local-handoff.v1",
+                "schema_version": "bpg2-alpha-local-handoff.v3",
                 "run_id": run_id,
                 "candidate_ref": self._candidate_ref(candidate),
                 "ready_ref": deepcopy(state["ready"]),
                 "prd_type": candidate_manifest["prd_type"],
+                "delivery_options": deepcopy(normalized_delivery_options),
+                "delivery": {
+                    "source_truth_ref": source_truth_ref,
+                    "selected_modes": sorted(
+                        mode
+                        for mode, enabled in normalized_delivery_options.items()
+                        if enabled
+                    ),
+                    "primary_reading_ref": primary_reading_ref,
+                    "outputs": outputs,
+                },
+                "delivery_capabilities": {
+                    "implemented": sorted(IMPLEMENTED_HANDOFF_DELIVERY_MODES),
+                    "not_implemented": [
+                        "LOCAL_DOCUMENT",
+                        "FEISHU_DOCUMENT",
+                        "PROJECT_MANAGEMENT_MCP",
+                    ],
+                },
                 "files": files,
                 "local_only": True,
                 "external_delivery": "NOT_RUN",
                 "engineering_received": "NOT_RUN",
                 "tests": "NOT_RUN",
                 "product_effect_validation": "NOT_RUN",
+                "evidence_summary": evidence_summary,
+                "retrospective_requirements": {
+                    "schema_version": "bpg2-alpha-retrospective-conformance.v1",
+                    "check_ids": sorted(RETROSPECTIVE_CONFORMANCE_IDS),
+                    "statuses": ["PASS", "FINDING", "NOT_APPLICABLE"],
+                },
             }
             manifest_path = target / "HANDOFF_MANIFEST.json"
             atomic_write_json(manifest_path, manifest)
@@ -1247,10 +2056,15 @@ class BPG2AlphaController:
                 "status": "LOCAL_HANDOFF_COMPLETE",
                 "path": target.relative_to(self.project_root).as_posix(),
                 "manifest_ref": self.file_ref(manifest_path),
+                "delivery_options": deepcopy(normalized_delivery_options),
+                "delivery": deepcopy(manifest["delivery"]),
             }
             state["status"] = "LOCAL_HANDOFF_COMPLETE"
             state["external_delivery"] = "NOT_RUN"
             state["retrospective_status"] = "NOT_RUN"
+            state["retrospective_requirements"] = deepcopy(
+                manifest["retrospective_requirements"]
+            )
 
         return self._mutate(
             run_id,
@@ -1268,13 +2082,32 @@ class BPG2AlphaController:
         operation_id: str,
         author_attempt_id: str,
         markdown: str,
+        method_conformance: list[dict[str, Any]],
     ) -> dict[str, Any]:
         author_attempt_id = _nonempty(author_attempt_id, "retrospective author attempt")
         markdown = _nonempty(markdown, "retrospective")
+        if not isinstance(method_conformance, list):
+            raise AlphaContractError("retrospective method conformance must be a list")
+        normalized_conformance: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for raw in method_conformance:
+            if not isinstance(raw, dict) or set(raw) != {"check_id", "status", "rationale"}:
+                raise AlphaContractError("retrospective method conformance fields are incomplete")
+            check_id = _nonempty(raw.get("check_id"), "method conformance check_id")
+            if check_id not in RETROSPECTIVE_CONFORMANCE_IDS or check_id in seen:
+                raise AlphaContractError("retrospective method conformance must be exact and unique")
+            seen.add(check_id)
+            if raw.get("status") not in {"PASS", "FINDING", "NOT_APPLICABLE"}:
+                raise AlphaContractError("retrospective method conformance status is invalid")
+            _nonempty(raw.get("rationale"), "method conformance rationale")
+            normalized_conformance.append(deepcopy(raw))
+        if seen != RETROSPECTIVE_CONFORMANCE_IDS:
+            raise AlphaContractError("retrospective method conformance coverage is incomplete")
         payload = self._operation_payload(
             "record_retrospective",
             author_attempt_id=author_attempt_id,
             markdown=markdown,
+            method_conformance=normalized_conformance,
         )
 
         def apply(state: dict[str, Any]) -> None:
@@ -1284,8 +2117,15 @@ class BPG2AlphaController:
             if path.exists():
                 raise AlphaContractError("retrospective already exists outside idempotent replay")
             atomic_write_bytes(path, markdown.encode("utf-8"))
-            state["retrospective_status"] = "COMPLETED"
+            has_findings = any(
+                item["status"] == "FINDING" for item in normalized_conformance
+            )
+            state["retrospective_status"] = (
+                "COMPLETED_WITH_FINDINGS" if has_findings else "COMPLETED"
+            )
             state["retrospective_ref"] = self.file_ref(path)
+            state["method_conformance_status"] = "FAIL" if has_findings else "PASS"
+            state["method_conformance"] = normalized_conformance
 
         return self._mutate(
             run_id,

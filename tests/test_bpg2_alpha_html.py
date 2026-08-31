@@ -34,6 +34,29 @@ class BPG2AlphaHTMLTests(unittest.TestCase):
                 {"assets/active.svg": b'<svg><script>alert(1)</script></svg>'},
             )
 
+    def test_renderer_preserves_nested_lists_inside_one_ordered_sequence(self) -> None:
+        rendered = render_self_contained_prd_html(
+            "1. 第一条\n"
+            "2. 第二条包含分组：\n"
+            "   - 分组 A\n"
+            "   - 分组 B\n"
+            "   这一句仍属于第二条。\n"
+            "3. 第三条\n",
+            {},
+        )
+
+        body = rendered.split('<body><main role="document">', 1)[1].split(
+            "</main></body>", 1
+        )[0]
+        self.assertEqual(body.count("<ol"), 1)
+        self.assertEqual(body.count("<ul"), 1)
+        self.assertIn(
+            "<ol><li>第一条</li><li>第二条包含分组："
+            "<ul><li>分组 A</li><li>分组 B</li></ul>"
+            "<p>这一句仍属于第二条。</p></li><li>第三条</li></ol>",
+            body,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

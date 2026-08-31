@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 from src.bpg.alpha_runtime import AlphaContractError, BPG2AlphaController
@@ -39,6 +40,38 @@ PRD_MARKDOWN = """# 单 PRD Alpha
 产品效果验证尚未执行。
 """
 
+STAGE4_ARTIFACT_IDS = (
+    "SCOPE_REQUIREMENTS_MATRIX",
+    "TARGET_EXPERIENCE_CORE_FLOW",
+    "PRODUCT_EXPERIENCE_INFORMATION_STRUCTURE",
+    "LOGICAL_PRODUCT_SYSTEM",
+    "MODULE_MAP_AND_DETAILS",
+    "GLOBAL_RULES_SHARED_CONTRACTS",
+    "COMPLETE_SYSTEM_ITERATION_STRUCTURE",
+    "COHERENCE_COVERAGE_TRACEABILITY",
+    "DATA_COLLECTION_APPLICABILITY",
+)
+
+REVIEW_RESPONSIBILITY_IDS = (
+    "PRODUCT_GOAL_AND_REQUIREMENTS",
+    "USER_EXPERIENCE_AND_CONTENT",
+    "PRODUCT_SYSTEM_COHERENCE",
+    "ENGINEERING_FEASIBILITY",
+    "ACCEPTANCE_AND_PRODUCT_EVALS",
+    "DOCUMENT_EXPERIENCE",
+)
+
+RETROSPECTIVE_CONFORMANCE_IDS = (
+    "PLANNING_RECORD_REPLACEMENT_SAFETY",
+    "STAGE4_DISPOSITIONS",
+    "DOCUMENT_EXPERIENCE",
+    "REVIEW_BASIS",
+    "SIX_REVIEW_RESPONSIBILITIES",
+    "WRITING_REVIEW",
+    "HANDOFF_DELIVERY_RENDERING",
+    "NOT_RUN_BOUNDARIES",
+)
+
 
 class BPG2AlphaRuntimeTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -65,21 +98,50 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         position: str,
         next_position: str | None = None,
         suffix: str,
+        stage4_dispositions: list[dict] | None = None,
     ) -> dict:
-        return self.controller.update_planning_record(
+        record_path = self.controller.run_path(state["run_id"]) / "planning-record.md"
+        current = record_path.read_text(encoding="utf-8")
+        markdown = (
+            current.rstrip()
+            + "\n\n"
+            + f"## {position} · {suffix}\n\n"
+            + f"{suffix}：事实、推断、未知与当前结论保持可区分。\n"
+        )
+        return self.controller.replace_planning_record(
             state["run_id"],
             expected_state_version=state["state_version"],
             operation_id=f"record-{suffix}",
             author_attempt_id=f"author-{suffix}",
             position=position,
-            markdown=(
-                "# 产品规划主记录\n\n"
-                f"当前位置：{position}\n\n"
-                "## 当前事实与分析\n\n"
-                f"{suffix}：事实、推断、未知与当前结论保持可区分。\n"
-            ),
+            mode="REPLACE_FULL",
+            base_hash=state["planning_record_ref"]["hash"],
+            markdown=markdown,
             next_position=next_position,
+            stage4_dispositions=stage4_dispositions,
         )
+
+    @staticmethod
+    def complete_stage4_dispositions() -> list[dict]:
+        return [
+            {
+                "artifact_id": artifact_id,
+                "status": "COMPLETE",
+                "rationale": f"{artifact_id} 已在当前产品规划主记录中完成并保持可追溯。",
+            }
+            for artifact_id in STAGE4_ARTIFACT_IDS
+        ]
+
+    @staticmethod
+    def complete_retrospective_conformance() -> list[dict]:
+        return [
+            {
+                "check_id": check_id,
+                "status": "PASS",
+                "rationale": f"{check_id} 已基于当前 Run 的精确证据核对。",
+            }
+            for check_id in RETROSPECTIVE_CONFORMANCE_IDS
+        ]
 
     def reach_problem_review(self, *, suffix: str = "1") -> tuple[dict, dict]:
         state = self.start(suffix=suffix)
@@ -98,15 +160,29 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         )
         return state, state["current_candidate"]
 
-    def pass_review(self, state: dict, candidate: dict, *, suffix: str) -> dict:
+    def pass_review(
+        self,
+        state: dict,
+        candidate: dict,
+        *,
+        suffix: str,
+        review_overrides: dict | None = None,
+    ) -> dict:
+        values = {
+            "candidate_ref": candidate,
+            "reviewer_attempt_id": f"reviewer-{suffix}",
+            "verdict": "PASS",
+            "findings": [],
+        }
+        if candidate["kind"] == "PRD":
+            values.update(self.prd_review_evidence(state, suffix=suffix))
+        if review_overrides:
+            values.update(review_overrides)
         return self.controller.submit_review(
             state["run_id"],
             expected_state_version=state["state_version"],
             operation_id=f"review-pass-{suffix}",
-            candidate_ref=candidate,
-            reviewer_attempt_id=f"reviewer-{suffix}",
-            verdict="PASS",
-            findings=[],
+            **values,
         )
 
     def reach_decision_route(
@@ -183,9 +259,8 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
 
     def write_prd_draft(self, run_id: str, *, with_evals: bool = False) -> Path:
         draft = self.controller.prd_draft_path(run_id)
-        (draft / "assets").mkdir(parents=True, exist_ok=True)
+        draft.mkdir(parents=True, exist_ok=True)
         (draft / "PRD.md").write_text(PRD_MARKDOWN, encoding="utf-8")
-        (draft / "assets" / "flow.png").write_bytes(b"\x89PNG\r\n\x1a\nalpha")
         if with_evals:
             (draft / "product-evals.md").write_text(
                 "# Product Evals\n\n规格已生成；执行状态：NOT_RUN。\n",
@@ -204,6 +279,25 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 encoding="utf-8",
             )
         return draft
+
+    def document_experience(self, state: dict, draft: Path, *, suffix: str) -> dict:
+        return {
+            "schema_version": "bpg2-alpha-document-experience.v1",
+            "author_attempt_id": f"prd-author-{suffix}",
+            "draft_ref": self.controller.file_ref(draft / "PRD.md"),
+            "profile_id": "prd-plain-language-zh-CN",
+            "profile_version": "0.5.0",
+            "guide_id": "prd-writing-guide-v0.5",
+            "guide_version": "0.5.0",
+            "diagnoses": ["已检查主路径、信息密度、术语和状态边界。"],
+            "actions": ["前置结论，压缩重复内容，并校验 TL;DR 与正文。"],
+            "zero_context_reading_path": "标题与 TL;DR → 核心流程 → 规则 → 验收 → 风险。",
+            "split_assessment": {
+                "decision": "KEEP_SINGLE",
+                "rationale": "单一目标、单一核心流程和共享规则需要保持同一叙事。",
+            },
+            "claim_boundary": "AUTHOR_SELF_CHECK_NOT_INDEPENDENT_APPROVAL",
+        }
 
     @staticmethod
     def evals(status: str, *, generated: bool = False) -> dict:
@@ -236,7 +330,105 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             author_attempt_id=f"prd-author-{suffix}",
             source_dir=draft,
             evals=self.evals(applicability, generated=generated),
+            document_experience=self.document_experience(state, draft, suffix=suffix),
         )
+
+    def write_writing_review(self, state: dict, *, suffix: str) -> tuple[dict, str]:
+        context = state["current_review_requirements"]["writing_review_context"]
+        writer_id = f"writing-reviewer-{suffix}"
+        review = {
+            "schema_version": "document-experience-reader-review.v3",
+            "authority": "ADVISORY_ONLY",
+            "candidate_ref": deepcopy(context["candidate_ref"]),
+            "candidate_tree_hash": context["candidate_tree_hash"],
+            "profile_ref": deepcopy(context["profile_ref"]),
+            "guide_ref": deepcopy(context["guide_ref"]),
+            "review_contract_ref": deepcopy(context["review_contract_ref"]),
+            "output_contract_ref": deepcopy(context["output_contract_ref"]),
+            "author_execution_ref": deepcopy(context["author_execution_ref"]),
+            "reviewer_execution_ref": {
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": writer_id,
+            },
+            "reviewer_role": "writing_standard",
+            "isolated_input_refs": deepcopy(context["isolated_input_refs"]),
+            "reader_readback": {
+                "problem_and_outcome": "用户需要确认任务结果，产品要让真实状态可见并可恢复。",
+                "primary_relationships": "提交产生任务，任务状态决定结果展示和恢复动作。",
+                "mental_model": [
+                    {"name": "任务", "role": "承载一次用户提交"},
+                    {"name": "状态", "role": "表达处理中、成功或失败"},
+                    {"name": "恢复", "role": "让失败任务能够安全重试"},
+                ],
+                "main_path_and_recovery": "用户提交并观察结果；失败时保留原因并安全重试。",
+                "decision_conditions_and_risks": "只有状态可信时采用；主要风险是结果状态误报。",
+                "navigation_map": [
+                    {"target": "PRODUCT_RULES", "location": "产品需求与业务规则"},
+                    {"target": "ACCEPTANCE", "location": "验收标准与效果衡量"},
+                    {"target": "RISKS_UNKNOWNS_NEXT", "location": "风险、依赖与未决事项"},
+                ],
+            },
+            "reader_outcome_failures": [],
+            "verbosity_assessment": {
+                "verdict": "PASS",
+                "issue_types": [],
+                "repair_techniques": [],
+                "basis_refs": [],
+                "finding_refs": [],
+                "reason": "主阅读路径紧凑且没有重复合同。",
+            },
+            "checklist_assessment": {
+                "verdict": "PASS",
+                "issue_types": [],
+                "repair_techniques": [],
+                "basis_refs": [],
+                "finding_refs": [],
+                "reason": "必要边界与验收信息保持完整。",
+            },
+            "visual_assessment": {
+                "verdict": "NOT_NEEDED",
+                "observation_status": "NOT_NEEDED",
+                "visual_pair_refs": [],
+                "issue_types": [],
+                "repair_techniques": [],
+                "basis_refs": [],
+                "finding_refs": [],
+                "reason": "关系简单，正文与必要图示已足够表达。",
+            },
+            "finding_refs": [],
+            "claim_boundary": "AGENT_REVIEW_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN",
+        }
+        review_dir = self.controller.run_path(state["run_id"]) / "work" / "review"
+        review_dir.mkdir(parents=True, exist_ok=True)
+        path = review_dir / f"writing-review-{suffix}.json"
+        path.write_text(json.dumps(review, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        return {**self.controller.file_ref(path), "version": 1}, writer_id
+
+    def prd_review_evidence(self, state: dict, *, suffix: str) -> dict:
+        requirements = state["current_review_requirements"]
+        writing_ref, writer_id = self.write_writing_review(state, suffix=suffix)
+        content_id = f"reviewer-{suffix}"
+        responsibilities = []
+        for responsibility_id in REVIEW_RESPONSIBILITY_IDS:
+            basis = [requirements["review_basis_refs"]["prd"]]
+            reviewer_id = content_id
+            if responsibility_id == "DOCUMENT_EXPERIENCE":
+                reviewer_id = writer_id
+            responsibilities.append(
+                {
+                    "responsibility_id": responsibility_id,
+                    "reviewer_attempt_id": reviewer_id,
+                    "status": "PASS",
+                    "rationale": f"{responsibility_id} 已对当前冻结 Candidate 独立检查。",
+                    "basis_refs": basis,
+                    "finding_ids": [],
+                }
+            )
+        return {
+            "review_basis_refs": deepcopy(requirements["review_basis_refs"]),
+            "responsibility_coverage": responsibilities,
+            "writing_review_ref": writing_ref,
+        }
 
     def reach_prd_authoring(
         self, *, intent: str, suffix: str, preauthorized: bool = False
@@ -268,8 +460,451 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 position="PLAN_PRODUCT_SYSTEM",
                 next_position="PRD_AUTHORING",
                 suffix=f"{suffix}-plan",
+                stage4_dispositions=self.complete_stage4_dispositions(),
             )
         return state
+
+    def test_planning_record_requires_explicit_full_replace_current_hash_and_section_preservation(self) -> None:
+        state = self.start(suffix="replace")
+        record_path = self.controller.run_path(state["run_id"]) / "planning-record.md"
+        original = record_path.read_bytes()
+
+        with self.assertRaisesRegex(AlphaContractError, "REPLACE_FULL"):
+            self.controller.replace_planning_record(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="replace-missing-mode",
+                author_attempt_id="replace-author",
+                position="UNDERSTAND",
+                mode="APPEND",
+                base_hash=state["planning_record_ref"]["hash"],
+                markdown="# 产品规划主记录\n\n## 新片段\n\n只有一个阶段。\n",
+            )
+
+        with self.assertRaisesRegex(AlphaContractError, "base_hash"):
+            self.controller.replace_planning_record(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="replace-stale-base",
+                author_attempt_id="replace-author",
+                position="UNDERSTAND",
+                mode="REPLACE_FULL",
+                base_hash="sha256:stale",
+                markdown="# 产品规划主记录\n\n## Signal 与当前边界\n\n完整稿。\n",
+            )
+
+        with self.assertRaisesRegex(AlphaContractError, "Signal 与当前边界"):
+            self.controller.replace_planning_record(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="replace-fragment",
+                author_attempt_id="replace-author",
+                position="UNDERSTAND",
+                mode="REPLACE_FULL",
+                base_hash=state["planning_record_ref"]["hash"],
+                markdown="# 产品规划主记录\n\n## DIAGNOSE & VALUE\n\n阶段片段。\n",
+            )
+
+        self.assertEqual(record_path.read_bytes(), original)
+        self.assertEqual(self.controller.load_run(state["run_id"])["state_version"], state["state_version"])
+        self.assertFalse(state["automatic_revision_exhausted"])
+
+        replaced = self.update_record(
+            state,
+            position="UNDERSTAND",
+            next_position="DIAGNOSE_VALUE",
+            suffix="replace-success",
+        )
+        self.assertEqual(replaced["last_record_replacement"]["mode"], "REPLACE_FULL")
+        self.assertEqual(replaced["last_record_replacement"]["old_hash"], state["planning_record_ref"]["hash"])
+        self.assertEqual(replaced["last_record_replacement"]["new_hash"], replaced["planning_record_ref"]["hash"])
+
+    def test_stage4_dispositions_are_complete_and_blocked_items_stop_prd_authoring(self) -> None:
+        state, candidate = self.reach_decision_route(suffix="stage4")
+        state = self.choose(
+            state,
+            candidate,
+            outcome="COMMIT_NOW",
+            suffix="stage4",
+        )
+        self.assertEqual(
+            set(state["stage4_requirements"]["artifact_ids"]),
+            set(STAGE4_ARTIFACT_IDS),
+        )
+
+        missing = self.complete_stage4_dispositions()[:-1]
+        with self.assertRaisesRegex(AlphaContractError, "Stage 4"):
+            self.update_record(
+                state,
+                position="PLAN_PRODUCT_SYSTEM",
+                next_position="PRD_AUTHORING",
+                suffix="stage4-missing",
+                stage4_dispositions=missing,
+            )
+
+        blocked = self.complete_stage4_dispositions()
+        blocked[-1] = {
+            "artifact_id": "DATA_COLLECTION_APPLICABILITY",
+            "status": "BLOCKED",
+            "rationale": "缺少项目数据采集政策。",
+            "missing_input": "项目数据采集政策",
+            "owner": "PRODUCT_OWNER",
+            "recovery": "补充政策后重新提交完整 Planning Record。",
+        }
+        with self.assertRaisesRegex(AlphaContractError, "BLOCKED"):
+            self.update_record(
+                state,
+                position="PLAN_PRODUCT_SYSTEM",
+                next_position="PRD_AUTHORING",
+                suffix="stage4-blocked",
+                stage4_dispositions=blocked,
+            )
+
+        advanced = self.update_record(
+            state,
+            position="PLAN_PRODUCT_SYSTEM",
+            next_position="PRD_AUTHORING",
+            suffix="stage4-complete",
+            stage4_dispositions=self.complete_stage4_dispositions(),
+        )
+        self.assertEqual(advanced["position"], "PRD_AUTHORING")
+        self.assertEqual(
+            len(advanced["stage4_dispositions"]["items"]), len(STAGE4_ARTIFACT_IDS)
+        )
+
+    def test_prd_freeze_requires_document_experience_and_returns_exact_review_requirements(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="freeze-review-basis")
+        draft = self.write_prd_draft(state["run_id"])
+        with self.assertRaisesRegex(AlphaContractError, "document experience"):
+            self.controller.freeze_candidate(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="freeze-without-document-experience",
+                kind="PRD",
+                author_attempt_id="prd-author-freeze-review-basis",
+                source_dir=draft,
+                evals=self.evals("NOT_NEEDED"),
+            )
+
+        frozen = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-with-document-experience",
+            kind="PRD",
+            author_attempt_id="prd-author-freeze-review-basis",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="freeze-review-basis"
+            ),
+        )
+        requirements = frozen["current_review_requirements"]
+        self.assertEqual(set(requirements["responsibility_ids"]), set(REVIEW_RESPONSIBILITY_IDS))
+        self.assertEqual(
+            requirements["writing_review_context"]["candidate_ref"],
+            requirements["review_basis_refs"]["prd"],
+        )
+        self.assertNotIn("html", requirements["review_basis_refs"])
+        candidate_dir = self.project / frozen["current_candidate"]["artifact_path"]
+        profile = json.loads(
+            (
+                candidate_dir
+                / ".machine"
+                / "review-basis"
+                / "prd-writing-profile-v0.5.json"
+            ).read_text(encoding="utf-8")
+        )
+        review_contract = json.loads(
+            (
+                candidate_dir
+                / ".machine"
+                / "review-basis"
+                / "prd-writing-reader-review-v3.1.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(profile["review_contract_id"], review_contract["resource_id"])
+        self.assertEqual(
+            requirements["writing_review_context"]["review_contract_ref"],
+            requirements["review_basis_refs"]["writing_review_contract"],
+        )
+        self.assertEqual(
+            requirements["review_basis_refs"]["writing_review_contract"]["version"],
+            "v3.1",
+        )
+        manifest = json.loads(
+            (self.project / frozen["current_candidate"]["path"]).read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["schema_version"], "bpg2-alpha-release-set.v3")
+        self.assertEqual(
+            manifest["document_experience"]["claim_boundary"],
+            "AUTHOR_SELF_CHECK_NOT_INDEPENDENT_APPROVAL",
+        )
+
+    def test_prd_freeze_defers_html_rendering_until_handoff(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="deferred-html")
+        frozen = self.freeze_prd(state, suffix="deferred-html")
+
+        candidate_dir = self.project / frozen["current_candidate"]["artifact_path"]
+        requirements = frozen["current_review_requirements"]
+        manifest = json.loads(
+            (self.project / frozen["current_candidate"]["path"]).read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertFalse((candidate_dir / "PRD.html").exists())
+        self.assertNotIn("html", requirements["review_basis_refs"])
+        self.assertNotIn("html_review_check_ids", requirements)
+        self.assertEqual(manifest["delivery_rendering"], "DEFERRED_TO_HANDOFF")
+
+    def test_prd_review_v3_fails_closed_without_complete_independent_evidence(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="review-v3-negative")
+        state = self.freeze_prd(state, suffix="review-v3-negative")
+        candidate = state["current_candidate"]
+
+        with self.assertRaisesRegex(AlphaContractError, "Review basis"):
+            self.controller.submit_review(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="review-v3-missing-evidence",
+                candidate_ref=candidate,
+                reviewer_attempt_id="content-reviewer-negative",
+                verdict="PASS",
+                findings=[],
+            )
+
+        complete = self.prd_review_evidence(state, suffix="review-v3-negative")
+        missing_responsibility = deepcopy(complete)
+        missing_responsibility["responsibility_coverage"] = missing_responsibility[
+            "responsibility_coverage"
+        ][:-1]
+        with self.assertRaisesRegex(AlphaContractError, "responsibility"):
+            self.controller.submit_review(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="review-v3-missing-responsibility",
+                candidate_ref=candidate,
+                reviewer_attempt_id="reviewer-review-v3-negative",
+                verdict="PASS",
+                findings=[],
+                **missing_responsibility,
+            )
+
+        same_writer = deepcopy(complete)
+        for item in same_writer["responsibility_coverage"]:
+            if item["responsibility_id"] == "DOCUMENT_EXPERIENCE":
+                item["reviewer_attempt_id"] = "reviewer-review-v3-negative"
+        with self.assertRaisesRegex(AlphaContractError, "Document Experience.*Writing Reviewer"):
+            self.controller.submit_review(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="review-v3-same-writer",
+                candidate_ref=candidate,
+                reviewer_attempt_id="reviewer-review-v3-negative",
+                verdict="PASS",
+                findings=[],
+                **same_writer,
+            )
+
+        premature_render_review = deepcopy(complete)
+        premature_render_review["rendered_html_review"] = {}
+        with self.assertRaisesRegex(AlphaContractError, "belongs to Handoff"):
+            self.controller.submit_review(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="review-v3-premature-render-review",
+                candidate_ref=candidate,
+                reviewer_attempt_id="reviewer-review-v3-negative",
+                verdict="PASS",
+                findings=[],
+                **premature_render_review,
+            )
+
+        stale_basis = deepcopy(complete)
+        stale_basis["review_basis_refs"]["writing_profile"]["hash"] = "sha256:stale"
+        with self.assertRaisesRegex(AlphaContractError, "Review basis"):
+            self.controller.submit_review(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="review-v3-stale-basis",
+                candidate_ref=candidate,
+                reviewer_attempt_id="reviewer-review-v3-negative",
+                verdict="PASS",
+                findings=[],
+                **stale_basis,
+            )
+
+        stale_writing = deepcopy(complete)
+        writing_path = self.project / stale_writing["writing_review_ref"]["path"]
+        writing_payload = json.loads(writing_path.read_text(encoding="utf-8"))
+        writing_payload["profile_ref"]["hash"] = "sha256:stale"
+        writing_path.write_text(
+            json.dumps(writing_payload, ensure_ascii=False, sort_keys=True),
+            encoding="utf-8",
+        )
+        stale_writing["writing_review_ref"] = {
+            **self.controller.file_ref(writing_path),
+            "version": 1,
+        }
+        with self.assertRaisesRegex(AlphaContractError, "Writing Review evidence is invalid"):
+            self.controller.submit_review(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="review-v3-stale-writing",
+                candidate_ref=candidate,
+                reviewer_attempt_id="reviewer-review-v3-negative",
+                verdict="PASS",
+                findings=[],
+                **stale_writing,
+            )
+
+    def test_prd_review_v3_ready_summary_separates_review_and_handoff_rendering(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="review-v3-ready")
+        state = self.freeze_prd(state, suffix="review-v3-ready")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="review-v3-ready"
+        )
+        self.assertEqual(state["status"], "READY")
+        summary = state["ready"]["evidence_summary"]
+        self.assertEqual(summary["contract_readiness"], "PASS")
+        self.assertEqual(summary["agent_review"], "PASS")
+        self.assertEqual(summary["writing_review"], "PASS")
+        self.assertEqual(summary["handoff_rendering"], "NOT_RUN")
+        self.assertEqual(summary["human_reader_validation"], "NOT_RUN")
+        self.assertEqual(summary["product_eval_execution"], "NOT_RUN")
+        self.assertEqual(summary["external_delivery"], "NOT_RUN")
+        self.assertEqual(summary["engineering_received"], "NOT_RUN")
+        self.assertEqual(summary["engineering_tests"], "NOT_RUN")
+        self.assertEqual(summary["product_effect_validation"], "NOT_RUN")
+
+        handoff = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="review-v3-ready-handoff",
+        )
+        manifest = json.loads(
+            (self.project / handoff["handoff"]["manifest_ref"]["path"]).read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(manifest["evidence_summary"]["handoff_rendering"], "GENERATED")
+        self.assertEqual(manifest["delivery"]["selected_modes"], ["LOCAL_HTML"])
+        self.assertEqual(
+            manifest["delivery"]["outputs"]["LOCAL_HTML"]["status"], "GENERATED"
+        )
+        self.assertEqual(manifest["delivery_options"]["LOCAL_HTML"], True)
+        self.assertEqual(
+            manifest["delivery_capabilities"]["not_implemented"],
+            ["LOCAL_DOCUMENT", "FEISHU_DOCUMENT", "PROJECT_MANAGEMENT_MCP"],
+        )
+        self.assertTrue(
+            (self.project / handoff["handoff"]["path"] / "PRD.html").is_file()
+        )
+        note = (self.project / handoff["handoff"]["path"] / "HANDOFF.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Writing Review：PASS", note)
+        self.assertIn("Handoff Rendering：GENERATED", note)
+        self.assertIn("Human Reader Validation：NOT_RUN", note)
+        self.assertIn("Product Eval Execution：NOT_RUN", note)
+        self.assertEqual(
+            set(handoff["retrospective_requirements"]["check_ids"]),
+            set(RETROSPECTIVE_CONFORMANCE_IDS),
+        )
+
+    def test_local_handoff_rechecks_writing_evidence_freshness(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="handoff-freshness")
+        state = self.freeze_prd(state, suffix="handoff-freshness")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="handoff-freshness"
+        )
+        writing_ref = state["current_review"]["writing_review_ref"]
+        writing_path = self.project / writing_ref["path"]
+        writing_path.write_bytes(b"changed-after-review")
+        with self.assertRaisesRegex(AlphaContractError, "Ready evidence is stale"):
+            self.controller.prepare_local_handoff(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="handoff-with-stale-writing-evidence",
+            )
+
+    def test_local_handoff_can_disable_html_generation(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="handoff-no-html")
+        state = self.freeze_prd(state, suffix="handoff-no-html")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="handoff-no-html"
+        )
+
+        handoff = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-no-html",
+            delivery_options={"LOCAL_HTML": False},
+        )
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        manifest = json.loads(
+            (self.project / handoff["handoff"]["manifest_ref"]["path"]).read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertFalse((handoff_dir / "PRD.html").exists())
+        self.assertTrue((handoff_dir / "PRD.md").is_file())
+        self.assertEqual(manifest["delivery_options"]["LOCAL_HTML"], False)
+        self.assertEqual(
+            manifest["delivery"]["outputs"]["LOCAL_HTML"]["status"],
+            "SKIPPED_BY_USER",
+        )
+        self.assertEqual(
+            manifest["delivery"]["primary_reading_ref"]["path"],
+            (handoff_dir / "PRD.md").relative_to(self.project).as_posix(),
+        )
+        self.assertEqual(
+            manifest["evidence_summary"]["handoff_rendering"],
+            "SKIPPED_BY_USER",
+        )
+
+    def test_local_handoff_rejects_enabled_unimplemented_delivery_mode(self) -> None:
+        state = self.reach_prd_authoring(
+            intent="COMMIT_NOW", suffix="handoff-unimplemented"
+        )
+        state = self.freeze_prd(state, suffix="handoff-unimplemented")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="handoff-unimplemented"
+        )
+
+        with self.assertRaisesRegex(
+            AlphaContractError, "FEISHU_DOCUMENT.*NOT_IMPLEMENTED"
+        ):
+            self.controller.prepare_local_handoff(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="handoff-unimplemented",
+                delivery_options={"FEISHU_DOCUMENT": True},
+            )
+        self.assertFalse(
+            (self.controller.run_path(state["run_id"]) / "handoff" / "local").exists()
+        )
+
+    def test_local_handoff_delivery_options_are_closed_booleans(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="handoff-options")
+        state = self.freeze_prd(state, suffix="handoff-options")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="handoff-options"
+        )
+
+        for index, options in enumerate(
+            ({"LOCAL_HTML": "false"}, {"UNKNOWN_DELIVERY": False}), start=1
+        ):
+            with self.subTest(options=options), self.assertRaisesRegex(
+                AlphaContractError, "delivery options"
+            ):
+                self.controller.prepare_local_handoff(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id=f"handoff-invalid-options-{index}",
+                    delivery_options=options,
+                )
 
     def test_start_creates_new_v2_run_and_is_idempotent_without_importing_old_run(self) -> None:
         old = self.project / ".better-product-graph" / "runs" / "run-old"
@@ -717,9 +1352,53 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             operation_id="retro-1",
             author_attempt_id="retro-author",
             markdown="# 规划复盘\n\n有效方法、返工原因与方法增量。\n",
+            method_conformance=self.complete_retrospective_conformance(),
         )
         self.assertEqual(state["status"], "LOCAL_HANDOFF_COMPLETE")
         self.assertEqual(state["retrospective_status"], "COMPLETED")
+
+    def test_retrospective_requires_method_conformance_and_preserves_findings_without_rewriting_handoff(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="retro-conformance")
+        state = self.freeze_prd(state, suffix="retro-conformance")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="retro-conformance"
+        )
+        state = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-retro-conformance",
+        )
+        ready_before = deepcopy(state["ready"])
+        handoff_before = deepcopy(state["handoff"])
+
+        with self.assertRaisesRegex(AlphaContractError, "method conformance"):
+            self.controller.record_retrospective(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="retro-conformance-missing",
+                author_attempt_id="retro-conformance-author",
+                markdown="# 规划复盘\n\n缺少方法履行核对。\n",
+                method_conformance=[],
+            )
+
+        conformance = self.complete_retrospective_conformance()
+        conformance[-1] = {
+            "check_id": "NOT_RUN_BOUNDARIES",
+            "status": "FINDING",
+            "rationale": "交接说明需要继续强调 Human Reader Study 尚未执行。",
+        }
+        completed = self.controller.record_retrospective(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="retro-conformance-finding",
+            author_attempt_id="retro-conformance-author",
+            markdown="# 规划复盘\n\n发现一项方法表达缺口，但不改写历史。\n",
+            method_conformance=conformance,
+        )
+        self.assertEqual(completed["retrospective_status"], "COMPLETED_WITH_FINDINGS")
+        self.assertEqual(completed["method_conformance_status"], "FAIL")
+        self.assertEqual(completed["ready"], ready_before)
+        self.assertEqual(completed["handoff"], handoff_before)
 
 
 if __name__ == "__main__":

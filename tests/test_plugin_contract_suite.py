@@ -49,14 +49,12 @@ class PluginContractSuiteTests(unittest.TestCase):
         installed_manifest = json.loads(
             (self.plugin / "build-manifest.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(installed_manifest["plugin"]["version"], "0.2.20")
+        self.assertEqual(installed_manifest["plugin"]["version"], "2.0.0")
         required = {
             "discovery",
-            "direct_activation",
-            "indirect_activation",
-            "follow_up_activation",
-            "negative_activation",
-            "eleven_intents_parity",
+            "default_bpg2_entry",
+            "alpha_alias_normalization",
+            "legacy_public_route_removed",
             "relative_resource_resolution",
             "unique_public_skill",
             "internal_entry_bypass",
@@ -65,13 +63,18 @@ class PluginContractSuiteTests(unittest.TestCase):
         self.assertEqual(set(result["checks"]), required)
         self.assertTrue(all(value["status"] == "PASS" for value in result["checks"].values()))
 
-    def test_all_eleven_direct_and_indirect_entries_resolve_to_same_core_intent(self) -> None:
+    def test_ordinary_entry_and_alpha_alias_resolve_to_the_same_bpg2_runtime(self) -> None:
         _, result = self.run_suite()
-        parity = result["checks"]["eleven_intents_parity"]
-        self.assertEqual(parity["count"], 11)
-        self.assertEqual(parity["mismatches"], [])
+        ordinary = result["checks"]["default_bpg2_entry"]
+        alias = result["checks"]["alpha_alias_normalization"]
+        removed = result["checks"]["legacy_public_route_removed"]
+        self.assertEqual(ordinary["status"], "PASS")
+        self.assertEqual(alias["status"], "PASS")
+        self.assertEqual(removed["status"], "PASS")
+        self.assertEqual(ordinary["receipt"]["runtime"], "BPG_2_0_ALPHA")
+        self.assertEqual(alias["receipt"]["runtime"], ordinary["receipt"]["runtime"])
 
-    def test_repeated_contract_check_stays_valid_after_parser_bytecode_cache(self) -> None:
+    def test_repeated_installed_entry_contract_check_stays_valid(self) -> None:
         first_code, first = self.run_suite()
         second_code, second = self.run_suite()
         self.assertEqual(first_code, 0)

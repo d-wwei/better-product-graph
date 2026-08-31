@@ -10,7 +10,7 @@ from scripts.package_plugin import package_plugin
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CODEX = Path("/Applications/ChatGPT.app/Contents/Resources/codex")
-CANDIDATE_VERSION = "0.2.20"
+CANDIDATE_VERSION = "2.0.0"
 
 
 class FreshInstallTests(unittest.TestCase):
@@ -34,7 +34,12 @@ class FreshInstallTests(unittest.TestCase):
             self.assertEqual(report["isolated_codex_home"], True)
             self.assertTrue(report["installed_identity"]["valid"])
             self.assertEqual(report["plugin_contract_status"], "PASS")
-            self.assertEqual(report["installed_entry_status"], "ACTIVATED")
+            self.assertEqual(
+                report["installed_entry_status"],
+                "HOST_AGENT_ACTION_REQUIRED",
+            )
+            self.assertEqual(report["installed_default_runtime"], "BPG_2_0_ALPHA")
+            self.assertEqual(report["installed_alpha_start_position"], "UNDERSTAND")
             self.assertEqual(report["uninstall_status"], "PASS")
             self.assertEqual(report["rollback_status"], "PASS")
             self.assertEqual(report["authenticated_host_agent_status"], "NOT_RUN")

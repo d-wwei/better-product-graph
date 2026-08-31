@@ -54,7 +54,7 @@ class AuditRepairVerificationTests(unittest.TestCase):
             {
                 "tests.test_reaudit_recovery_authority.PublicResumeAuthorityTests.test_compatible_upgrade_keeps_consumed_history_and_current_dispatch_recoverable",
                 "tests.test_reaudit_recovery_authority.PublicResumeAuthorityTests.test_undeclared_current_instruction_drift_remains_zero_write_blocked",
-                "tests.test_installed_execution_spine.InstalledExecutionSpineTests.test_installed_runner_accepts_new_and_returns_current_host_dispatch",
+                "tests.test_installed_execution_spine.InstalledExecutionSpineTests.test_installed_runner_routes_ordinary_new_request_to_bpg2_without_mutation",
                 "tests.test_installed_execution_spine.InstalledExecutionSpineTests.test_installed_host_context_exposes_declared_compatible_successor",
             },
         )

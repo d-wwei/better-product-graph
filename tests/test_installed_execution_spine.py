@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 from scripts.build_plugin import build_plugin
+from src.bpg.host_runtime import HostRuntime
 from src.bpg.state_controller import StateController
 from tests.controller_fixtures import position_run_internal
 
@@ -47,6 +48,14 @@ class InstalledExecutionSpineTests(unittest.TestCase):
             check=False,
         )
 
+    def _invoke_legacy_entry(self, *arguments: str) -> dict:
+        """Exercise retained 0.x internals without restoring their public runner route."""
+
+        skill_root = self.plugin / "skills" / "better-product-graph"
+        graph = skill_root / "references" / "graph" / "manifest.json"
+        entry = "$better-product-graph " + " ".join(arguments)
+        return HostRuntime(self.project, graph, skill_root).handle_entry(entry)
+
     def _write_payload(self, name: str, payload: dict) -> Path:
         path = self.project / name
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -64,37 +73,24 @@ class InstalledExecutionSpineTests(unittest.TestCase):
                 )
         return inventory
 
-    def test_installed_runner_accepts_new_and_returns_current_host_dispatch(self) -> None:
+    def test_installed_runner_routes_ordinary_new_request_to_bpg2_without_mutation(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
         payload = self._invoke("new", "用户希望结算失败时得到解释")
-        self.assertEqual(payload["status"], "ACTIVATED")
-        self.assertEqual(payload["state"]["current_node"], "signal.prepare")
-        self.assertEqual(payload["dispatch"]["node_id"], "signal.prepare")
-        self.assertEqual(payload["dispatch"]["producer_kind"], "HOST_AGENT")
-        self.assertTrue(payload["dispatch"]["instruction_hash"].startswith("sha256:"))
+        self.assertEqual(payload["status"], "HOST_AGENT_ACTION_REQUIRED")
+        self.assertEqual(payload["runtime"], "BPG_2_0_ALPHA")
+        self.assertEqual(payload["instructions"]["legacy_public_route"], "REMOVED")
+        self.assertFalse(payload["instructions"]["alpha_keyword_required"])
+        self.assertFalse((self.project / ".better-product-graph").exists())
         context = payload["host_execution_context"]
         self.assertEqual(Path(context["project_root"]), self.project.resolve())
         self.assertEqual(
             Path(context["skill_root"]),
             (self.plugin / "skills" / "better-product-graph").resolve(),
         )
-        self.assertEqual(
-            Path(context["instruction_path"]),
-            (
-                self.plugin
-                / "skills"
-                / "better-product-graph"
-                / payload["dispatch"]["instruction_ref"]
-            ).resolve(),
-        )
-        self.assertTrue(Path(context["instruction_path"]).is_file())
-        self.assertEqual(
-            context["dispatch_instruction_hash"], payload["dispatch"]["instruction_hash"]
-        )
-        self.assertEqual(
-            context["installed_instruction_hash"], payload["dispatch"]["instruction_hash"]
-        )
-        self.assertEqual(context["instruction_compatibility"], "EXACT")
+        self.assertIsNone(context["instruction_path"])
+        self.assertIsNone(context["dispatch_instruction_hash"])
+        self.assertIsNone(context["installed_instruction_hash"])
+        self.assertIsNone(context["instruction_compatibility"])
         self.assertIn("keep", context["working_directory_rule"].lower())
         self.assertIn("project_root", context["working_directory_rule"])
 
@@ -159,8 +155,8 @@ class InstalledExecutionSpineTests(unittest.TestCase):
     def test_installed_repeated_new_same_content_creates_distinct_occurrence_bound_runs(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
 
-        first = self._invoke("new", "同一条产品反馈")
-        second = self._invoke("new", "同一条产品反馈")
+        first = self._invoke_legacy_entry("new", "同一条产品反馈")
+        second = self._invoke_legacy_entry("new", "同一条产品反馈")
 
         self.assertNotEqual(first["occurrence_id"], second["occurrence_id"])
         self.assertNotEqual(first["run_id"], second["run_id"])
@@ -174,8 +170,8 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         self.assertEqual(first["state"]["source_occurrence_id"], first["occurrence_id"])
         self.assertEqual(second["state"]["source_occurrence_id"], second["occurrence_id"])
 
-        self._invoke("pause", first["run_id"])
-        resumed = self._invoke("resume", first["run_id"])
+        self._invoke_legacy_entry("pause", first["run_id"])
+        resumed = self._invoke_legacy_entry("resume", first["run_id"])
         self.assertEqual(resumed["status"], "RESUMED")
         self.assertEqual(resumed["state"]["run_id"], first["run_id"])
         occurrences = self.project / ".better-product-graph" / "signals" / "occurrences.jsonl"
@@ -185,7 +181,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         build_plugin(REPO_ROOT, self.plugin)
         overview = self.project / "README.md"
         overview.write_text("# 示例项目\n\n当前目标是减少结算失败。\n", encoding="utf-8")
-        activated = self._invoke("new", "用户反复无法完成结算")
+        activated = self._invoke_legacy_entry("new", "用户反复无法完成结算")
         run_id = activated["run_id"]
         prepare = activated["dispatch"]
         prepare_result = {
@@ -352,7 +348,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         build_plugin(REPO_ROOT, self.plugin)
         secret = self.project / ".env"
         secret.write_text("API_TOKEN=do-not-read\n", encoding="utf-8")
-        activated = self._invoke("new", "为项目规划一个产品改进")
+        activated = self._invoke_legacy_entry("new", "为项目规划一个产品改进")
         run_id = activated["run_id"]
 
         def submit(dispatch: dict, name: str, semantic_output: dict, artifact_refs: list[dict]) -> dict:
@@ -481,7 +477,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         build_plugin(REPO_ROOT, self.plugin)
 
         def at_classify(label: str) -> tuple[str, dict]:
-            activated = self._invoke("new", f"分类合同负例 {label}")
+            activated = self._invoke_legacy_entry("new", f"分类合同负例 {label}")
             run_id = activated["run_id"]
             prepare = activated["dispatch"]
             prepared = self._invoke(
@@ -550,7 +546,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
 
     def test_installed_successor_blocks_old_misbound_signal_classify_dispatch_without_writes(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
-        activated = self._invoke("new", "旧分类 dispatch 必须明确阻塞")
+        activated = self._invoke_legacy_entry("new", "旧分类 dispatch 必须明确阻塞")
         run_id = activated["run_id"]
         skill_root = self.plugin / "skills" / "better-product-graph"
         legacy_skill = self.root / "legacy-skill"
@@ -604,7 +600,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
 
     def test_installed_bug_instruction_exposes_the_complete_validator_contract(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
-        activated = self._invoke("new", "结算总额消失，疑似线上实现偏离")
+        activated = self._invoke_legacy_entry("new", "结算总额消失，疑似线上实现偏离")
         run_id = activated["run_id"]
         skill_root = self.plugin / "skills" / "better-product-graph"
         controller = StateController(
@@ -646,7 +642,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
 
     def test_installed_implementation_deviation_completes_local_bug_handoff(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
-        activated = self._invoke("new", "结算总额在刷新后消失")
+        activated = self._invoke_legacy_entry("new", "结算总额在刷新后消失")
         run_id = activated["run_id"]
         skill_root = self.plugin / "skills" / "better-product-graph"
         controller = StateController(
@@ -714,7 +710,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
         self.assertEqual(packet["handoff"]["mode"], "LOCAL_ONLY")
         self.assertTrue((self.project / completed["bug_human_ref"]["path"]).is_file())
 
-        repeated = self._invoke("handoff", run_id)
+        repeated = self._invoke_legacy_entry("handoff", run_id)
         self.assertEqual(repeated["status"], "COMPLETED")
         self.assertEqual(repeated["bug_packet_ref"], completed["bug_packet_ref"])
         redispatched = self._invoke(
@@ -725,7 +721,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
 
     def test_installed_submit_infers_the_only_legal_next_node(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
-        activated = self._invoke("new", "用户反复无法完成结算")
+        activated = self._invoke_legacy_entry("new", "用户反复无法完成结算")
         run_id = activated["run_id"]
         prepare = activated["dispatch"]
         prepare_result = {
@@ -751,7 +747,7 @@ class InstalledExecutionSpineTests(unittest.TestCase):
 
     def test_installed_decision_submit_then_owner_choice_routes_independent_authority(self) -> None:
         build_plugin(REPO_ROOT, self.plugin)
-        activated = self._invoke("new", "需要形成产品判断")
+        activated = self._invoke_legacy_entry("new", "需要形成产品判断")
         run_id = activated["run_id"]
         position_run_internal(
             StateController(

@@ -1670,12 +1670,12 @@ BPG 2.0 采用**一套自适应通用基础模板 + 条件式内容模块**，�
 2. 不存在未解决的 Blocker、Major、`NEEDS_OWNER` 或尚未处置的重大 Reviewer 分歧。
 3. 本次适用且被定义为必需的正式交付物、条件式附件和专业 Review 已经存在，版本匹配，并包含在同一个 Release Set 中。
 4. Product Evals 为 `REQUIRED` 时，Eval Pack 已补齐、与当前 PRD Candidate 绑定并完成独立规格 Review；`RECOMMENDED` 未生成时保留真实状态和理由，但不默认阻断。
-5. Markdown、assets、默认 HTML 阅读视图及本次实际交付的其他派生格式来自同一编辑真源，文件清单、版本和引用当前有效。
+5. Markdown 与 assets 编辑真源的文件清单、版本和引用当前有效；HTML、DOCX、飞书文档或项目管理提交等交付格式不进入 Candidate，也不是 Ready 的前置条件。
 6. 当前 Candidate、接受的 Decision、产品规划主记录快照、Review Result 和必要附件之间不存在陈旧、缺失、被替换或无法解析的依赖。
 
 其中内容质量、Finding 处置是否成立、专业能力是否适用以及附件是否语义充分由 Agent 和 Reviewer 判断；Controller 只验证已经提交的正式 Verdict、状态、版本、文件清单、引用、新鲜度和合法迁移，不通过字段完整度重新评审产品质量。
 
-可交接就绪后只生成本地交接，绑定精确产品需求文档或文档组合、版本、关系和必要附件。它不代表研发完成、测试通过、发布或外部接收。
+可交接就绪后才进入 Handoff，并从精确 Ready 的 Markdown 与 assets 选择交付适配器生成派生结果。每种 Handoff 方式必须有独立的用户可设置开关，允许一次交接同时启用零个、一个或多个已实现方式；未明确设置时采用该方式公开、稳定的默认值。迭代一只实现本地自包含 HTML，默认开启但允许用户关闭；关闭后仍以 Markdown 与 assets 完成本地交接。本地文档、飞书文档以及通过项目管理 MCP 提交到飞书项目等方式属于后续 Handoff 适配器，开关默认关闭；未实现时必须明确标记 `NOT_IMPLEMENTED`，一旦尝试开启就阻止执行，不得模拟外部成功。Handoff 不代表研发完成、测试通过、发布或外部接收。
 
 ### 11.7 已确认的阶段五运行规则
 
@@ -1760,7 +1760,7 @@ PRD 必须支持三种阅读方式：
 3. **人类交接信息进入独立 Handoff Note。** Handoff Note 只提供本次文档清单、总稿与子稿关系、阅读顺序、当前交付版本、仍需处理的未决事项和合理下一动作，不复制产品需求和完整运行历史。
 4. **PRD 正文默认不显示文档版本信息。** 版本通过交接包、文件身份、Machine Manifest 和 Controller 状态绑定；只有项目专属模板因组织制度或真实协作需要明确要求时，才在 PRD 内增加最小的人类可见文档标识。
 
-Local Handoff Package 按适用性包含 Markdown 与 assets 编辑真源、默认 HTML 阅读视图、Handoff Note 和 Machine Manifest；DOCX、PDF 及其他目标格式按实际协作和分发需要生成。完整变更历史继续保留在产品规划主记录、Candidate 历史、Review Findings 和 Controller 记录中；当前版本变化只有确实影响研发理解时，才在 Handoff Note 中简要说明。
+Local Handoff Package 以精确 Ready 的 Markdown 与 assets 编辑真源为固定内容，并根据用户设置的方式开关生成派生交付物、Handoff Note 和 Machine Manifest。`LOCAL_HTML` 默认开启；用户关闭时不生成 `PRD.html`，Markdown 成为本次主阅读文件。Candidate 与正式 PRD Review 不包含 HTML。未来的本地文档、飞书文档、项目管理 MCP、DOCX、PDF 及其他目标格式都作为带独立开关的可选 Handoff 适配器按实际协作需要生成。完整变更历史继续保留在产品规划主记录、Candidate 历史、Review Findings 和 Controller 记录中；当前版本变化只有确实影响研发理解时，才在 Handoff Note 中简要说明。
 
 ### 11.13 PRD 的通用文字表达规则
 
@@ -1786,12 +1786,13 @@ PRD 写作规范不能只规定遣词、句段和叙事方式，还必须包含�
 ### 11.14 PRD 的编辑真源与多格式交付
 
 1. **Markdown 与 assets 是唯一可编辑真源。** 每份 PRD 以 Markdown 正文和本地图片、图表等 assets 组成一个完整发布单元。所有正式内容修改必须先回到这套真源，不能同时维护多份可编辑正文。
-2. **自包含单文件 HTML 是默认人类阅读视图。** HTML 从精确绑定的 Markdown 与 assets 派生，负责提供更好的版式、图片呈现、导航和低疲劳阅读体验。发布用 HTML 应自包含，不依赖外部资源；它是默认阅读格式，不是新的内容真源。
+2. **自包含单文件 HTML 是迭代一默认开启的 Handoff 阅读视图。** HTML 只在 PRD 完成全部内容 Review 并进入 Ready 后，由 Handoff 从精确绑定的 Markdown 与 assets 派生，负责版式、图片呈现、导航和低疲劳阅读体验。用户可以关闭 `LOCAL_HTML` 开关；关闭后不生成 HTML，并以 Markdown 作为本次主阅读文件。HTML 不进入 Candidate，不参与内容 Review，也不是新的内容真源。
 3. **DOCX 是条件式导出适配器（Export Adapter）。** 只有目标组织、协作工具或正式分发流程确实需要 Word 文档时才生成 DOCX，不把 DOCX 作为每次运行的固定必产物或主要编辑载体。
 4. **PDF 是条件式只读输出。** 只有归档、签审、打印或固定版式分发等场景需要时才生成 PDF；PDF 不承担协作编辑责任。
-5. **所有阅读和分发格式从同一真源派生。** HTML、DOCX 和 PDF 应分别从同一个精确 Markdown、assets 及统一文档模型生成，而不是把 HTML 再转换成 DOCX，或让不同格式形成各自独立的产品结论。
-6. **派生格式不得反向成为事实来源。** 如果人类在 HTML、DOCX 或 PDF 上提出修改，主 Agent 必须把有效变更合并回 Markdown 与 assets，形成新的 Candidate，重新完成适用的 Review，再统一生成所有目标格式。不得直接修改派生文件后继续交接。
-7. **Review 同时检查语义真源和真实阅读体验。** PRD Review 必须审查精确绑定的 Markdown 与 assets，保证产品语义、边界和验收契约正确；同时检查默认 HTML 阅读视图的排版、图片、导航和内容一致性。若 DOCX 实际进入本次 Handoff，还必须对渲染后的 DOCX 进行视觉和保真检查，至少覆盖图片、表格、字体、分页和内容完整性；“成功导出文件”本身不等于通过审查。
+5. **每种 Handoff 方式都有独立开关。** HTML、本地文档、飞书文档、项目管理 MCP、DOCX、PDF 等方式分别启用或关闭；开启未实现方式必须明确失败，关闭某种派生格式不影响 Markdown 与 assets 的本地交接。
+6. **所有阅读和分发格式从同一真源派生。** HTML、DOCX 和 PDF 应分别从同一个精确 Markdown、assets 及统一文档模型生成，而不是把 HTML 再转换成 DOCX，或让不同格式形成各自独立的产品结论。
+7. **派生格式不得反向成为事实来源。** 如果人类在 HTML、DOCX 或 PDF 上提出修改，主 Agent 必须把有效变更合并回 Markdown 与 assets，形成新的 Candidate，重新完成适用的 Review，再统一生成所有目标格式。不得直接修改派生文件后继续交接。
+8. **内容 Review 与 Handoff 格式验证分离。** PRD Review 只审查精确绑定的 Markdown 与 assets，保证产品语义、边界、验收契约、信息结构和源资产正确。Handoff 生成实际交付格式后，再验证该格式的版式、图片、导航、裁切和导出保真；这项验证只证明交付呈现，不重新证明内容质量。若格式验证暴露内容问题，必须回到 Markdown 与 assets 形成新 Candidate 并重新完成适用 Review；纯格式问题只修复对应 Renderer 后重新生成交付物。
 
 配图采用以下格式与验证规则：
 
@@ -1824,7 +1825,7 @@ PRD Review 的原子对象是完整 PRD Release Set，而不是某一个 Markdow
 
 - 单份 PRD，或总 PRD 与全部子 PRD。
 - Markdown、图片和其他编辑真源。
-- 默认 HTML 阅读视图，以及本次实际交付的其他派生格式。
+- 不包含派生交付格式；HTML 及其他实际交付格式只在 Ready 后的 Handoff 中生成。
 - 被 PRD 精确引用且会影响需求理解、执行或验收的条件式附件。
 - 本次实际包含的 Product Evals、数据采集需求表、语言与地区适配矩阵或其他专项产物。
 
@@ -1856,7 +1857,7 @@ Reviewer 不得为了让 PRD 通过而在文档中替上游问题打补丁，也
 
 程序化脚手架只承担具有不可替代确定性价值的薄控制：冻结和绑定精确 Candidate、验证 Release Set 与只读基线引用、区分作者与 Reviewer 尝试、记录审查轮次和 Verdict、限制合法状态转换，并在条件满足时自动提交 Ready。专业 Reviewer 的选择、Finding 严重程度、产品问题归因和内容修改不得由程序通过关键词、固定评分或 Schema 完整度代替 Agent 判断。
 
-这些能力原则上复用现有 Candidate、Review、Controller 和 Ready 机制，不新增顶层业务节点。当前运行时是否完全具备 Release Set、HTML 阅读视图和验证基线的精确绑定能力，需要在实现阶段核对；若存在缺口，只补充最小确定性绑定，不扩张为新的语义引擎或复杂运行时。
+这些能力原则上复用现有 Candidate、Review、Controller 和 Ready 机制，不新增顶层业务节点。当前运行时只需保证 Candidate 内容基线、Ready 证据以及 Handoff 派生格式各自精确绑定；若存在缺口，只补充最小确定性绑定，不扩张为新的语义引擎或复杂运行时。
 
 ### 11.16 PRD Reviewer Panel 与可信审查协议
 
@@ -1871,7 +1872,7 @@ PRD Review 不再使用一个扁平的“七个审查维度”列表，而是由
 3. **产品系统一致性 Reviewer**：检查核心流程、模块、角色、对象、状态、权限、产品数据语义、共享规则、依赖以及父子 PRD 是否能够组合运行。它只审查逻辑产品系统，不把 PRD 扩写成代码或技术架构说明。
 4. **工程可行性 Reviewer**：检查明显不可实现之处、与已知架构或依赖的冲突，以及性能、容量、兼容、迁移、灰度、回滚和可观测性对产品行为形成的约束；同时阻止 PRD 越界规定内部实现。它不编写 Engineering SPEC，也不替研发承诺工期。
 5. **可验收性与 Product Evals Reviewer**：检查产品行为是否可观察、验收条件是否位于产品层，重要边界、错误、权限、恢复和可观测性是否足以验证，并判断何时仅靠确定性验收条件不足、需要 Product Evals。它不编写完整测试用例，也不执行测试。
-6. **文档体验 Reviewer**：检查 TL;DR、信息层级、阅读顺序、长度、段落、列表、表格、配图、术语一致性、信息可定位性、干净 PRD 以及默认 HTML 阅读视图；本次实际交付 DOCX 时再检查其渲染保真。它不得为了改善表达而发明缺失的产品要求，实质缺口必须路由给对应 Reviewer 或返回上游。
+6. **文档体验 Reviewer**：在 Markdown 与 assets 内容真源上检查 TL;DR、信息层级、阅读顺序、长度、段落、列表、表格、配图、术语一致性、信息可定位性和干净 PRD。HTML、DOCX、飞书文档等目标格式的视觉与保真检查属于 Ready 后的 Handoff 格式验证，不属于该 Reviewer 的内容 Verdict。它不得为了改善表达而发明缺失的产品要求，实质缺口必须路由给对应 Reviewer 或返回上游。
 
 简单、低风险 PRD 可以让较少的独立 Reviewer Agent 分别承担多个角色画像，但每类责任的 Findings 和结论仍须可区分。标准或复杂 PRD 应根据认知负担和风险拆开角色。主 Agent 是作者，不能同时作为正式 Reviewer。
 
@@ -2267,11 +2268,11 @@ BPG 的能力库只覆盖形成高质量 PRD 所必需的产品规划能力。
 
 1. **Evals Generator 轻量化重构**：产品与打包边界已经确认采用“BPG 内置、架构可插拔”的原子能力；BPG Core 管理适用性、Candidate、版本、Review 和 Ready，能力包负责 Agent 生成，Test Graph 负责真实执行。生成器本体重构已安排进入小迭代 2.2；迭代一只保留适用性、条件式挂载点、Release Set / Ready 边界和缺失能力时的真实降级。
 2. **产品形态场景知识包**：产品形态画像、条件式场景与韧性推演、Artifact 和 Reviewer 分级已经确认；后续仍需详细设计桌面端、iOS、Android、Web、Agent、本地、云端、API / SDK 和内部运维等场景知识包，建立可扩展的方法卡、适用信号和示例，并继续积累不同领域的真实边缘场景。
-3. **更好的 PRD 模板**：PRD 内容契约、可读性方法、正式章节、图形格式和 Review 规则已经确认；新默认模板与自包含 HTML 阅读视图属于迭代一内部 Alpha 的实现与验证范围，不直接沿用现有模板。
+3. **更好的 PRD 模板**：PRD 内容契约、可读性方法、正式章节、图形格式和 Review 规则已经确认；新默认模板与 Ready 后由 Handoff 开关控制的自包含 HTML 阅读视图属于迭代一内部 Alpha 的实现与验证范围，不直接沿用现有模板。
 4. **语言与地区配置及适配矩阵实现**：轻量适用性判断、语言 / Locale / 市场三层模型、PRD 与 Engineering SPEC 边界、条件式 Artifact 和专业人员升级规则已经确认；后续仍需设计可配置的 Locale & Market Profile、适配矩阵模板、Checklist、项目配置方式和产品形态知识包之间的组合规则。
 5. **项目级数据采集配置与模板实现**：曝光、交互、调用和必要结果数据的产品边界、条件式数据采集需求表及 PRD / Engineering SPEC 分工已经确认；后续仍需设计可配置的 Data Collection Profile，支持项目必填、可选、禁采、敏感确认、平台差异和组织命名规范，并决定它与项目 PRD Template Profile 的组合方式。
 6. **语言与文化类专业 Reviewer 实现**：语言精确性、产品文案、地区文化和条件式合规 Review 的职责与调用原则已经确认；后续仍需设计各 Reviewer 的输入合同、方法卡、Finding 类型、聚合规则、可用语言或地区能力声明，以及缺少合格专业人员时的 `NOT_RUN` 处理。
-7. **多格式 Renderer 与导出实现**：Markdown 与 assets 编辑真源、默认自包含 HTML 阅读视图进入迭代一；DOCX、PDF、资源内嵌、版本绑定及跨格式渲染保真进入小迭代 2.5。
+7. **Handoff 适配器与多格式 Renderer**：每种方式具有独立用户开关；Markdown 与 assets 编辑真源、Ready 后默认开启但可关闭的本地自包含 HTML Handoff 进入迭代一；本地文档、飞书文档、项目管理 MCP、DOCX、PDF 及跨格式渲染保真进入后续小迭代。
 
 ### 17.3 BPG 2.0 开发基线与旧版本边界
 
@@ -2296,7 +2297,7 @@ BPG 2.0 采用一个内部 Alpha 和五个后续小迭代。每个迭代都必�
 
 - 一份持续更新的《产品规划主记录》。
 - Markdown 与 assets 编辑真源。
-- 新的通用 PRD 模板和自包含 HTML 默认阅读视图。
+- 新的通用 PRD 模板，以及 Ready 后由用户开关控制的自包含 HTML Local Handoff 阅读视图。
 - 不可变 Candidate、独立 Review Findings、`PASS / REVISE / NEEDS_OWNER` 和整体回归。
 - 最小 Controller 所需的当前 Run、精确绑定、合法状态提交、暂停恢复、Ready 与本地 Handoff。
 - Product Evals 的轻量适用性判断、条件式附件挂载点和真实降级；不移植旧 Evals Generator 的重型流水线。
@@ -2320,7 +2321,7 @@ BPG 2.0 采用一个内部 Alpha 和五个后续小迭代。每个迭代都必�
 - 用程序判断应调用的分析框架、Artifact、产品形态、专业 Reviewer、Finding 严重度、返回阶段或 Product Evals 适用性。
 - 把阶段退出标准、PRD 内容契约或 Checklist 变成依靠字段完整度宣称质量通过的语义 Gate。
 - 为 Review-of-Review 建立第二套审查状态机、独立轮次计数器或评分流水线；它只作为同一 Review Artifact 内的有界语义活动。
-- 把 PRD 内容契约、自适应基础模板、条件式模块和 Writing / Renderer Profile 分别实现为独立运行时、注册中心或 Provider 系统。Alpha 只需要一份内容合同、一份通用模板和一个机械 HTML Renderer。
+- 把 PRD 内容契约、自适应基础模板、条件式模块和 Writing / Renderer Profile 分别实现为独立运行时、注册中心或 Provider 系统。Alpha 只需要一份内容合同、一份通用模板和一个仅在 Handoff 调用的机械 HTML Renderer。
 - 实现多 PRD 父子 Run、完整产品形态规则引擎、专业 Reviewer 调度引擎或轻量化 Evals Generator；这些分别属于后续 2.1—2.4。
 - 对工作中《产品规划主记录》的每次编辑、证据更新或内部推演进行冻结、哈希和正式版本提交。
 

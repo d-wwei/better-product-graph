@@ -26,7 +26,7 @@ def apply_alpha(project_root: Path, command: dict[str, Any]) -> dict[str, Any]:
     methods = {
         "start": "start_run",
         "status": "load_run",
-        "update-record": "update_planning_record",
+        "replace-record": "replace_planning_record",
         "freeze-candidate": "freeze_candidate",
         "review": "submit_review",
         "decision-route": "submit_decision_route",
@@ -90,7 +90,34 @@ def handle_entry(
 ) -> dict[str, Any]:
     resolved_skill_root = skill_root or graph_manifest.resolve().parent.parent
     _validate_project_boundary(project_root, resolved_skill_root)
-    return HostRuntime(project_root, graph_manifest, resolved_skill_root).handle_entry(entry)
+    normalized_entry = " ".join(entry.split())
+    public_prefix = "$better-product-graph"
+    alpha_alias = f"{public_prefix} alpha"
+    if normalized_entry == alpha_alias or normalized_entry.startswith(alpha_alias + " "):
+        signal = normalized_entry[len(alpha_alias) :].strip()
+        alias_used = True
+    elif normalized_entry == public_prefix or normalized_entry.startswith(public_prefix + " "):
+        signal = normalized_entry[len(public_prefix) :].strip()
+        alias_used = False
+    else:
+        signal = normalized_entry
+        alias_used = False
+    return {
+        "status": "HOST_AGENT_ACTION_REQUIRED",
+        "runtime": "BPG_2_0_ALPHA",
+        "entry": public_prefix,
+        "signal": signal or None,
+        "alias_used": alias_used,
+        "instructions": {
+            "mode": "DEFAULT_SINGLE_PRD",
+            "legacy_public_route": "REMOVED",
+            "alpha_keyword_required": False,
+            "product_semantics_owner": "AUTHENTICATED_HOST_AGENT",
+            "controller_operation": "alpha",
+            "next_action": "READ_PUBLIC_SKILL_AND_APPLY_BPG2_COMMANDS",
+            "silent_fallback_forbidden": True,
+        },
+    }
 
 
 def dispatch(

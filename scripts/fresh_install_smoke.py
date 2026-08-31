@@ -170,14 +170,54 @@ def fresh_install_smoke(
     if contract_result.get("contract_status") != "PASS":
         raise RuntimeError("fresh installed Plugin Contract failed")
     entry = _run(
-        [sys.executable, str(runner), "new", "fresh isolated install smoke"],
+        [sys.executable, str(runner), "fresh isolated install smoke"],
         codex_home=codex_home,
         cwd=project,
     )
     evidence.append(entry)
     entry_result = _json_output(entry, "installed entry")
-    if entry_result.get("status") != "ACTIVATED":
-        raise RuntimeError("installed entry did not activate a local Run")
+    if (
+        entry_result.get("status") != "HOST_AGENT_ACTION_REQUIRED"
+        or entry_result.get("runtime") != "BPG_2_0_ALPHA"
+        or entry_result.get("instructions", {}).get("legacy_public_route") != "REMOVED"
+    ):
+        raise RuntimeError("installed entry did not select the default BPG 2.0 runtime")
+    alpha_payload = project / "bpg2-start.json"
+    alpha_payload.write_text(
+        json.dumps(
+            {
+                "action": "start",
+                "signal": "fresh isolated install smoke",
+                "route": {
+                    "destination": "PRODUCT_PLANNING",
+                    "attempt_id": "fresh-install-route",
+                },
+                "operation_id": "fresh-install-start",
+                "run_id": "bpg2-run-fresh-install-smoke",
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    alpha_start = _run(
+        [
+            sys.executable,
+            str(runner),
+            "--operation",
+            "alpha",
+            "--payload-file",
+            str(alpha_payload),
+        ],
+        codex_home=codex_home,
+        cwd=project,
+    )
+    evidence.append(alpha_start)
+    alpha_result = _json_output(alpha_start, "installed BPG 2.0 start")
+    if (
+        alpha_result.get("runtime") != "BPG_2_0_ALPHA"
+        or alpha_result.get("position") != "UNDERSTAND"
+    ):
+        raise RuntimeError("installed BPG 2.0 runtime did not start a fresh Run")
     remove = _run(
         [str(codex_bin), "plugin", "remove", PLUGIN_ID, "--json"],
         codex_home=codex_home,
@@ -219,6 +259,8 @@ def fresh_install_smoke(
         "installed_identity": identity,
         "plugin_contract_status": contract_result["contract_status"],
         "installed_entry_status": entry_result["status"],
+        "installed_default_runtime": entry_result["runtime"],
+        "installed_alpha_start_position": alpha_result["position"],
         "uninstall_status": "PASS" if uninstall_ok else "FAIL",
         "rollback_status": "PASS" if rollback_ok else "FAIL",
         "authenticated_host_agent_status": "NOT_RUN",

@@ -35,8 +35,12 @@
       "target_source": "host-adapters/claude/public-skill/better-product-graph/SKILL.md",
       "substitutions": [
         {
-          "from": "or invokes `$better-product-graph alpha`. Never silently route an ordinary BPG",
-          "to": "or invokes `/better-product-graph:better-product-graph alpha`. Never silently route an ordinary BPG"
+          "from": "Every ordinary `$better-product-graph <product task>` invocation and equivalent natural-language request uses the BPG 2.0 single-PRD runtime.",
+          "to": "Every ordinary `/better-product-graph:better-product-graph <product task>` invocation and equivalent natural-language request uses the BPG 2.0 single-PRD runtime."
+        },
+        {
+          "from": "The older `$better-product-graph alpha ...` spelling is accepted only as a temporary, non-required alias for the same default runtime.",
+          "to": "The older `/better-product-graph:better-product-graph alpha ...` spelling is accepted only as a temporary, non-required alias for the same default runtime."
         },
         {
           "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation alpha \\",
@@ -47,18 +51,6 @@
           "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation configure-template \\"
         },
         {
-          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation prepare-evals \\",
-          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation prepare-evals \\"
-        },
-        {
-          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation stage-evals \\",
-          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation stage-evals \\"
-        },
-        {
-          "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation fulfill-evals \\",
-          "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation fulfill-evals \\"
-        },
-        {
           "from": "python3 <installed-skill-root>/scripts/bpg_runner.py \\\n  --operation writing-eval.prepare \\",
           "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation writing-eval.prepare \\"
         },
@@ -67,12 +59,8 @@
           "to": "python3 ${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py \\\n  --operation writing-eval.review \\"
         },
         {
-          "from": "Map explicit `$better-product-graph` and equivalent natural language through the same Host parser:",
-          "to": "Map explicit `/better-product-graph:better-product-graph <intent>` entries and equivalent natural language through the same Host parser:"
-        },
-        {
-          "from": "2. Run the installed `scripts/bpg_runner.py --self-check` before a state-changing intent. Resolve all paths relative to this installed Skill, never the source checkout.",
-          "to": "2. Run the installed `${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py --self-check` before a state-changing intent. Resolve every path from `${CLAUDE_PLUGIN_ROOT}`, never the source checkout."
+          "from": "2. Run installed self-check before a state-changing request. Resolve all paths relative to the installed Skill, never the source checkout.",
+          "to": "2. Run `${CLAUDE_PLUGIN_ROOT}/skills/better-product-graph/scripts/bpg_runner.py --self-check` before a state-changing request. Resolve every path from `${CLAUDE_PLUGIN_ROOT}`, never the source checkout."
         }
       ]
     },

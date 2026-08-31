@@ -127,6 +127,19 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(result["bpg_version"], "0.2.18-rc.4")
 
+    def test_legacy_pack_range_rejects_bpg_2_without_project_configuration(self) -> None:
+        pack = self._write_pack(requires_bpg=">=0.2.13,<0.3.0")
+
+        with self.assertRaisesRegex(TemplatePackError, "requires BPG"):
+            configure_project_template(
+                project_root=self.project,
+                templates_root=TEMPLATES,
+                pack_root=pack,
+                bpg_version="2.0.0",
+            )
+
+        self.assertFalse((self.project / ".better-product-graph").exists())
+
     def test_template_hash_mismatch_is_rejected_without_half_configuration(self) -> None:
         pack = self._write_pack(
             manifest_overrides={"template_sha256": "sha256:" + "0" * 64}
@@ -266,7 +279,7 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         self.assertEqual(len(config["history"]), 2)
 
     def test_built_runner_exposes_internal_non_graph_configuration_action(self) -> None:
-        pack = self._write_pack()
+        pack = self._write_pack(requires_bpg=">=2.0.0,<3.0.0")
         built = self.root / "built-plugin"
         build_plugin(REPO_ROOT, built)
         runner = built / "skills/better-product-graph/scripts/bpg_runner.py"
@@ -291,7 +304,7 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(result["configuration_action"], "PROJECT_TEMPLATE_CONFIGURE")
         self.assertEqual(result["graph_run_created"], False)
-        self.assertEqual(result["bpg_version"], "0.2.20")
+        self.assertEqual(result["bpg_version"], "2.0.0")
         self.assertFalse((self.project / ".better-product-graph/runs").exists())
 
     def test_legacy_install_operation_is_not_a_user_facing_entry(self) -> None:

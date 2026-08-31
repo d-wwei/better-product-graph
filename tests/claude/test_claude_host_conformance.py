@@ -114,7 +114,12 @@ class ClaudeDistributionHostConformanceTests(unittest.TestCase):
             self.assertTrue(report["installed_identity"]["valid"])
             self.assertEqual(report["strict_validate_status"], "PASS")
             self.assertEqual(report["plugin_contract_status"], "PASS")
-            self.assertEqual(report["installed_entry_status"], "ACTIVATED")
+            self.assertEqual(
+                report["installed_entry_status"],
+                "HOST_AGENT_ACTION_REQUIRED",
+            )
+            self.assertEqual(report["installed_default_runtime"], "BPG_2_0_ALPHA")
+            self.assertEqual(report["installed_alpha_start_position"], "UNDERSTAND")
             self.assertEqual(report["state_location_status"], "PASS")
             self.assertEqual(report["uninstall_status"], "PASS")
             self.assertEqual(report["rollback_status"], "PASS")

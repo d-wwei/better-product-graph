@@ -46,18 +46,6 @@ class InstalledHostContractTests(unittest.TestCase):
         self.assertIsNotNone(match, f"installed {skill} instruction must expose {marker}")
         return json.loads(match.group(1))
 
-    def _public_contract(self, marker: str) -> dict:
-        skill = (
-            self.plugin / "skills" / "better-product-graph" / "SKILL.md"
-        ).read_text(encoding="utf-8")
-        match = re.search(
-            rf"<!-- {re.escape(marker)} -->\s*```json\s*(\{{.*?\}})\s*```",
-            skill,
-            flags=re.DOTALL,
-        )
-        self.assertIsNotNone(match, f"installed public Skill must expose {marker}")
-        return json.loads(match.group(1))
-
     def test_signal_and_evidence_instructions_expose_complete_semantic_outputs(self) -> None:
         prepared = self._contract("signal-intake", "signal-prepare-semantic-output-contract")
         collected = self._contract("evidence", "evidence-collect-semantic-output-contract")
@@ -103,25 +91,21 @@ class InstalledHostContractTests(unittest.TestCase):
         self.assertEqual(len(roles), len(set(roles)))
         self.assertTrue(all(item.get("path") and item.get("hash") for item in review["upstream_refs"]))
 
-    def test_public_skill_exposes_the_exact_host_submission_control_plane(self) -> None:
-        envelope = self._public_contract("host-node-result-envelope-contract")
+    def test_public_skill_exposes_only_the_default_bpg2_control_plane(self) -> None:
         skill = (
             self.plugin / "skills" / "better-product-graph" / "SKILL.md"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("--operation submit", skill)
+        self.assertIn("## Default public entry", skill)
+        self.assertIn("legacy 0.x public route is removed", skill)
+        self.assertIn("--operation alpha", skill)
         self.assertIn("--payload-file", skill)
-        self.assertIn("--operation fulfill-evals", skill)
-        self.assertIn("--operation prepare-evals", skill)
-        self.assertIn("--operation stage-evals", skill)
-        self.assertIn("product-eval-pack-submission.v1", skill)
-        self.assertTrue((self.references / "evals-build" / "INSTRUCTIONS.md").is_file())
-        self.assertTrue((self.references / "evals-review" / "INSTRUCTIONS.md").is_file())
-        self.assertIn("evals-fulfillment-submission.v1", skill)
-        self.assertEqual(envelope["schema_version"], "node-result.v1")
-        self.assertEqual(envelope["producer"]["kind"], "HOST_AGENT")
-        self.assertIn("semantic_output", envelope)
-        self.assertIn("artifact_refs", envelope)
+        self.assertNotIn("--operation submit", skill)
+        self.assertNotIn("--operation owner-choice", skill)
+        self.assertNotIn("--operation prepare-evals", skill)
+        self.assertNotIn("--operation stage-evals", skill)
+        self.assertNotIn("--operation fulfill-evals", skill)
+        self.assertNotIn("host-node-result-envelope-contract", skill)
 
     def test_planning_instruction_exposes_one_validator_ready_semantic_output(self) -> None:
         plan = self._contract(

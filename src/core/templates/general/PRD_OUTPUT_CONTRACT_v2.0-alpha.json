@@ -1,0 +1,27 @@
+{
+  "schema_version": "bpg2-alpha-prd-output-contract.v1",
+  "contract_version": "2.0-alpha.1",
+  "artifact_type": "SINGLE_PRD_RELEASE_SET",
+  "editing_truth": "PRD.md + assets",
+  "default_reading_view": "PRD.html",
+  "required_sections": [
+    "产品概览（TL;DR）",
+    "产品背景、目标与问题定义",
+    "方案概述与需求范围",
+    "核心体验与产品逻辑",
+    "产品需求与业务规则",
+    "验收标准与效果衡量",
+    "风险、依赖与未决事项"
+  ],
+  "required_checklist": [
+    "SCOPE_AND_NON_GOALS",
+    "CORE_FLOW_AND_RECOVERY",
+    "PRODUCT_RULES_STATES_AND_PERMISSIONS",
+    "ACCEPTANCE_AND_PRODUCT_EVALS",
+    "RISKS_UNKNOWNS_AND_DEPENDENCIES",
+    "EVIDENCE_AND_NOT_RUN_BOUNDARIES"
+  ],
+  "conditional_content_policy": "AGENT_DECIDES_AND_RECORDS_OMIT_OR_NOT_APPLICABLE",
+  "semantic_authority": "HOST_AGENT_AND_INDEPENDENT_REVIEWERS",
+  "controller_boundary": "EXACT_BINDING_AND_COMPLETENESS_ONLY"
+}

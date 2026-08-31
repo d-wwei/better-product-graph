@@ -63,6 +63,35 @@ class InstalledPublicReauditTests(unittest.TestCase):
         return self.plugin / "skills" / "better-product-graph" / "scripts" / "bpg_runner.py"
 
     def _run(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        if arguments and not arguments[0].startswith("-"):
+            scripts = self.runner.parent
+            legacy_entry = (
+                "import json, sys\n"
+                "from pathlib import Path\n"
+                "scripts = Path(sys.argv[1]).resolve()\n"
+                "project = Path(sys.argv[2]).resolve()\n"
+                "sys.path.insert(0, str(scripts))\n"
+                "from bpg.host_runtime import HostRuntime\n"
+                "skill = scripts.parent\n"
+                "graph = skill / 'references' / 'graph' / 'manifest.json'\n"
+                "entry = '$better-product-graph ' + ' '.join(sys.argv[3:])\n"
+                "result = HostRuntime(project, graph, skill).handle_entry(entry)\n"
+                "print(json.dumps(result, ensure_ascii=False))\n"
+            )
+            return subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    legacy_entry,
+                    str(scripts),
+                    str(self.project),
+                    *arguments,
+                ],
+                cwd=self.project,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
         return subprocess.run(
             [sys.executable, str(self.runner), *arguments],
             cwd=self.project,

@@ -61,25 +61,51 @@ class InstalledPRDOptimizeRuntimeTests(unittest.TestCase):
         atomic_write_json(path, value)
         return path
 
-    def _invoke(self, *arguments: str) -> dict:
-        completed = subprocess.run(
+    def _invoke_raw(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        if arguments and not arguments[0].startswith("-"):
+            scripts = self._runner().parent
+            legacy_entry = (
+                "import json, sys\n"
+                "from pathlib import Path\n"
+                "scripts = Path(sys.argv[1]).resolve()\n"
+                "project = Path(sys.argv[2]).resolve()\n"
+                "sys.path.insert(0, str(scripts))\n"
+                "from bpg.host_runtime import HostRuntime\n"
+                "skill = scripts.parent\n"
+                "graph = skill / 'references' / 'graph' / 'manifest.json'\n"
+                "entry = '$better-product-graph ' + ' '.join(sys.argv[3:])\n"
+                "result = HostRuntime(project, graph, skill).handle_entry(entry)\n"
+                "print(json.dumps(result, ensure_ascii=False))\n"
+            )
+            return subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    legacy_entry,
+                    str(scripts),
+                    str(self.project),
+                    *arguments,
+                ],
+                cwd=self.project,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        return subprocess.run(
             [sys.executable, str(self._runner()), *arguments],
             cwd=self.project,
             text=True,
             capture_output=True,
             check=False,
         )
+
+    def _invoke(self, *arguments: str) -> dict:
+        completed = self._invoke_raw(*arguments)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         return json.loads(completed.stdout)
 
     def _invoke_error(self, *arguments: str) -> subprocess.CompletedProcess[str]:
-        completed = subprocess.run(
-            [sys.executable, str(self._runner()), *arguments],
-            cwd=self.project,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        completed = self._invoke_raw(*arguments)
         self.assertNotEqual(completed.returncode, 0, completed.stdout)
         return completed
 

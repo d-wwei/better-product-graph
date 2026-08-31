@@ -39,7 +39,7 @@ FINDINGS: dict[str, dict[str, Any]] = {
         "A compatible installed successor resumes a durable unfinished dispatch without rejudging consumed history, exposes both instruction identities to the Host, and keeps undeclared drift zero-write blocked.",
         _id("test_reaudit_recovery_authority", "PublicResumeAuthorityTests", "test_compatible_upgrade_keeps_consumed_history_and_current_dispatch_recoverable"),
         _id("test_reaudit_recovery_authority", "PublicResumeAuthorityTests", "test_undeclared_current_instruction_drift_remains_zero_write_blocked"),
-        _id("test_installed_execution_spine", "InstalledExecutionSpineTests", "test_installed_runner_accepts_new_and_returns_current_host_dispatch"),
+        _id("test_installed_execution_spine", "InstalledExecutionSpineTests", "test_installed_runner_routes_ordinary_new_request_to_bpg2_without_mutation"),
         _id("test_installed_execution_spine", "InstalledExecutionSpineTests", "test_installed_host_context_exposes_declared_compatible_successor"),
     ),
     "ENG-V010-001": _finding(

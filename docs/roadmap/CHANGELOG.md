@@ -1,6 +1,27 @@
 # Better Product Graph Roadmap 版本台账
 
-## 当前版本
+## 当前前向版本
+
+- Product Generation: `BPG 2.x`
+- Roadmap Version: `v0.2`
+- File: `BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.2.md`
+- SHA-256: `8cdcfee2dfb5b9bdcda45b7e70acb2383e65f67da8e2bea0326acfcd6eb6141b`
+- Date: 2026-08-31
+- Status: current working roadmap
+- Forward Supersedes: `BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.1.md`
+
+该文件是新的前向规划入口。它接受 Owner 对 `2.0.0` 软件身份的更正，不改写 v0.1、旧 0.x Roadmap、历史 Release、旧 Run 或既有验收结论。
+
+## 上一份 BPG 2.x 前向版本
+
+- Version: `v0.1`
+- File: `BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.1.md`
+- SHA-256: `9e6a02e328052dd23d656fec9e931059c4f9510919541badfe6848429789cf7f`
+- Date: 2026-08-31
+- Status: frozen / superseded
+- Superseded By: `v0.2`
+
+## 上一代前向版本
 
 - Version: `v0.17`
 - File: `BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md`
@@ -95,6 +116,8 @@
 
 | Version | Date | Status | File | Supersedes | Summary |
 |---|---|---|---|---|---|
+| BPG 2.x Roadmap v0.2 | 2026-08-31 | current working roadmap | `BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.2.md` | BPG 2.x Roadmap v0.1 | 接受 Owner 的版本更正：当前完全替换旧架构的软件身份直接使用 `2.0.0`，成熟度以 `Developer Alpha / Unreleased` 单独表达；先推公开源码快照且不创建 GitHub Release，再继续 2.1—2.5 能力演进 |
+| BPG 2.x Roadmap v0.1 | 2026-08-31 | frozen / superseded | `BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.1.md` | v0.17 as forward planning authority | 建立 BPG 2.x 新 Roadmap；分开产品代际、2.1—2.5 能力里程碑、插件 SemVer 和文档版本；原先安排先发 `2.0.0-alpha.N`、完成后再判断稳定 `2.0.0`，该版本策略已由 v0.2 取代 |
 | v0.1 | 2026-08-19 | frozen / superseded draft | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md` | none | 用六个可验证 Waves 安排本地 Core、Codex Host Adapter、瘦身 Bootstrap、首条 Product Loop、多路线、Evals/TDD-ready Test Design、Knowledge Maintenance、选择性 Connectors 与试点加固；区分已设计、已实现和未来扩展 |
 | v0.2 | 2026-08-19 | frozen / superseded draft | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.2.md` | v0.1 | 在低优先级 Optional Delight / Parking Lot 中登记未来可能加入插件彩蛋的开放想法；不定义内容、触发或实现时点，不绑定 Wave/验收，也不新增架构合同 |
 | v0.3 | 2026-08-20 | frozen / superseded draft | `BETTER_PRODUCT_GRAPH_ROADMAP_v0.3.md` | v0.2 | 记录 PRD Ready 六项最小稳定基线及 Wave 4—6 的条件式演进，删除 PRD 阶段默认 Owner 二次确认歧义，并明确未来检查的准入与永久排除边界；不新增或重排 Wave |
@@ -115,10 +138,10 @@
 
 ## Next Version Rule
 
-本文交付后冻结。后续修改必须创建新文件，例如：
+当前 BPG 2.x Roadmap 交付后冻结。后续修改必须创建新文件，例如：
 
 ```text
-BETTER_PRODUCT_GRAPH_ROADMAP_v0.18.md
+BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.2.md
 ```
 
-不得原位修改已经冻结的 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.2.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.3.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.4.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.5.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.6.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.7.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.8.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.9.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.10.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.11.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.12.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.13.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.14.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.15.md`、`BETTER_PRODUCT_GRAPH_ROADMAP_v0.16.md` 或 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md`；后续新版本必须记录 supersedes 关系并保留历史文件。
+不得原位修改 `BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.1.md`，也不得修改已经冻结的 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.1.md` 至 `BETTER_PRODUCT_GRAPH_ROADMAP_v0.17.md`；后续新版本必须记录 supersedes 关系并保留历史文件。

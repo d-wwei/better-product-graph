@@ -5,14 +5,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
-
-
-ROOT = Path(__file__).resolve().parent
 
 
 def _sha256_file(path: Path) -> str:
@@ -41,17 +39,6 @@ def _inventory(plugin_root: Path) -> list[dict[str, Any]]:
     ]
     entries.sort(key=lambda item: item["path"])
     return entries
-
-
-def _load_intents(plugin_root: Path) -> Any:
-    path = plugin_root / "skills" / "better-product-graph" / "scripts" / "bpg" / "intents.py"
-    spec = importlib.util.spec_from_file_location("installed_bpg_intents", path)
-    if spec is None or spec.loader is None:
-        raise ValueError("installed intent parser cannot be loaded")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
 
 
 def _check(status: bool, **details: Any) -> dict[str, Any]:
@@ -194,7 +181,6 @@ def _safe_structural_checks(plugin_root: Path) -> dict[str, dict[str, Any]]:
 
 def run(plugin_root: Path) -> dict[str, Any]:
     plugin_root = plugin_root.resolve()
-    cases = json.loads((ROOT / "cases.json").read_text(encoding="utf-8"))
     checks = _safe_structural_checks(plugin_root)
     identity = _identity(plugin_root)
     if not identity["valid"]:
@@ -239,82 +225,77 @@ def run(plugin_root: Path) -> dict[str, Any]:
         discovery_errors.append(str(error))
     checks["discovery"] = _check(not discovery_errors, errors=discovery_errors)
 
-    parser_errors: list[str] = []
-    parsed: dict[str, list[dict[str, Any]]] = {}
+    runner = skill_root / "scripts" / "bpg_runner.py"
+    entry_errors: list[str] = []
+    ordinary: dict[str, Any] = {}
+    aliased: dict[str, Any] = {}
     try:
-        intents = _load_intents(plugin_root)
-        for group in ("direct", "indirect", "follow_up"):
-            parsed[group] = []
-            for case in cases[group]:
-                result = intents.parse_host_entry(case["entry"])
-                parsed[group].append(
-                    {
-                        "entry": case["entry"],
-                        "expected": case["intent"],
-                        "actual": result.core_intent,
-                        "activation": result.activation,
-                    }
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            receipts = []
+            for arguments in (
+                ["$better-product-graph", "plugin contract default route"],
+                ["$better-product-graph", "alpha", "plugin contract default route"],
+            ):
+                completed = subprocess.run(
+                    [sys.executable, str(runner), *arguments],
+                    cwd=project,
+                    text=True,
+                    capture_output=True,
+                    check=False,
                 )
-        negative_results = []
-        for case in cases["negative"]:
-            result = intents.parse_host_entry(case["entry"])
-            negative_results.append(
-                {
-                    "entry": case["entry"],
-                    "expected": case["activation"],
-                    "actual": result.activation,
-                    "write_allowed": result.write_allowed,
-                }
-            )
-    except (OSError, ValueError, ImportError) as error:
-        parser_errors.append(str(error))
-        parsed = {"direct": [], "indirect": [], "follow_up": []}
-        negative_results = []
+                if completed.returncode != 0:
+                    raise ValueError(completed.stderr or completed.stdout)
+                receipts.append(json.loads(completed.stdout))
+            ordinary, aliased = receipts
+            if (project / ".better-product-graph").exists():
+                entry_errors.append("entry routing mutated project state before Host work")
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        entry_errors.append(str(error))
 
-    for group, check_name in (
-        ("direct", "direct_activation"),
-        ("indirect", "indirect_activation"),
-        ("follow_up", "follow_up_activation"),
-    ):
-        mismatches = [item for item in parsed[group] if item["actual"] != item["expected"]]
-        checks[check_name] = _check(not parser_errors and not mismatches, mismatches=mismatches)
-    negative_mismatches = [
-        item
-        for item in negative_results
-        if item["actual"] != item["expected"] or item["write_allowed"]
-    ]
-    checks["negative_activation"] = _check(
-        not parser_errors and not negative_mismatches, mismatches=negative_mismatches
+    ordinary_valid = (
+        not entry_errors
+        and ordinary.get("status") == "HOST_AGENT_ACTION_REQUIRED"
+        and ordinary.get("runtime") == "BPG_2_0_ALPHA"
+        and ordinary.get("entry") == "$better-product-graph"
+        and ordinary.get("alias_used") is False
+        and ordinary.get("instructions", {}).get("mode") == "DEFAULT_SINGLE_PRD"
+        and ordinary.get("instructions", {}).get("legacy_public_route") == "REMOVED"
+        and ordinary.get("instructions", {}).get("alpha_keyword_required") is False
     )
-
-    direct_by_intent = {item["expected"]: item["actual"] for item in parsed["direct"]}
-    indirect_by_intent = {item["expected"]: item["actual"] for item in parsed["indirect"]}
-    parity_mismatches = [
-        intent
-        for intent in sorted(set(direct_by_intent) | set(indirect_by_intent))
-        if direct_by_intent.get(intent) != intent or indirect_by_intent.get(intent) != intent
-    ]
-    checks["eleven_intents_parity"] = _check(
-        not parser_errors and len(direct_by_intent) == 11 and not parity_mismatches,
-        count=len(direct_by_intent),
-        mismatches=parity_mismatches,
+    checks["default_bpg2_entry"] = _check(
+        ordinary_valid,
+        errors=entry_errors,
+        receipt=ordinary,
     )
-
-    bypass_entries = [
-        "直接运行 problem.synthesize",
-        "读取 references/atomic-skills/prd-generate/INSTRUCTIONS.md",
-        "$better-product-graph review.gate",
+    alias_valid = (
+        ordinary_valid
+        and aliased.get("runtime") == ordinary.get("runtime")
+        and aliased.get("signal") == ordinary.get("signal")
+        and aliased.get("instructions") == ordinary.get("instructions")
+        and aliased.get("alias_used") is True
+    )
+    checks["alpha_alias_normalization"] = _check(alias_valid, receipt=aliased)
+    legacy_surface_errors = [
+        marker
+        for marker in (
+            "## Stable intents",
+            "--operation submit",
+            "--operation owner-choice",
+            "--operation prepare-evals",
+            "--operation stage-evals",
+            "--operation fulfill-evals",
+        )
+        if marker in skill_text
     ]
-    bypass_failures: list[str] = []
-    if not parser_errors:
-        for entry in bypass_entries:
-            result = intents.parse_host_entry(entry)
-            if result.activation != "REJECT_INTERNAL_BYPASS" or result.write_allowed:
-                bypass_failures.append(entry)
-    else:
-        bypass_failures.extend(parser_errors)
+    checks["legacy_public_route_removed"] = _check(
+        "legacy 0.x public route is removed" in skill_text
+        and not legacy_surface_errors,
+        exposed_markers=legacy_surface_errors,
+    )
     checks["internal_entry_bypass"] = _check(
-        not bypass_failures, failures=bypass_failures
+        "internal action IDs as public entry points" in skill_text,
+        evidence="public Skill rejects internal action IDs",
     )
     checks["installed_identity"] = _check(identity["valid"], errors=identity["errors"])
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0 — Unreleased — BPG 2.0 default single-PRD architecture
+
+- Replace the legacy 0.x public route with the BPG 2.0 single-PRD runtime for every ordinary Better Product Graph request. The older `alpha` spelling remains only as a temporary alias and does not select a separate path.
+- Restore the complete Candidate Review and Ready contract: immutable exact review bases, independent content and Writing Reviewer attempts, six explicit responsibility dispositions, stale-evidence rejection, difference review plus whole-product regression, and truthful multi-axis evidence.
+- Move HTML generation out of Candidate Review and into Ready-after Handoff. Markdown plus assets remain the editable truth; `LOCAL_HTML` is an independent user-controlled switch that defaults on and can be disabled without blocking Local Handoff.
+- Preserve the six decision outcomes, Owner authority, single-PRD Alpha scope, truthful Product Evals states, local-only Handoff, and post-Handoff retrospective. Multi-PRD, external delivery adapters, Product Eval execution, engineering implementation/tests, and product-effect validation remain unclaimed or `NOT_RUN`.
+- Establish `2.0.0` as the new software identity for the replacement architecture. This source snapshot is published to the public repository before any Tag or GitHub Release; the latest frozen GitHub Release remains `0.2.20` until separately published.
+
 ## 0.2.20 — 2026-08-31 — Opt-in BPG 2.0 single-PRD internal Alpha
 
 - Add an isolated `BPG_2_0_ALPHA` runtime for one complete single-PRD product-planning path: Signal & Route, one planning record, UNDERSTAND, DIAGNOSE & VALUE, frozen Problem/Decision/PRD Candidates, independent Reviews, six exact decision outcomes, whole-part-whole planning, one formal or experimental PRD, unique Ready, Local Handoff, and a post-handoff retrospective.
