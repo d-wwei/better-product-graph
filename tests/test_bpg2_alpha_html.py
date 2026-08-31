@@ -28,11 +28,21 @@ class BPG2AlphaHTMLTests(unittest.TestCase):
             render_self_contained_prd_html("![x](https://example.com/x.png)", {})
         with self.assertRaisesRegex(ValueError, "missing asset"):
             render_self_contained_prd_html("![x](assets/missing.png)", {})
-        with self.assertRaisesRegex(ValueError, "raster"):
+        with self.assertRaisesRegex(ValueError, "unsafe SVG"):
             render_self_contained_prd_html(
                 "![x](assets/active.svg)",
                 {"assets/active.svg": b'<svg><script>alert(1)</script></svg>'},
             )
+
+        safe_svg = (
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320">'
+            b'<title>Safe flow</title><text x="20" y="40">Done</text></svg>'
+        )
+        rendered = render_self_contained_prd_html(
+            "![x](assets/safe.svg)", {"assets/safe.svg": safe_svg}
+        )
+        expected = base64.b64encode(safe_svg).decode("ascii")
+        self.assertIn(f"data:image/svg+xml;base64,{expected}", rendered)
 
     def test_renderer_preserves_nested_lists_inside_one_ordered_sequence(self) -> None:
         rendered = render_self_contained_prd_html(

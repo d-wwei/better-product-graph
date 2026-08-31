@@ -1,7 +1,7 @@
 """Mechanical safety and exact binding for reader-visible PRD visuals.
 
-The checks prove only that a rendered visual is local, inert, readable,
-paired, and bound to exact bytes. They do not judge usefulness.
+The editable SVG is the review truth.  A PNG is an optional Handoff derivative,
+never a prerequisite for Candidate freeze or content Review.
 """
 
 from __future__ import annotations
@@ -53,6 +53,10 @@ _SAFE_VIEWBOX_NUMBER = re.compile(
 _URI_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
 _KNOWN_VISUAL_SUFFIXES = (
     ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico",
+)
+_MERMAID_HEADER = re.compile(
+    r"^(?:flowchart|graph|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|"
+    r"erDiagram|journey|gantt|mindmap|timeline|quadrantChart|xychart-beta)\b"
 )
 
 _ALLOWED_SVG_ELEMENTS = {
@@ -514,50 +518,79 @@ def _validate_visual_pair_payloads(
     *,
     referenced: bool,
 ) -> dict[str, Any]:
-    """Validate one exact managed SVG/PNG pair from already-read bytes."""
+    """Validate one exact managed SVG source and an optional PNG derivative."""
 
     png_name = f"{svg_name[:-4]}@2x.png"
     vector = assets.get(svg_name)
     raster = assets.get(png_name)
     if not isinstance(vector, bytes):
         raise VisualAssetError(f"missing reader-visible SVG: {svg_name}")
-    if not isinstance(raster, bytes):
-        raise VisualAssetError(f"missing PNG pair for visual asset: {png_name}")
     try:
         svg_width, svg_height = _validate_svg(vector)
     except VisualAssetError as error:
         label = "reader-visible SVG" if referenced else "malicious orphan SVG"
         raise VisualAssetError(f"{label} {svg_name} is unsafe: {error}") from error
-    png_width, png_height = _png_dimensions(raster)
-    if (
-        min(png_width, png_height) < MIN_RASTER_SHORT_SIDE
-        or max(png_width, png_height) < MIN_RASTER_LONG_SIDE
-    ):
-        raise VisualAssetError(
-            f"reader-visible PNG {png_name} requires at least "
-            f"{MIN_RASTER_SHORT_SIDE}px short side and {MIN_RASTER_LONG_SIDE}px long side"
+    png_width = png_height = None
+    if raster is not None:
+        if not isinstance(raster, bytes):
+            raise VisualAssetError(f"reader-visible PNG payload must be bytes: {png_name}")
+        png_width, png_height = _png_dimensions(raster)
+        if (
+            min(png_width, png_height) < MIN_RASTER_SHORT_SIDE
+            or max(png_width, png_height) < MIN_RASTER_LONG_SIDE
+        ):
+            raise VisualAssetError(
+                f"reader-visible PNG {png_name} requires at least "
+                f"{MIN_RASTER_SHORT_SIDE}px short side and {MIN_RASTER_LONG_SIDE}px long side"
+            )
+        aspect_difference = abs(
+            Fraction(png_width) * svg_height
+            - svg_width * Fraction(png_height)
         )
-    aspect_difference = abs(
-        Fraction(png_width) * svg_height
-        - svg_width * Fraction(png_height)
-    )
-    expected_cross_product = svg_width * Fraction(png_height)
-    if aspect_difference * 100 > expected_cross_product * 5:
-        raise VisualAssetError(
-            f"reader-visible PNG {png_name} must preserve the SVG aspect ratio within 5%"
-        )
-    return {
+        expected_cross_product = svg_width * Fraction(png_height)
+        if aspect_difference * 100 > expected_cross_product * 5:
+            raise VisualAssetError(
+                f"reader-visible PNG {png_name} must preserve the SVG aspect ratio within 5%"
+            )
+    result = {
         "svg_name": svg_name,
-        "png_name": png_name,
+        "png_name": png_name if raster is not None else None,
         "svg_dimensions": [str(svg_width), str(svg_height)],
-        "png_dimensions": [png_width, png_height],
+        "png_dimensions": (
+            [png_width, png_height] if raster is not None else None
+        ),
     }
+    mermaid_name = f"{svg_name[:-4]}.mmd"
+    if mermaid_name in assets:
+        result["mermaid_name"] = mermaid_name
+    return result
+
+
+def _validate_mermaid_source(name: str, content: bytes) -> None:
+    try:
+        source = content.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise VisualAssetError(f"Mermaid source must be UTF-8: {name}") from error
+    if len(content) > 1_000_000:
+        raise VisualAssetError(f"Mermaid source exceeds the safe size limit: {name}")
+    first = next(
+        (line.strip() for line in source.splitlines() if line.strip() and not line.lstrip().startswith("%%")),
+        "",
+    )
+    if _MERMAID_HEADER.match(first) is None:
+        raise VisualAssetError(f"Mermaid source uses an unsupported diagram type: {name}")
+    if re.search(
+        r"%%\{|\bclick\b|<\s*script\b|javascript:|data:|https?://",
+        source,
+        flags=re.I,
+    ):
+        raise VisualAssetError(f"Mermaid source contains active or external content: {name}")
 
 
 def validate_reader_visible_asset_payloads(
     markdown: str, assets: Mapping[str, bytes]
 ) -> list[dict[str, Any]]:
-    """Validate only rendered Markdown image SVG pairs from an asset payload."""
+    """Validate rendered Markdown SVG sources and optional PNG derivatives."""
 
     pairs: list[dict[str, Any]] = []
     for svg_name in _reader_visible_svg_names(markdown):
@@ -568,7 +601,10 @@ def validate_reader_visible_asset_payloads(
 
 
 def validate_managed_visual_asset_tree(
-    markdown: str, assets: Mapping[str, bytes]
+    markdown: str,
+    assets: Mapping[str, bytes],
+    *,
+    require_png: bool = True,
 ) -> list[dict[str, Any]]:
     """Validate every visual in a strict Profile's final immutable asset tree."""
 
@@ -586,6 +622,7 @@ def validate_managed_visual_asset_tree(
 
     svg_names: set[str] = set()
     png_names: set[str] = set()
+    mermaid_names: set[str] = set()
     for name in normalized:
         lowered = name.casefold()
         if lowered.endswith(".png"):
@@ -596,17 +633,29 @@ def validate_managed_visual_asset_tree(
             if not name.endswith(".svg"):
                 raise VisualAssetError(f"unknown visual asset: {name}")
             svg_names.add(name)
+        elif lowered.endswith(".mmd"):
+            if not name.endswith(".mmd"):
+                raise VisualAssetError(f"unknown Mermaid source asset: {name}")
+            mermaid_names.add(name)
         elif lowered.endswith(_KNOWN_VISUAL_SUFFIXES):
             raise VisualAssetError(f"unknown visual asset: {name}")
 
-    for svg_name in sorted(svg_names):
-        png_name = f"{svg_name[:-4]}@2x.png"
-        if png_name not in png_names:
-            raise VisualAssetError(f"missing PNG pair for visual asset: {png_name}")
     for png_name in sorted(png_names):
         svg_name = f"{png_name[:-7]}.svg"
         if svg_name not in svg_names:
             raise VisualAssetError(f"orphan PNG pair without SVG: {png_name}")
+    if require_png:
+        for svg_name in sorted(svg_names):
+            png_name = f"{svg_name[:-4]}@2x.png"
+            if png_name not in png_names:
+                raise VisualAssetError(f"missing PNG pair for SVG: {svg_name}")
+    for mermaid_name in sorted(mermaid_names):
+        svg_name = f"{mermaid_name[:-4]}.svg"
+        if svg_name not in svg_names:
+            raise VisualAssetError(
+                f"orphan Mermaid source without SVG preview: {mermaid_name}"
+            )
+        _validate_mermaid_source(mermaid_name, normalized[mermaid_name])
     missing_referenced = sorted(referenced - svg_names)
     if missing_referenced:
         raise VisualAssetError(f"missing reader-visible SVG: {missing_referenced[0]}")
@@ -646,18 +695,13 @@ def _regular_managed_file(root: Path, path: Path, *, label: str) -> Path:
     return resolved
 
 
-def inspect_reader_visible_visual_assets(
+def _load_managed_visual_payloads(
     project_root: Path, candidate_path: Path
-) -> list[dict[str, Any]]:
-    """Validate and exact-bind one read of each visible visual pair."""
-
+) -> tuple[Path, Path, dict[str, bytes]]:
+    """Read one symlink-free managed asset tree for either scan entry point."""
     root = project_root.absolute()
     resolved_root = root.resolve()
     candidate = _regular_managed_file(root, candidate_path, label="Candidate Markdown")
-    try:
-        markdown = candidate.read_bytes().decode("utf-8")
-    except UnicodeError as error:
-        raise VisualAssetError("Candidate Markdown must be UTF-8") from error
     candidate_tree = candidate.parent
     payloads: dict[str, bytes] = {}
     assets_root = candidate_tree / "assets"
@@ -687,28 +731,76 @@ def inspect_reader_visible_visual_assets(
             except ValueError as error:
                 raise VisualAssetError(f"unsafe reader-visible asset path: {name}") from error
             payloads[name] = managed.read_bytes()
-    raw_pairs = validate_managed_visual_asset_tree(markdown, payloads)
+    return resolved_root, candidate, payloads
+
+
+def _visual_payload_refs(
+    resolved_root: Path, candidate: Path, payloads: Mapping[str, bytes]
+) -> dict[str, dict[str, Any]]:
+    return {
+        name: {
+            "path": (candidate.parent / "assets" / name)
+            .relative_to(resolved_root)
+            .as_posix(),
+            "hash": sha256_bytes(payload),
+            "version": VISUAL_REF_VERSION,
+        }
+        for name, payload in payloads.items()
+    }
+
+
+def _bind_validated_visual_pairs(
+    raw_pairs: list[dict[str, Any]],
+    assets: Mapping[str, bytes],
+    asset_refs: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
     pairs: list[dict[str, Any]] = []
     for pair in raw_pairs:
         svg_name = pair["svg_name"]
         png_name = pair["png_name"]
-        svg_path = candidate_tree / "assets" / svg_name
-        png_path = candidate_tree / "assets" / png_name
-        pairs.append(
-            {
-                "svg_ref": {
-                    "path": svg_path.relative_to(resolved_root).as_posix(),
-                    "hash": sha256_bytes(payloads[svg_name]),
-                    "version": VISUAL_REF_VERSION,
-                },
-                "png_ref": {
-                    "path": png_path.relative_to(resolved_root).as_posix(),
-                    "hash": sha256_bytes(payloads[png_name]),
-                    "version": VISUAL_REF_VERSION,
-                },
-            }
+        mermaid_name = pair.get("mermaid_name")
+        svg_ref = dict(asset_refs.get(svg_name, {}))
+        png_ref = dict(asset_refs.get(png_name, {})) if png_name else None
+        mermaid_ref = (
+            dict(asset_refs.get(mermaid_name, {})) if mermaid_name else None
         )
+        bound = ((svg_name, svg_ref),)
+        if png_name:
+            bound += ((png_name, png_ref),)
+        if mermaid_name:
+            bound += ((mermaid_name, mermaid_ref),)
+        if any(
+            not isinstance(ref, dict)
+            or set(ref) != {"path", "hash", "version"}
+            or ref["hash"] != sha256_bytes(assets[name])
+            for name, ref in bound
+        ):
+            raise VisualAssetError("visual payload refs are incomplete or stale")
+        bound_pair = {"svg_ref": svg_ref, "png_ref": png_ref}
+        if mermaid_ref is not None:
+            bound_pair["mermaid_source_ref"] = mermaid_ref
+        pairs.append(bound_pair)
     return pairs
+
+
+def inspect_reader_visible_visual_assets(
+    project_root: Path, candidate_path: Path
+) -> list[dict[str, Any]]:
+    """Validate and exact-bind one read of each visible visual source."""
+
+    resolved_root, candidate, payloads = _load_managed_visual_payloads(
+        project_root, candidate_path
+    )
+    try:
+        markdown = candidate.read_bytes().decode("utf-8")
+    except UnicodeError as error:
+        raise VisualAssetError("Candidate Markdown must be UTF-8") from error
+    raw_pairs = validate_managed_visual_asset_tree(markdown, payloads)
+    return _bind_validated_visual_pairs(
+        raw_pairs,
+        payloads,
+        _visual_payload_refs(resolved_root, candidate, payloads),
+    )
 
 
 def _line_basis_for_spans(
@@ -746,37 +838,21 @@ def _active_visual_spans(source: str) -> list[tuple[int, int]]:
     return sorted(set(spans))
 
 
-def scan_reader_visible_visual_source(
-    project_root: Path,
-    candidate_path: Path,
+def scan_reader_visible_visual_payloads(
+    markdown_payload: bytes,
     *,
     candidate_ref: Mapping[str, Any],
+    assets: Mapping[str, bytes],
+    asset_refs: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
-    """Classify visuals before any rich-content inspection or rendering.
-
-    Unsafe or unavailable visuals remain reviewable only as exact source text.
-    This function deliberately does not call the strict visual inspector when
-    active raw inline SVG is present, so active SVG bytes never reach a visual
-    consumer during ordinary Review.
-    """
+    """Classify an immutable Candidate from content-addressed payloads."""
 
     if set(candidate_ref) != {"path", "hash", "version"}:
         raise VisualAssetError("visual source scan requires one closed exact Candidate ref")
-    root = project_root.absolute()
-    candidate = _regular_managed_file(
-        root, candidate_path, label="Candidate Markdown"
-    )
-    payload = candidate.read_bytes()
-    if sha256_bytes(payload) != candidate_ref.get("hash"):
+    if sha256_bytes(markdown_payload) != candidate_ref.get("hash"):
         raise VisualAssetError("visual source scan exact Candidate hash differs")
     try:
-        expected_path = candidate.relative_to(root.resolve()).as_posix()
-    except ValueError as error:
-        raise VisualAssetError("Candidate Markdown is outside the managed project") from error
-    if candidate_ref.get("path") != expected_path:
-        raise VisualAssetError("visual source scan exact Candidate path differs")
-    try:
-        markdown = payload.decode("utf-8")
+        markdown = markdown_payload.decode("utf-8")
     except UnicodeDecodeError as error:
         raise VisualAssetError("Candidate Markdown must be UTF-8") from error
 
@@ -805,7 +881,10 @@ def scan_reader_visible_visual_source(
         }
 
     try:
-        safe_pairs = inspect_reader_visible_visual_assets(root, candidate)
+        raw_pairs = validate_managed_visual_asset_tree(
+            markdown, assets, require_png=False
+        )
+        safe_pairs = _bind_validated_visual_pairs(raw_pairs, assets, asset_refs)
     except VisualAssetError as error:
         spans = _active_visual_spans(markdown)
         if not spans:
@@ -838,3 +917,32 @@ def scan_reader_visible_visual_source(
         "safe_visual_pairs": safe_pairs,
         "render_status": "NOT_RENDERED",
     }
+
+
+def scan_reader_visible_visual_source(
+    project_root: Path,
+    candidate_path: Path,
+    *,
+    candidate_ref: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Classify visuals before any rich-content inspection or rendering.
+
+    Unsafe or unavailable visuals remain reviewable only as exact source text.
+    This function deliberately does not call the strict visual inspector when
+    active raw inline SVG is present, so active SVG bytes never reach a visual
+    consumer during ordinary Review.
+    """
+
+    resolved_root, candidate, payloads = _load_managed_visual_payloads(
+        project_root, candidate_path
+    )
+    payload = candidate.read_bytes()
+    expected_path = candidate.relative_to(resolved_root).as_posix()
+    if candidate_ref.get("path") != expected_path:
+        raise VisualAssetError("visual source scan exact Candidate path differs")
+    return scan_reader_visible_visual_payloads(
+        payload,
+        candidate_ref=candidate_ref,
+        assets=payloads,
+        asset_refs=_visual_payload_refs(resolved_root, candidate, payloads),
+    )

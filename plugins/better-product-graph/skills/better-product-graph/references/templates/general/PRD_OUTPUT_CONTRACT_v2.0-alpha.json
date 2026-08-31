@@ -1,9 +1,14 @@
 {
-  "schema_version": "bpg2-alpha-prd-output-contract.v1",
-  "contract_version": "2.0-alpha.1",
+  "schema_version": "bpg2-alpha-prd-output-contract.v2",
+  "contract_version": "2.0-alpha.2",
   "artifact_type": "SINGLE_PRD_RELEASE_SET",
   "editing_truth": "PRD.md + assets",
-  "default_reading_view": "PRD.html",
+  "default_reading_view": {
+    "selection_stage": "HANDOFF",
+    "when_local_html_enabled": "PRD.html",
+    "when_local_html_disabled": "PRD.md",
+    "authoritative_ref": "HANDOFF_MANIFEST.json#delivery.primary_reading_ref"
+  },
   "required_sections": [
     "产品概览（TL;DR）",
     "产品背景、目标与问题定义",

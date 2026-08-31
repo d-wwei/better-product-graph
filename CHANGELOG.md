@@ -1,12 +1,15 @@
 # Changelog
 
-## 2.0.0 — Unreleased — BPG 2.0 default single-PRD architecture
+## 2.0.0 — 2026-09-01 — BPG 2.0 default single-PRD architecture
 
 - Replace the legacy 0.x public route with the BPG 2.0 single-PRD runtime for every ordinary Better Product Graph request. The older `alpha` spelling remains only as a temporary alias and does not select a separate path.
 - Restore the complete Candidate Review and Ready contract: immutable exact review bases, independent content and Writing Reviewer attempts, six explicit responsibility dispositions, stale-evidence rejection, difference review plus whole-product regression, and truthful multi-axis evidence.
 - Move HTML generation out of Candidate Review and into Ready-after Handoff. Markdown plus assets remain the editable truth; `LOCAL_HTML` is an independent user-controlled switch that defaults on and can be disabled without blocking Local Handoff.
+- Keep Candidate visuals source-first with safe Mermaid/SVG review assets, and generate target-format derivatives only in Handoff. Self-contained HTML may inline validated SVG after content Review.
+- Make the unavailable Product Evals Generator explicit and fail closed: `RECOMMENDED` remains truthful and non-blocking, while `REQUIRED` cannot reach Ready and cannot be bypassed with simulated Eval attachments.
+- Bind Runs to an exact runtime fingerprint, store immutable Candidates by content hash, keep Reviewer Findings separate from the lead Agent's return route, and retain only the minimum committed operation facts needed for recovery.
 - Preserve the six decision outcomes, Owner authority, single-PRD Alpha scope, truthful Product Evals states, local-only Handoff, and post-Handoff retrospective. Multi-PRD, external delivery adapters, Product Eval execution, engineering implementation/tests, and product-effect validation remain unclaimed or `NOT_RUN`.
-- Establish `2.0.0` as the new software identity for the replacement architecture. This source snapshot is published to the public repository before any Tag or GitHub Release; the latest frozen GitHub Release remains `0.2.20` until separately published.
+- Establish `2.0.0` as the new software identity for the replacement architecture. The exact public source snapshot, Codex and Claude marketplace ZIPs, checksums, `v2.0.0` Tag, and GitHub Release are frozen from development commit `c79eaff4ba59de74bb8d9e572d6bc800eec77720`.
 
 ## 0.2.20 — 2026-08-31 — Opt-in BPG 2.0 single-PRD internal Alpha
 

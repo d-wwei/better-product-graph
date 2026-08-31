@@ -7,9 +7,11 @@ import zlib
 from pathlib import Path
 from unittest.mock import patch
 
+from src.bpg.storage import sha256_bytes
 from src.bpg.visual_assets import (
     VisualAssetError,
     inspect_reader_visible_visual_assets,
+    scan_reader_visible_visual_payloads,
     validate_reader_visible_asset_payloads,
 )
 
@@ -69,11 +71,60 @@ class ReaderVisibleVisualAssetTests(unittest.TestCase):
             )
             self.assertEqual(pairs[0]["svg_ref"]["version"], "reader-visual.v1")
 
-    def test_missing_png_pair_is_rejected(self) -> None:
-        with self.assertRaisesRegex(VisualAssetError, "@2x.png"):
-            validate_reader_visible_asset_payloads(
-                "![流程](./assets/flow.svg)", {"flow.svg": svg()}
-            )
+    def test_svg_source_is_reviewable_without_pregenerated_png(self) -> None:
+        visuals = validate_reader_visible_asset_payloads(
+            "![流程](./assets/flow.svg)", {"flow.svg": svg()}
+        )
+
+        self.assertEqual(visuals[0]["svg_name"], "flow.svg")
+        self.assertIsNone(visuals[0]["png_name"])
+
+    def test_mermaid_source_and_svg_preview_are_bound_before_optional_png(self) -> None:
+        markdown = "# X\n\n![流程](./assets/flow.svg)\n".encode()
+        assets = {
+            "flow.mmd": "flowchart LR\n  A[开始] --> B[完成]\n".encode(),
+            "flow.svg": svg(),
+        }
+        candidate_ref = {
+            "path": "objects/PRD.md",
+            "hash": sha256_bytes(markdown),
+            "version": 1,
+        }
+        asset_refs = {
+            name: {
+                "path": f"objects/{name}",
+                "hash": sha256_bytes(payload),
+                "version": 1,
+            }
+            for name, payload in assets.items()
+        }
+
+        scan = scan_reader_visible_visual_payloads(
+            markdown,
+            candidate_ref=candidate_ref,
+            assets=assets,
+            asset_refs=asset_refs,
+        )
+
+        pairs = scan["safe_visual_pairs"]
+        self.assertIsNone(pairs[0]["png_ref"])
+        self.assertEqual(pairs[0]["mermaid_source_ref"]["path"], "objects/flow.mmd")
+
+        assets["flow.mmd"] = b"flowchart LR\n  click A https://example.com\n"
+        unsafe = scan_reader_visible_visual_payloads(
+            markdown,
+            candidate_ref=candidate_ref,
+            assets=assets,
+            asset_refs={
+                **asset_refs,
+                "flow.mmd": {
+                    **asset_refs["flow.mmd"],
+                    "hash": sha256_bytes(assets["flow.mmd"]),
+                },
+            },
+        )
+        self.assertEqual(unsafe["status"], "REVIEWABLE_UNSAFE_NOT_RENDERED")
+        self.assertIn("active or external", unsafe["issues"][0]["reason"])
 
     def test_png_signature_ihdr_dimensions_and_two_x_relation_are_checked(self) -> None:
         cases = {

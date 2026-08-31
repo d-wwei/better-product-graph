@@ -29,6 +29,7 @@ def apply_alpha(project_root: Path, command: dict[str, Any]) -> dict[str, Any]:
         "replace-record": "replace_planning_record",
         "freeze-candidate": "freeze_candidate",
         "review": "submit_review",
+        "review-route": "submit_review_route",
         "decision-route": "submit_decision_route",
         "pause": "pause_run",
         "resume": "resume_run",

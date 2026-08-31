@@ -330,11 +330,6 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 route={"destination": "PRODUCT_PLANNING", "attempt_id": "host-route"},
                 operation_id="host-start",
                 run_id="bpg2-run-host",
-                preauthorization={
-                    "authorization_id": "host-auth",
-                    "allowed_outcome": "COMMIT_NOW",
-                    "scope": "LOCAL_PLANNING_ONLY",
-                },
             )
             state = replace(
                 state,
@@ -368,6 +363,10 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 operation_id="host-problem-review",
                 candidate_ref=state["current_candidate"],
                 reviewer_attempt_id="host-problem-reviewer",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "host-problem-reviewer",
+                },
                 verdict="PASS",
                 findings=[],
             )
@@ -394,6 +393,10 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 operation_id="host-decision-review",
                 candidate_ref=state["current_candidate"],
                 reviewer_attempt_id="host-decision-reviewer",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "host-decision-reviewer",
+                },
                 verdict="PASS",
                 findings=[],
             )
@@ -405,7 +408,17 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 candidate_ref=state["current_candidate"],
                 actor={"kind": "AGENT", "id": "codex-host"},
                 outcome="COMMIT_NOW",
-                authorization_id="host-auth",
+                decision_authorization={
+                    "source_message_ref": {
+                        "kind": "HOST_MESSAGE",
+                        "id": "host-preauthorization-message",
+                    },
+                    "run_id": state["run_id"],
+                    "candidate_ref": state["current_candidate"],
+                    "allowed_outcome": "COMMIT_NOW",
+                    "permission_scope": "LOCAL_PLANNING_ONLY",
+                    "issued_at": "2026-08-31T00:00:00+00:00",
+                },
                 agent_assessment={
                     "planning_record_ref": state["planning_record_ref"],
                     "goals_unchanged": True,
@@ -457,10 +470,10 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 evals={
                     "applicability": "NOT_NEEDED",
                     "reason": "确定性验收足够",
-                    "generation_status": "NOT_AVAILABLE",
+                    "generator_capability": "NOT_IMPLEMENTED",
+                    "generator_invocation_status": "NOT_RUN",
                     "execution_status": "NOT_RUN",
                     "attachment_paths": [],
-                    "spec_review_status": "NOT_RUN",
                 },
                 document_experience={
                     "schema_version": "bpg2-alpha-document-experience.v1",
@@ -487,6 +500,10 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 operation_id="host-prd-review",
                 candidate_ref=state["current_candidate"],
                 reviewer_attempt_id="host-prd-reviewer",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "host-prd-reviewer",
+                },
                 verdict="PASS",
                 findings=[],
                 **prd_review_evidence(state),

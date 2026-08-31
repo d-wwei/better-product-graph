@@ -23,10 +23,11 @@ from .storage import (
     atomic_write_json,
     canonical_json_bytes,
     read_json,
+    require_iso_datetime,
     sha256_bytes,
     sha256_file,
 )
-from .visual_assets import VisualAssetError, scan_reader_visible_visual_source
+from .visual_assets import VisualAssetError, scan_reader_visible_visual_payloads
 from .writing_review import WritingReviewError, load_and_validate_writing_coverage
 
 
@@ -39,6 +40,7 @@ class AlphaStateConflict(AlphaContractError):
 
 
 RUNTIME = "BPG_2_0_ALPHA"
+EVALS_GENERATOR_CAPABILITY = "NOT_IMPLEMENTED"
 RUN_ID = re.compile(r"^bpg2-run-[A-Za-z0-9._-]+$")
 DECISION_OUTCOMES = frozenset(
     {"STOP", "WAIT", "RESEARCH", "EXPERIMENT", "COMMIT_NOW", "FUTURE_ROADMAP"}
@@ -54,6 +56,7 @@ POSITIONS = frozenset(
         "PLAN_PRODUCT_SYSTEM",
         "PRD_AUTHORING",
         "PRD_REVIEW",
+        "REVIEW_ROUTE",
         "READY",
         "RESEARCH",
         "OWNER",
@@ -194,6 +197,35 @@ class BPG2AlphaController:
         if self.project_root == Path("/") or self.project_root == Path.home().resolve():
             raise AlphaContractError("project root must be a specific workspace")
         self.root = self.project_root / ".better-product-graph" / "v2"
+        self.runtime_fingerprint = self._resolve_runtime_fingerprint()
+
+    @staticmethod
+    def _resolve_runtime_fingerprint() -> str:
+        module = Path(__file__).resolve()
+        manifest_path = next(
+            (
+                parent / "build-manifest.json"
+                for parent in module.parents
+                if (parent / "build-manifest.json").is_file()
+            ),
+            None,
+        )
+        if manifest_path is not None:
+            manifest = read_json(manifest_path)
+            fingerprint = manifest.get("execution_contract_fingerprint")
+            if (
+                not isinstance(fingerprint, str)
+                or not fingerprint.startswith("sha256:")
+            ):
+                raise AlphaContractError("installed runtime fingerprint is incomplete")
+            return fingerprint
+        return sha256_file(module)
+
+    def _verify_runtime_fingerprint(self, state: dict[str, Any]) -> None:
+        if state.get("runtime_fingerprint") != self.runtime_fingerprint:
+            raise AlphaContractError(
+                "Run runtime fingerprint differs; automatic recovery is stopped"
+            )
 
     def _validate_run_id(self, run_id: str) -> str:
         if RUN_ID.fullmatch(run_id) is None:
@@ -223,7 +255,7 @@ class BPG2AlphaController:
                 cls._core_reference_source(
                     "templates/general/PRD_OUTPUT_CONTRACT_v2.0-alpha.json"
                 ),
-                "2.0-alpha.1",
+                "2.0-alpha.2",
             ),
             "writing_profile": (
                 cls._core_reference_source("policies/prd-writing-profile-v0.5.json"),
@@ -266,7 +298,69 @@ class BPG2AlphaController:
             or state.get("schema_version") != "bpg2-alpha-run.v2"
         ):
             raise AlphaContractError("BPG 2.0 Run identity is invalid")
+        self._verify_runtime_fingerprint(state)
         return state
+
+    def _object_path(self, run_id: str, digest: str) -> Path:
+        if not isinstance(digest, str) or not digest.startswith("sha256:"):
+            raise AlphaContractError("content object hash is invalid")
+        return self.run_path(run_id) / "objects" / "sha256" / digest.removeprefix(
+            "sha256:"
+        )
+
+    def _store_object(self, run_id: str, payload: bytes) -> dict[str, Any]:
+        digest = sha256_bytes(payload)
+        path = self._object_path(run_id, digest)
+        if path.exists():
+            if path.is_symlink() or not path.is_file() or path.read_bytes() != payload:
+                raise AlphaContractError("content-addressed object is not immutable")
+        else:
+            atomic_write_bytes(path, payload, mode=0o444)
+        return self.file_ref(path)
+
+    def _store_versioned_object(
+        self, run_id: str, payload: bytes, version: int | str
+    ) -> dict[str, Any]:
+        return {**self._store_object(run_id, payload), "version": version}
+
+    @staticmethod
+    def _validate_decision_authorization(
+        value: Any,
+        *,
+        run_id: str,
+        candidate_ref: dict[str, Any],
+        outcome: str,
+        permission_scope: str,
+    ) -> dict[str, Any]:
+        expected = {
+            "source_message_ref",
+            "run_id",
+            "candidate_ref",
+            "allowed_outcome",
+            "permission_scope",
+            "issued_at",
+        }
+        if not isinstance(value, dict) or set(value) != expected:
+            raise AlphaContractError(
+                "Decision authorization requires one source message and exact Run/Candidate scope"
+            )
+        source_ref = value.get("source_message_ref")
+        if (
+            not isinstance(source_ref, dict)
+            or set(source_ref) != {"kind", "id"}
+            or source_ref.get("kind") != "HOST_MESSAGE"
+        ):
+            raise AlphaContractError("Decision authorization source message is invalid")
+        _nonempty(source_ref.get("id"), "Decision authorization source message id")
+        if (
+            value.get("run_id") != run_id
+            or not _same_ref(value.get("candidate_ref"), candidate_ref)
+            or value.get("allowed_outcome") != outcome
+            or value.get("permission_scope") != permission_scope
+        ):
+            raise AlphaContractError("Decision authorization is outside exact scope")
+        require_iso_datetime(value.get("issued_at"), "Decision authorization issued_at")
+        return deepcopy(value)
 
     def file_ref(self, path: Path) -> dict[str, Any]:
         managed = assert_managed_path(self.project_root, path.resolve(strict=False))
@@ -302,26 +396,37 @@ class BPG2AlphaController:
         payload: dict[str, Any],
         mutate: Callable[[dict[str, Any]], None],
     ) -> dict[str, Any]:
-        _nonempty(operation_id, "operation_id")
+        operation_id = _nonempty(operation_id, "operation_id")
+        started_at = _now()
         fingerprint = _payload_hash(payload)
+        state_before: int | None = None
         with exclusive_file_lock(self._lock_path(run_id)):
             state = self.load_run(run_id)
+            state_before = state.get("state_version")
             existing = state.get("operations", {}).get(operation_id)
             if existing is not None:
                 if existing.get("payload_hash") != fingerprint:
                     raise AlphaContractError("operation identity conflict")
                 return state
-            if state.get("state_version") != expected_state_version:
+            if state_before != expected_state_version:
                 raise AlphaStateConflict(
-                    f"expected state version {expected_state_version}, current is {state.get('state_version')}"
+                    f"expected state version {expected_state_version}, current is {state_before}"
                 )
             updated = deepcopy(state)
             mutate(updated)
+            completed_at = _now()
             updated["state_version"] = expected_state_version + 1
-            updated["updated_at"] = _now()
+            updated["updated_at"] = completed_at
             updated.setdefault("operations", {})[operation_id] = {
+                "operation_id": operation_id,
                 "payload_hash": fingerprint,
-                "committed_state_version": updated["state_version"],
+                "action": payload.get("action"),
+                "started_at": started_at,
+                "completed_at": completed_at,
+                "outcome": "SUCCESS",
+                "error_code_or_return_reason": None,
+                "state_version_before": expected_state_version,
+                "state_version_after": updated["state_version"],
             }
             atomic_write_json(self._state_path(run_id), updated)
             return updated
@@ -333,26 +438,16 @@ class BPG2AlphaController:
         route: dict[str, Any],
         operation_id: str,
         run_id: str | None = None,
-        preauthorization: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         signal = _nonempty(signal, "signal")
         if not isinstance(route, dict) or route.get("destination") != "PRODUCT_PLANNING":
             raise AlphaContractError("Signal & Route requires an Agent-selected PRODUCT_PLANNING route")
         _nonempty(route.get("attempt_id"), "route attempt_id")
-        if preauthorization is not None:
-            if (
-                not isinstance(preauthorization, dict)
-                or not preauthorization.get("authorization_id")
-                or preauthorization.get("allowed_outcome") != "COMMIT_NOW"
-                or preauthorization.get("scope") != "LOCAL_PLANNING_ONLY"
-            ):
-                raise AlphaContractError("preauthorization must be exact and local-planning-only")
         resolved_run_id = self._validate_run_id(run_id or f"bpg2-run-{uuid4().hex[:12]}")
         payload = self._operation_payload(
             "start_run",
             signal=signal,
             route=route,
-            preauthorization=preauthorization,
             run_id=resolved_run_id,
         )
         fingerprint = _payload_hash(payload)
@@ -387,7 +482,10 @@ class BPG2AlphaController:
                 "signal": signal,
                 "route": deepcopy(route),
                 "planning_record_ref": self.file_ref(record_path),
-                "preauthorization": deepcopy(preauthorization),
+                "runtime_fingerprint": self.runtime_fingerprint,
+                "capabilities": {
+                    "evals_generator": EVALS_GENERATOR_CAPABILITY,
+                },
                 "current_candidate": None,
                 "candidate_history": [],
                 "reviews": [],
@@ -403,7 +501,17 @@ class BPG2AlphaController:
                 "automatic_revision_exhausted": False,
                 "used_trigger_ids": [],
                 "operations": {
-                    operation_id: {"payload_hash": fingerprint, "committed_state_version": 1}
+                    operation_id: {
+                        "operation_id": operation_id,
+                        "payload_hash": fingerprint,
+                        "action": "start_run",
+                        "started_at": created,
+                        "completed_at": created,
+                        "outcome": "SUCCESS",
+                        "error_code_or_return_reason": None,
+                        "state_version_before": 0,
+                        "state_version_after": 1,
+                    }
                 },
             }
             atomic_write_json(self._state_path(resolved_run_id), state)
@@ -614,39 +722,42 @@ class BPG2AlphaController:
         version: int,
     ) -> tuple[Path, dict[str, Any]]:
         source = self.run_path(run_id) / "planning-record.md"
-        target = self.run_path(run_id) / "candidates" / f"{kind.lower()}-candidate-v{version}.md"
-        if target.exists():
-            raise AlphaContractError("immutable Candidate path already exists")
-        atomic_write_bytes(target, source.read_bytes())
-        return target, self.file_ref(source)
+        stored = self._store_object(run_id, source.read_bytes())
+        return self.project_root / stored["path"], self.file_ref(source)
 
     def _validate_evals(self, evals: Any, source_dir: Path) -> dict[str, Any]:
         if not isinstance(evals, dict):
             raise AlphaContractError("Agent Product Evals applicability assessment is required")
+        expected_fields = {
+            "applicability",
+            "reason",
+            "generator_capability",
+            "generator_invocation_status",
+            "execution_status",
+            "attachment_paths",
+        }
+        if set(evals) != expected_fields:
+            raise AlphaContractError(
+                "Product Evals assessment must use the closed Alpha degradation contract"
+            )
         applicability = evals.get("applicability")
         if applicability not in {"NOT_NEEDED", "RECOMMENDED", "REQUIRED"}:
             raise AlphaContractError("Product Evals applicability is invalid")
         _nonempty(evals.get("reason"), "Product Evals reason")
+        if (
+            evals.get("generator_capability") != EVALS_GENERATOR_CAPABILITY
+            or evals.get("generator_invocation_status") != "NOT_RUN"
+        ):
+            raise AlphaContractError(
+                "Evals Generator is NOT_IMPLEMENTED and cannot generate or simulate an Eval Pack"
+            )
         if evals.get("execution_status") not in {"NOT_RUN", "NOT_AVAILABLE"}:
             raise AlphaContractError("Product Evals execution must preserve a true non-executed status")
         attachments = evals.get("attachment_paths")
-        if not isinstance(attachments, list) or not all(isinstance(item, str) for item in attachments):
-            raise AlphaContractError("Product Evals attachment_paths must be a list")
-        for relative in attachments:
-            path = assert_managed_path(source_dir, Path(relative))
-            if not path.is_file() or path.is_symlink():
-                raise AlphaContractError("Product Evals attachment is missing")
-        if evals.get("generation_status") == "GENERATED":
-            if not attachments or evals.get("spec_review_status") != "PASS":
-                raise AlphaContractError("generated Product Evals require attachments and independent spec Review")
-            review_paths = [item for item in attachments if item.endswith("review.json")]
-            if not review_paths:
-                raise AlphaContractError("generated Product Evals require a spec Review artifact")
-            review = json.loads((source_dir / review_paths[0]).read_text(encoding="utf-8"))
-            if review.get("author_attempt_id") == review.get("reviewer_attempt_id"):
-                raise AlphaContractError("Product Evals spec Reviewer must be independent")
-            if review.get("execution_status") != "NOT_RUN":
-                raise AlphaContractError("Product Evals spec Review cannot claim execution")
+        if attachments != []:
+            raise AlphaContractError(
+                "Evals Generator is NOT_IMPLEMENTED; generated Eval attachments are forbidden"
+            )
         return deepcopy(evals)
 
     def _validate_document_experience(
@@ -726,54 +837,57 @@ class BPG2AlphaController:
         markdown_path = source_dir / "PRD.md"
         if not markdown_path.is_file() or markdown_path.is_symlink():
             raise AlphaContractError("PRD draft requires PRD.md as the editing truth source")
-        candidate_dir = self.run_path(run_id) / "candidates" / f"prd-release-set-v{version}"
-        if candidate_dir.exists():
-            raise AlphaContractError("immutable Candidate path already exists")
-        candidate_dir.mkdir(parents=True)
+
+        files: list[dict[str, Any]] = []
+        asset_payloads: dict[str, bytes] = {}
+        asset_refs: dict[str, dict[str, Any]] = {}
         for path in sorted(source_dir.rglob("*")):
             if path.is_symlink():
                 raise AlphaContractError("PRD Release Set cannot contain symlinks")
             if path.is_file():
-                relative = path.relative_to(source_dir)
-                target = candidate_dir / relative
-                atomic_write_bytes(target, path.read_bytes())
-        machine_dir = candidate_dir / ".machine"
-        planning_snapshot = machine_dir / "planning-record-snapshot.md"
-        review_basis_dir = machine_dir / "review-basis"
-        template_snapshot = review_basis_dir / "PRD_TEMPLATE_v2.0-alpha.md"
-        atomic_write_bytes(
-            planning_snapshot,
-            (self.run_path(run_id) / "planning-record.md").read_bytes(),
-        )
-        atomic_write_bytes(template_snapshot, self._template_source().read_bytes())
-        authority_sources = self._review_authority_sources()
-        authority_targets = {
-            "output_contract": review_basis_dir / "PRD_OUTPUT_CONTRACT_v2.0-alpha.json",
-            "writing_profile": review_basis_dir / "prd-writing-profile-v0.5.json",
-            "writing_guide": review_basis_dir / "prd-writing-guide-v0.5.md",
-            "writing_review_contract": review_basis_dir
-            / "prd-writing-reader-review-v3.1.json",
-        }
-        for role, target in authority_targets.items():
-            atomic_write_bytes(target, authority_sources[role][0].read_bytes())
-        files = []
-        for path in sorted(candidate_dir.rglob("*")):
-            if path.is_file():
+                relative = path.relative_to(source_dir).as_posix()
+                if relative != "PRD.md" and not relative.startswith("assets/"):
+                    raise AlphaContractError(
+                        "PRD Candidate delivery source is limited to PRD.md and assets"
+                    )
+                if relative.casefold().endswith(".png"):
+                    raise AlphaContractError(
+                        "PNG is a Handoff-only derivative and cannot be pre-generated in Candidate"
+                    )
+                payload = path.read_bytes()
+                object_ref = self._store_versioned_object(run_id, payload, version)
                 files.append(
                     {
-                        "path": path.relative_to(candidate_dir).as_posix(),
-                        "hash": sha256_file(path),
-                        "size": path.stat().st_size,
+                        "path": relative,
+                        "hash": object_ref["hash"],
+                        "size": len(payload),
+                        "classification": "DELIVERY_SOURCE",
+                        "object_ref": object_ref,
                     }
                 )
-        candidate_tree_hash = sha256_bytes(canonical_json_bytes(files))
-        prd_ref = self.versioned_file_ref(candidate_dir / "PRD.md", version)
-        planning_snapshot_ref = self.versioned_file_ref(planning_snapshot, version)
-        template_exact_ref = self.versioned_file_ref(template_snapshot, "2.0-alpha.1")
+                if relative.startswith("assets/"):
+                    asset_name = relative.removeprefix("assets/")
+                    asset_payloads[asset_name] = payload
+                    asset_refs[asset_name] = object_ref
+
+        prd_file = next(item for item in files if item["path"] == "PRD.md")
+        prd_ref = deepcopy(prd_file["object_ref"])
+        planning_snapshot_ref = self._store_versioned_object(
+            run_id,
+            (self.run_path(run_id) / "planning-record.md").read_bytes(),
+            version,
+        )
+        template_exact_ref = self._store_versioned_object(
+            run_id, self._template_source().read_bytes(), "2.0-alpha.1"
+        )
+        authority_sources = self._review_authority_sources()
         authority_refs = {
-            role: self.versioned_file_ref(target, authority_sources[role][1])
-            for role, target in authority_targets.items()
+            role: self._store_versioned_object(
+                run_id, source.read_bytes(), authority_version
+            )
+            for role, (source, authority_version) in authority_sources.items()
         }
+        candidate_tree_hash = sha256_bytes(canonical_json_bytes(files))
         decision_basis_ref = {
             key: deepcopy(decision_candidate_ref[key])
             for key in ("path", "hash", "version")
@@ -784,10 +898,6 @@ class BPG2AlphaController:
             **deepcopy(raw_decision_review_ref),
             "version": decision_candidate_ref["version"],
         }
-        product_eval_refs = [
-            self.versioned_file_ref(candidate_dir / relative, version)
-            for relative in evals.get("attachment_paths", [])
-        ]
         review_basis_refs = {
             "prd": prd_ref,
             "planning_record": planning_snapshot_ref,
@@ -798,13 +908,14 @@ class BPG2AlphaController:
             "writing_profile": authority_refs["writing_profile"],
             "writing_guide": authority_refs["writing_guide"],
             "writing_review_contract": authority_refs["writing_review_contract"],
-            "product_eval_attachments": product_eval_refs,
+            "product_eval_attachments": [],
         }
         try:
-            visual_source_scan = scan_reader_visible_visual_source(
-                self.project_root,
-                candidate_dir / "PRD.md",
+            visual_source_scan = scan_reader_visible_visual_payloads(
+                markdown_path.read_bytes(),
                 candidate_ref=prd_ref,
+                assets=asset_payloads,
+                asset_refs=asset_refs,
             )
         except VisualAssetError as error:
             raise AlphaContractError(
@@ -831,6 +942,7 @@ class BPG2AlphaController:
             ],
             "reader_visible_visual_pairs": visual_source_scan["safe_visual_pairs"],
             "visual_source_scan": visual_source_scan,
+            "visual_asset_refs": asset_refs,
         }
         review_requirements = {
             "schema_version": "bpg2-alpha-prd-review-requirements.v2",
@@ -855,22 +967,15 @@ class BPG2AlphaController:
             "outcome": accepted_decision.get("outcome"),
             "source": accepted_decision.get("source"),
             "actor": deepcopy(accepted_decision.get("actor")),
-            "authorization_id": accepted_decision.get("authorization_id"),
+            "authorization": deepcopy(accepted_decision.get("authorization")),
             "candidate_ref": deepcopy(decision_candidate_ref),
             "agent_assessment": assessment,
         }
         manifest = {
             "schema_version": "bpg2-alpha-release-set.v3",
             "prd_type": "FORMAL_PRD" if delivery_intent == "COMMIT_NOW" else "EXPERIMENT_PRD",
-            "template_ref": {
-                "path": template_snapshot.relative_to(candidate_dir).as_posix(),
-                "hash": sha256_file(template_snapshot),
-                "version": "2.0-alpha.1",
-            },
-            "planning_record_snapshot_ref": {
-                "path": planning_snapshot.relative_to(candidate_dir).as_posix(),
-                "hash": sha256_file(planning_snapshot),
-            },
+            "template_ref": template_exact_ref,
+            "planning_record_snapshot_ref": planning_snapshot_ref,
             "planning_record_source_ref": planning_record_ref,
             "decision_candidate_ref": decision_candidate_ref,
             "accepted_decision": manifest_decision,
@@ -883,9 +988,10 @@ class BPG2AlphaController:
             "delivery_rendering": "DEFERRED_TO_HANDOFF",
             "files": files,
         }
-        manifest_path = candidate_dir / "machine-manifest.json"
-        atomic_write_json(manifest_path, manifest)
-        return manifest_path, planning_record_ref, review_requirements
+        manifest_ref = self._store_versioned_object(
+            run_id, canonical_json_bytes(manifest), version
+        )
+        return self.project_root / manifest_ref["path"], planning_record_ref, review_requirements
 
     def freeze_candidate(
         self,
@@ -988,7 +1094,7 @@ class BPG2AlphaController:
                     decision_review_ref,
                     state.get("delivery_intent"),
                 )
-                artifact_path = target.parent.relative_to(self.project_root).as_posix()
+                artifact_path = target.relative_to(self.project_root).as_posix()
             else:
                 target, planning_ref = self._write_record_candidate(run_id, kind, version)
                 artifact_path = target.relative_to(self.project_root).as_posix()
@@ -1034,7 +1140,6 @@ class BPG2AlphaController:
             raise AlphaContractError("Candidate has changed since it was frozen") from error
         if candidate.get("kind") == "PRD":
             manifest = read_json(path)
-            candidate_dir = path.parent
             files = manifest.get("files")
             if not isinstance(files, list):
                 raise AlphaContractError("PRD Release Set file inventory is missing")
@@ -1044,25 +1149,21 @@ class BPG2AlphaController:
             if "PRD.md" not in inventory_paths or "PRD.html" in inventory_paths:
                 raise AlphaContractError("PRD Release Set is incomplete")
             for ref in files:
-                relative = ref.get("path") if isinstance(ref, dict) else None
-                file_path = assert_managed_path(candidate_dir, Path(relative or ""))
                 if (
-                    not file_path.is_file()
-                    or file_path.is_symlink()
-                    or sha256_file(file_path) != ref.get("hash")
+                    not isinstance(ref, dict)
+                    or ref.get("classification") != "DELIVERY_SOURCE"
+                    or not isinstance(ref.get("path"), str)
+                    or ref.get("hash") != ref.get("object_ref", {}).get("hash")
                 ):
+                    raise AlphaContractError("PRD Release Set Candidate inventory is invalid")
+                file_path = self._verify_file_ref(ref.get("object_ref"))
+                if file_path.stat().st_size != ref.get("size"):
                     raise AlphaContractError("PRD Release Set Candidate file changed")
             for name in ("template_ref", "planning_record_snapshot_ref"):
                 ref = manifest.get(name)
                 if not isinstance(ref, dict):
                     raise AlphaContractError(f"PRD Release Set {name} is missing")
-                local_path = assert_managed_path(candidate_dir, Path(ref.get("path", "")))
-                if (
-                    not local_path.is_file()
-                    or local_path.is_symlink()
-                    or sha256_file(local_path) != ref.get("hash")
-                ):
-                    raise AlphaContractError(f"PRD Release Set {name} changed")
+                self._verify_file_ref(ref)
             source_ref = manifest.get("planning_record_source_ref")
             snapshot_ref = manifest.get("planning_record_snapshot_ref")
             if (
@@ -1105,8 +1206,20 @@ class BPG2AlphaController:
         normalized = []
         seen = set()
         for finding in findings:
-            if not isinstance(finding, dict):
-                raise AlphaContractError("each Review Finding must be an object")
+            expected_fields = {
+                "finding_id",
+                "claim",
+                "evidence_refs",
+                "severity",
+                "affected_scope",
+                "invalidated_assumptions_or_artifacts",
+                "local_revision_sufficiency",
+                "status",
+            }
+            if not isinstance(finding, dict) or set(finding) != expected_fields:
+                raise AlphaContractError(
+                    "each Review Finding must use the closed findings-only contract"
+                )
             finding_id = _nonempty(finding.get("finding_id"), "Finding id")
             if finding_id in seen:
                 raise AlphaContractError("Finding ids must be unique")
@@ -1123,7 +1236,30 @@ class BPG2AlphaController:
                 "STALE",
             }:
                 raise AlphaContractError("Finding status is invalid")
-            _nonempty(finding.get("evidence"), "Finding evidence")
+            _nonempty(finding.get("claim"), "Finding claim")
+            evidence_refs = finding.get("evidence_refs")
+            if not isinstance(evidence_refs, list) or not evidence_refs:
+                raise AlphaContractError("Finding evidence_refs must be non-empty")
+            affected_scope = finding.get("affected_scope")
+            invalidated = finding.get("invalidated_assumptions_or_artifacts")
+            for value, label in (
+                (affected_scope, "Finding affected_scope"),
+                (invalidated, "Finding invalidated assumptions or artifacts"),
+            ):
+                if (
+                    not isinstance(value, list)
+                    or not value
+                    or not all(isinstance(item, str) and item.strip() for item in value)
+                ):
+                    raise AlphaContractError(f"{label} must be non-empty")
+            if finding.get("local_revision_sufficiency") not in {
+                "SUFFICIENT",
+                "INSUFFICIENT",
+                "UNKNOWN",
+            }:
+                raise AlphaContractError(
+                    "Finding local_revision_sufficiency is invalid"
+                )
             normalized.append(deepcopy(finding))
         return normalized
 
@@ -1322,12 +1458,7 @@ class BPG2AlphaController:
         evals = state.get("product_evals")
         if not isinstance(evals, dict):
             unmet.append("PRODUCT_EVALS_APPLICABILITY")
-        elif evals.get("applicability") == "REQUIRED" and not (
-            evals.get("generation_status") == "GENERATED"
-            and evals.get("spec_review_status") == "PASS"
-            and bool(evals.get("attachment_paths"))
-            and evals.get("execution_status") == "NOT_RUN"
-        ):
+        elif evals.get("applicability") == "REQUIRED":
             unmet.append("REQUIRED_PRODUCT_EVALS")
         planning_ref = candidate.get("planning_record_ref", {})
         try:
@@ -1368,7 +1499,7 @@ class BPG2AlphaController:
                 not isinstance(accepted, dict)
                 or accepted.get("outcome") != decision.get("outcome")
                 or accepted.get("source") != decision.get("source")
-                or accepted.get("authorization_id") != decision.get("authorization_id")
+                or accepted.get("authorization") != decision.get("authorization")
                 or not _same_ref(accepted.get("candidate_ref"), decision_ref)
             ):
                 unmet.append("ACCEPTED_DECISION")
@@ -1412,17 +1543,14 @@ class BPG2AlphaController:
         operation_id: str,
         candidate_ref: dict[str, Any],
         reviewer_attempt_id: str,
+        reviewer_execution_ref: dict[str, Any],
         verdict: str,
         findings: list[dict[str, Any]],
-        return_target: str | None = None,
-        return_reason: str | None = None,
-        affected_scope: list[str] | None = None,
         review_mode: str = "FULL",
         diff_base_candidate_ref: dict[str, Any] | None = None,
         global_regression: str | None = None,
         disagreements: list[dict[str, Any]] | None = None,
         professional_reviews: list[dict[str, Any]] | None = None,
-        wait_condition: dict[str, Any] | None = None,
         review_basis_refs: dict[str, Any] | None = None,
         responsibility_coverage: list[dict[str, Any]] | None = None,
         writing_review_ref: dict[str, Any] | None = None,
@@ -1432,29 +1560,29 @@ class BPG2AlphaController:
         if verdict not in {"PASS", "REVISE", "NEEDS_OWNER"}:
             raise AlphaContractError("Review Verdict must be PASS, REVISE, or NEEDS_OWNER")
         normalized_findings = self._validate_findings(findings)
-        if verdict != "PASS":
-            if return_target not in REVIEW_TARGETS:
-                raise AlphaContractError("non-PASS Review requires a legal return_target")
-            _nonempty(return_reason, "return_reason")
-            if not isinstance(affected_scope, list) or not affected_scope or not all(
-                isinstance(item, str) and item.strip() for item in affected_scope
-            ):
-                raise AlphaContractError("non-PASS Review requires affected_scope")
+        if verdict != "PASS" and not normalized_findings:
+            raise AlphaContractError("non-PASS Review requires concrete Findings")
+        if (
+            not isinstance(reviewer_execution_ref, dict)
+            or set(reviewer_execution_ref) != {"kind", "id"}
+            or reviewer_execution_ref.get("kind") != "HOST_SUBAGENT_ATTEMPT"
+            or reviewer_execution_ref.get("id") != reviewer_attempt_id
+        ):
+            raise AlphaContractError(
+                "Reviewer execution must bind the exact completed Host subagent attempt"
+            )
         payload = self._operation_payload(
             "submit_review",
             candidate_ref=candidate_ref,
             reviewer_attempt_id=reviewer_attempt_id,
+            reviewer_execution_ref=reviewer_execution_ref,
             verdict=verdict,
             findings=normalized_findings,
-            return_target=return_target,
-            return_reason=return_reason,
-            affected_scope=affected_scope,
             review_mode=review_mode,
             diff_base_candidate_ref=diff_base_candidate_ref,
             global_regression=global_regression,
             disagreements=disagreements or [],
             professional_reviews=professional_reviews or [],
-            wait_condition=wait_condition,
             review_basis_refs=review_basis_refs,
             responsibility_coverage=responsibility_coverage,
             writing_review_ref=writing_review_ref,
@@ -1470,6 +1598,9 @@ class BPG2AlphaController:
                 raise AlphaContractError("Reviewer attempt must be independent from the author attempt")
             if candidate.get("status") != "FROZEN":
                 raise AlphaContractError("Candidate has already received a formal Review")
+            for finding in normalized_findings:
+                for evidence_ref in finding["evidence_refs"]:
+                    self._verify_file_ref(evidence_ref)
             normalized_review_basis = None
             normalized_responsibilities = None
             normalized_writing_ref = None
@@ -1564,9 +1695,6 @@ class BPG2AlphaController:
                 "reviewer_attempt_id": reviewer_attempt_id,
                 "verdict": verdict,
                 "findings": normalized_findings,
-                "return_target": return_target,
-                "return_reason": return_reason,
-                "affected_scope": affected_scope or [],
                 "review_mode": review_mode,
                 "diff_base_candidate_ref": diff_base_candidate_ref,
                 "global_regression": global_regression,
@@ -1577,6 +1705,12 @@ class BPG2AlphaController:
                 "writing_review_ref": normalized_writing_ref,
                 "writing_review": normalized_writing_review,
                 "recorded_at": _now(),
+            }
+            review["execution_binding"] = {
+                "host_attempt_ref": deepcopy(reviewer_execution_ref),
+                "candidate_hash": candidate["hash"],
+                "review_result_hash": sha256_bytes(canonical_json_bytes(review)),
+                "completion_status": "COMPLETED",
             }
             review_path = self.run_path(run_id) / "reviews" / f"{candidate['candidate_id']}.json"
             if review_path.exists():
@@ -1612,19 +1746,110 @@ class BPG2AlphaController:
                 else:
                     state["position"] = PASS_POSITION[candidate["kind"]]
                 return
-            if verdict == "NEEDS_OWNER":
-                state["status"] = "OWNER_ACTION_REQUIRED"
-                state["position"] = "OWNER"
-                state["candidate_required"] = True
-                return
+            state["status"] = "REVIEW_ROUTE_REQUIRED"
+            state["position"] = "REVIEW_ROUTE"
+            state["candidate_required"] = True
+
+        return self._mutate(
+            run_id,
+            expected_state_version=expected_state_version,
+            operation_id=operation_id,
+            payload=payload,
+            mutate=apply,
+        )
+
+    def submit_review_route(
+        self,
+        run_id: str,
+        *,
+        expected_state_version: int,
+        operation_id: str,
+        review_ref: dict[str, Any],
+        lead_agent_attempt_id: str,
+        finding_refs: list[str],
+        return_target: str,
+        return_reason: str,
+        affected_scope: list[str],
+        wait_condition: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        lead_agent_attempt_id = _nonempty(
+            lead_agent_attempt_id, "lead_agent_attempt_id"
+        )
+        if return_target not in REVIEW_TARGETS:
+            raise AlphaContractError("Lead Agent Review route requires a legal return_target")
+        _nonempty(return_reason, "return_reason")
+        if (
+            not isinstance(finding_refs, list)
+            or not finding_refs
+            or len(finding_refs) != len(set(finding_refs))
+            or not all(isinstance(item, str) and item for item in finding_refs)
+        ):
+            raise AlphaContractError("Lead Agent Review route requires exact Finding refs")
+        if (
+            not isinstance(affected_scope, list)
+            or not affected_scope
+            or not all(isinstance(item, str) and item.strip() for item in affected_scope)
+        ):
+            raise AlphaContractError("Lead Agent Review route requires affected_scope")
+        payload = self._operation_payload(
+            "submit_review_route",
+            review_ref=review_ref,
+            lead_agent_attempt_id=lead_agent_attempt_id,
+            finding_refs=finding_refs,
+            return_target=return_target,
+            return_reason=return_reason,
+            affected_scope=affected_scope,
+            wait_condition=wait_condition,
+        )
+
+        def apply(state: dict[str, Any]) -> None:
+            review = state.get("current_review")
+            candidate = state.get("current_candidate")
+            if (
+                state.get("status") != "REVIEW_ROUTE_REQUIRED"
+                or state.get("position") != "REVIEW_ROUTE"
+                or not isinstance(review, dict)
+                or review.get("verdict") == "PASS"
+                or review.get("review_ref") != review_ref
+                or not isinstance(candidate, dict)
+                or not _same_ref(review.get("candidate_ref"), candidate)
+            ):
+                raise AlphaContractError(
+                    "Lead Agent route requires the exact current non-PASS Review"
+                )
+            self._verify_file_ref(review_ref)
+            if lead_agent_attempt_id == review.get("reviewer_attempt_id"):
+                raise AlphaContractError("Lead Agent route must be distinct from Reviewer")
+            expected_findings = [
+                item["finding_id"] for item in review.get("findings", [])
+            ]
+            if set(finding_refs) != set(expected_findings):
+                raise AlphaContractError(
+                    "Lead Agent route must bind every Finding in the current Review"
+                )
+            if review.get("verdict") == "NEEDS_OWNER" and return_target != "OWNER":
+                raise AlphaContractError("NEEDS_OWNER Review must be routed to OWNER")
             if candidate.get("revision_round", 0) >= 2:
                 if return_target == LOCAL_REVISION_TARGET[candidate["kind"]]:
                     raise AlphaContractError(
-                        "two automatic revision rounds are exhausted; route by the declared reason"
+                        "two automatic revision rounds are exhausted; route by the Findings"
                     )
                 state["automatic_revision_exhausted"] = True
-            state["candidate_required"] = True
-            self._apply_return_target(state, return_target, wait_condition=wait_condition)
+            route = {
+                "review_ref": deepcopy(review_ref),
+                "candidate_ref": self._candidate_ref(candidate),
+                "finding_refs": list(finding_refs),
+                "return_target": return_target,
+                "return_reason": return_reason,
+                "affected_scope": list(affected_scope),
+                "decided_by": "LEAD_AGENT",
+                "lead_agent_attempt_id": lead_agent_attempt_id,
+                "recorded_at": _now(),
+            }
+            state.setdefault("review_routes", []).append(deepcopy(route))
+            self._apply_return_target(
+                state, return_target, wait_condition=wait_condition
+            )
 
         return self._mutate(
             run_id,
@@ -1646,8 +1871,8 @@ class BPG2AlphaController:
         return_target: str | None = None,
         wait_condition: dict[str, Any] | None = None,
         cognition_change: dict[str, Any] | None = None,
-        authorization_id: str | None = None,
         agent_assessment: dict[str, Any] | None = None,
+        decision_authorization: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if outcome not in DECISION_OUTCOMES:
             raise AlphaContractError("Decision outcome is not one of the six BPG 2.0 routes")
@@ -1664,8 +1889,8 @@ class BPG2AlphaController:
             return_target=return_target,
             wait_condition=wait_condition,
             cognition_change=cognition_change,
-            authorization_id=authorization_id,
             agent_assessment=agent_assessment,
+            decision_authorization=decision_authorization,
         )
 
         def apply(state: dict[str, Any]) -> None:
@@ -1691,9 +1916,20 @@ class BPG2AlphaController:
                 state["candidate_required"] = True
                 state["owner_cognition_change"] = deepcopy(cognition_change)
                 return
+            permission_scope = (
+                "LOCAL_PLANNING_ONLY"
+                if actor["kind"] == "AGENT"
+                else "RUN_DECISION_ONLY"
+            )
+            normalized_authorization = self._validate_decision_authorization(
+                decision_authorization,
+                run_id=run_id,
+                candidate_ref=self._candidate_ref(candidate),
+                outcome=outcome,
+                permission_scope=permission_scope,
+            )
             source = "OWNER_CHOICE"
             if actor["kind"] == "AGENT":
-                authorization = state.get("preauthorization")
                 review = state.get("current_review")
                 has_needs_owner = isinstance(review, dict) and any(
                     finding.get("status") == "NEEDS_OWNER"
@@ -1723,11 +1959,7 @@ class BPG2AlphaController:
                     and bool(agent_assessment["reconsideration_conditions"].strip())
                 )
                 if not (
-                    isinstance(authorization, dict)
-                    and authorization.get("authorization_id") == authorization_id
-                    and authorization.get("allowed_outcome") == "COMMIT_NOW"
-                    and authorization.get("scope") == "LOCAL_PLANNING_ONLY"
-                    and isinstance(review, dict)
+                    isinstance(review, dict)
                     and review.get("verdict") == "PASS"
                     and _same_ref(review.get("candidate_ref"), candidate)
                     and not has_needs_owner
@@ -1743,7 +1975,7 @@ class BPG2AlphaController:
                 "source": source,
                 "actor": deepcopy(actor),
                 "candidate_ref": self._candidate_ref(candidate),
-                "authorization_id": authorization_id,
+                "authorization": normalized_authorization,
                 "agent_assessment": deepcopy(agent_assessment),
                 "recorded_at": _now(),
             }
@@ -1906,16 +2138,17 @@ class BPG2AlphaController:
                 )
             candidate = state["current_candidate"]
             self._verify_candidate(candidate)
-            source_dir = self.project_root / candidate["artifact_path"]
+            candidate_manifest = read_json(self.project_root / candidate["path"])
             target = self.run_path(run_id) / "handoff" / "local"
             if target.exists():
                 raise AlphaContractError("Local Handoff target already exists outside idempotent replay")
             target.mkdir(parents=True)
-            for path in sorted(source_dir.rglob("*")):
-                if path.is_file():
-                    relative = path.relative_to(source_dir)
-                    atomic_write_bytes(target / relative, path.read_bytes())
-            candidate_manifest = read_json(self.project_root / candidate["path"])
+            for item in candidate_manifest.get("files", []):
+                if item.get("classification") != "DELIVERY_SOURCE":
+                    continue
+                object_path = self._verify_file_ref(item.get("object_ref"))
+                destination = assert_managed_path(target, Path(item["path"]))
+                atomic_write_bytes(destination, object_path.read_bytes())
             if candidate_manifest.get("delivery_rendering") != "DEFERRED_TO_HANDOFF":
                 raise AlphaContractError("PRD delivery rendering contract is invalid")
             source_truth_ref = candidate_manifest["review_requirements"][
@@ -2045,7 +2278,6 @@ class BPG2AlphaController:
                 "product_effect_validation": "NOT_RUN",
                 "evidence_summary": evidence_summary,
                 "retrospective_requirements": {
-                    "schema_version": "bpg2-alpha-retrospective-conformance.v1",
                     "check_ids": sorted(RETROSPECTIVE_CONFORMANCE_IDS),
                     "statuses": ["PASS", "FINDING", "NOT_APPLICABLE"],
                 },

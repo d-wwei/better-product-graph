@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .storage import IntegrityError, assert_managed_path, read_json, sha256_file
-from .visual_assets import VisualAssetError, scan_reader_visible_visual_source
+from .visual_assets import (
+    VisualAssetError,
+    scan_reader_visible_visual_payloads,
+    scan_reader_visible_visual_source,
+)
 
 
 class WritingReviewError(ValueError):
@@ -297,9 +301,13 @@ def _validate_assessment(
                         pair.get("svg_ref"),
                         f"visual_assessment.visual_pair_refs[{index}].svg_ref",
                     ),
-                    "png_ref": _exact_ref(
-                        pair.get("png_ref"),
-                        f"visual_assessment.visual_pair_refs[{index}].png_ref",
+                    "png_ref": (
+                        _exact_ref(
+                            pair.get("png_ref"),
+                            f"visual_assessment.visual_pair_refs[{index}].png_ref",
+                        )
+                        if pair.get("png_ref") is not None
+                        else None
                     ),
                 }
             )
@@ -769,24 +777,56 @@ def load_and_validate_writing_coverage(
             raise WritingReviewError(
                 "legacy Writing Review requires the exact v1 coverage schema"
             )
-        visual_source_scan = (
-            scan_reader_visible_visual_source(
-                root, candidate_path, candidate_ref=candidate
-            )
-            if schema_version == "document-experience-reader-review.v3"
-            else None
-        )
-        visual_pairs = (
+        visual_source_scan = None
+        if schema_version == "document-experience-reader-review.v3":
+            visual_asset_refs = context.get("visual_asset_refs")
+            if visual_asset_refs is None:
+                visual_source_scan = scan_reader_visible_visual_source(
+                    root, candidate_path, candidate_ref=candidate
+                )
+            else:
+                if not isinstance(visual_asset_refs, dict):
+                    raise WritingReviewError(
+                        "Writing Review visual asset refs are invalid"
+                    )
+                visual_payloads: dict[str, bytes] = {}
+                for name, asset_ref in visual_asset_refs.items():
+                    exact_asset_ref = _exact_ref(
+                        asset_ref, f"visual_asset_refs.{name}"
+                    )
+                    asset_path = assert_managed_path(
+                        root, root / exact_asset_ref["path"]
+                    )
+                    if (
+                        not asset_path.is_file()
+                        or asset_path.is_symlink()
+                        or sha256_file(asset_path) != exact_asset_ref["hash"]
+                    ):
+                        raise WritingReviewError(
+                            "Writing Review visual asset object is stale"
+                        )
+                    visual_payloads[name] = asset_path.read_bytes()
+                visual_source_scan = scan_reader_visible_visual_payloads(
+                    candidate_path.read_bytes(),
+                    candidate_ref=candidate,
+                    assets=visual_payloads,
+                    asset_refs=visual_asset_refs,
+                )
+        scanned_visual_pairs = (
             visual_source_scan["safe_visual_pairs"]
             if isinstance(visual_source_scan, dict)
             else []
         )
+        visual_pairs = [
+            {"svg_ref": pair["svg_ref"], "png_ref": pair["png_ref"]}
+            for pair in scanned_visual_pairs
+        ]
     except (OSError, UnicodeError, ValueError, VisualAssetError) as error:
         raise WritingReviewError(f"Writing Coverage artifact is unreadable: {error}") from error
     if (
         schema_version == "document-experience-reader-review.v3"
         and (
-            context.get("reader_visible_visual_pairs") != visual_pairs
+            context.get("reader_visible_visual_pairs") != scanned_visual_pairs
             or context.get("visual_source_scan") != visual_source_scan
         )
     ):

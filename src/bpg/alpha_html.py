@@ -8,6 +8,8 @@ import mimetypes
 import re
 from pathlib import PurePosixPath
 
+from .visual_assets import VisualAssetError, _validate_svg
+
 
 _IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 _INLINE_CODE = re.compile(r"`([^`]+)`")
@@ -35,8 +37,19 @@ def _inline(value: str, assets: dict[str, bytes]) -> str:
         if relative not in assets:
             raise ValueError(f"missing asset: {relative}")
         mime = mimetypes.guess_type(relative)[0]
-        if mime not in {"image/png", "image/jpeg", "image/gif", "image/webp"}:
-            raise ValueError("Alpha HTML supports self-contained raster images only")
+        if mime not in {
+            "image/svg+xml",
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp",
+        }:
+            raise ValueError("Alpha HTML supports self-contained managed images only")
+        if mime == "image/svg+xml":
+            try:
+                _validate_svg(assets[relative])
+            except VisualAssetError as error:
+                raise ValueError(f"unsafe SVG asset: {relative}") from error
         encoded = base64.b64encode(assets[relative]).decode("ascii")
         token = f"@@BPG_IMAGE_{len(placeholders)}@@"
         placeholders[token] = (

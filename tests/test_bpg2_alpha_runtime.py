@@ -82,13 +82,12 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
-    def start(self, *, preauthorization: dict | None = None, suffix: str = "1") -> dict:
+    def start(self, *, suffix: str = "1") -> dict:
         return self.controller.start_run(
             signal="用户无法确认异步任务是否已经完成",
             route={"destination": "PRODUCT_PLANNING", "attempt_id": f"route-{suffix}"},
             operation_id=f"start-{suffix}",
             run_id=f"bpg2-run-{suffix}",
-            preauthorization=preauthorization,
         )
 
     def update_record(
@@ -171,6 +170,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         values = {
             "candidate_ref": candidate,
             "reviewer_attempt_id": f"reviewer-{suffix}",
+            "reviewer_execution_ref": {
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": f"reviewer-{suffix}",
+            },
             "verdict": "PASS",
             "findings": [],
         }
@@ -185,10 +188,8 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             **values,
         )
 
-    def reach_decision_route(
-        self, *, preauthorization: dict | None = None, suffix: str = "1"
-    ) -> tuple[dict, dict]:
-        state = self.start(preauthorization=preauthorization, suffix=suffix)
+    def reach_decision_route(self, *, suffix: str = "1") -> tuple[dict, dict]:
+        state = self.start(suffix=suffix)
         state = self.update_record(
             state, position="UNDERSTAND", next_position="DIAGNOSE_VALUE", suffix=f"{suffix}-u"
         )
@@ -227,9 +228,44 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         return_target: str | None = None,
         wait_condition: dict | None = None,
         cognition_change: dict | None = None,
-        authorization_id: str | None = None,
         agent_assessment: dict | None = None,
+        authorize: bool = True,
     ) -> dict:
+        exact_candidate = {
+            key: deepcopy(candidate[key])
+            for key in (
+                "candidate_id",
+                "kind",
+                "path",
+                "hash",
+                "version",
+                "author_attempt_id",
+                "revision_round",
+                "artifact_path",
+                "supersedes",
+                "status",
+            )
+            if key in candidate
+        }
+        decision_authorization = (
+            {
+                "source_message_ref": {
+                    "kind": "HOST_MESSAGE",
+                    "id": f"decision-message-{suffix}",
+                },
+                "run_id": state["run_id"],
+                "candidate_ref": exact_candidate,
+                "allowed_outcome": outcome,
+                "permission_scope": (
+                    "LOCAL_PLANNING_ONLY"
+                    if actor_kind == "AGENT"
+                    else "RUN_DECISION_ONLY"
+                ),
+                "issued_at": "2026-08-31T00:00:00+00:00",
+            }
+            if authorize
+            else None
+        )
         return self.controller.submit_decision_route(
             state["run_id"],
             expected_state_version=state["state_version"],
@@ -240,8 +276,8 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             return_target=return_target,
             wait_condition=wait_condition,
             cognition_change=cognition_change,
-            authorization_id=authorization_id,
             agent_assessment=agent_assessment,
+            decision_authorization=decision_authorization,
         )
 
     @staticmethod
@@ -307,10 +343,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         return {
             "applicability": status,
             "reason": "Agent 基于产品质量的可确定验收程度作出的轻量判断",
-            "generation_status": "GENERATED" if generated else "NOT_AVAILABLE",
+            "generator_capability": "SIMULATED" if generated else "NOT_IMPLEMENTED",
+            "generator_invocation_status": "GENERATED" if generated else "NOT_RUN",
             "execution_status": "NOT_RUN",
             "attachment_paths": attachments,
-            "spec_review_status": "PASS" if generated else "NOT_RUN",
         }
 
     def freeze_prd(
@@ -433,24 +469,12 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
     def reach_prd_authoring(
         self, *, intent: str, suffix: str, preauthorized: bool = False
     ) -> dict:
-        preauthorization = (
-            {
-                "authorization_id": f"auth-{suffix}",
-                "allowed_outcome": "COMMIT_NOW",
-                "scope": "LOCAL_PLANNING_ONLY",
-            }
-            if preauthorized
-            else None
-        )
-        state, candidate = self.reach_decision_route(
-            preauthorization=preauthorization, suffix=suffix
-        )
+        state, candidate = self.reach_decision_route(suffix=suffix)
         state = self.choose(
             state,
             candidate,
             outcome=intent,
             actor_kind="AGENT" if preauthorized else "OWNER",
-            authorization_id=f"auth-{suffix}" if preauthorized else None,
             agent_assessment=self.agent_assessment(state) if preauthorized else None,
             suffix=suffix,
         )
@@ -605,22 +629,15 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             requirements["review_basis_refs"]["prd"],
         )
         self.assertNotIn("html", requirements["review_basis_refs"])
-        candidate_dir = self.project / frozen["current_candidate"]["artifact_path"]
+        profile_ref = requirements["review_basis_refs"]["writing_profile"]
+        review_contract_ref = requirements["review_basis_refs"][
+            "writing_review_contract"
+        ]
         profile = json.loads(
-            (
-                candidate_dir
-                / ".machine"
-                / "review-basis"
-                / "prd-writing-profile-v0.5.json"
-            ).read_text(encoding="utf-8")
+            (self.project / profile_ref["path"]).read_text(encoding="utf-8")
         )
         review_contract = json.loads(
-            (
-                candidate_dir
-                / ".machine"
-                / "review-basis"
-                / "prd-writing-reader-review-v3.1.json"
-            ).read_text(encoding="utf-8")
+            (self.project / review_contract_ref["path"]).read_text(encoding="utf-8")
         )
         self.assertEqual(profile["review_contract_id"], review_contract["resource_id"])
         self.assertEqual(
@@ -644,7 +661,6 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="deferred-html")
         frozen = self.freeze_prd(state, suffix="deferred-html")
 
-        candidate_dir = self.project / frozen["current_candidate"]["artifact_path"]
         requirements = frozen["current_review_requirements"]
         manifest = json.loads(
             (self.project / frozen["current_candidate"]["path"]).read_text(
@@ -652,7 +668,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             )
         )
 
-        self.assertFalse((candidate_dir / "PRD.html").exists())
+        self.assertNotIn("PRD.html", {item["path"] for item in manifest["files"]})
+        self.assertFalse(
+            (self.controller.run_path(state["run_id"]) / "candidates").exists()
+        )
         self.assertNotIn("html", requirements["review_basis_refs"])
         self.assertNotIn("html_review_check_ids", requirements)
         self.assertEqual(manifest["delivery_rendering"], "DEFERRED_TO_HANDOFF")
@@ -669,6 +688,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 operation_id="review-v3-missing-evidence",
                 candidate_ref=candidate,
                 reviewer_attempt_id="content-reviewer-negative",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "content-reviewer-negative",
+                },
                 verdict="PASS",
                 findings=[],
             )
@@ -685,6 +708,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 operation_id="review-v3-missing-responsibility",
                 candidate_ref=candidate,
                 reviewer_attempt_id="reviewer-review-v3-negative",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "reviewer-review-v3-negative",
+                },
                 verdict="PASS",
                 findings=[],
                 **missing_responsibility,
@@ -701,6 +728,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 operation_id="review-v3-same-writer",
                 candidate_ref=candidate,
                 reviewer_attempt_id="reviewer-review-v3-negative",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "reviewer-review-v3-negative",
+                },
                 verdict="PASS",
                 findings=[],
                 **same_writer,
@@ -715,6 +746,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 operation_id="review-v3-premature-render-review",
                 candidate_ref=candidate,
                 reviewer_attempt_id="reviewer-review-v3-negative",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "reviewer-review-v3-negative",
+                },
                 verdict="PASS",
                 findings=[],
                 **premature_render_review,
@@ -729,6 +764,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 operation_id="review-v3-stale-basis",
                 candidate_ref=candidate,
                 reviewer_attempt_id="reviewer-review-v3-negative",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "reviewer-review-v3-negative",
+                },
                 verdict="PASS",
                 findings=[],
                 **stale_basis,
@@ -753,6 +792,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 operation_id="review-v3-stale-writing",
                 candidate_ref=candidate,
                 reviewer_attempt_id="reviewer-review-v3-negative",
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": "reviewer-review-v3-negative",
+                },
                 verdict="PASS",
                 findings=[],
                 **stale_writing,
@@ -831,6 +874,22 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
     def test_local_handoff_can_disable_html_generation(self) -> None:
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="handoff-no-html")
         state = self.freeze_prd(state, suffix="handoff-no-html")
+        output_contract_ref = state["current_review_requirements"]["review_basis_refs"][
+            "output_contract"
+        ]
+        output_contract = json.loads(
+            (self.project / output_contract_ref["path"]).read_text(encoding="utf-8")
+        )
+        self.assertEqual(output_contract_ref["version"], "2.0-alpha.2")
+        self.assertEqual(
+            output_contract["default_reading_view"],
+            {
+                "selection_stage": "HANDOFF",
+                "when_local_html_enabled": "PRD.html",
+                "when_local_html_disabled": "PRD.md",
+                "authoritative_ref": "HANDOFF_MANIFEST.json#delivery.primary_reading_ref",
+            },
+        )
         state = self.pass_review(
             state, state["current_candidate"], suffix="handoff-no-html"
         )
@@ -943,10 +1002,15 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 operation_id="same-attempt-review",
                 candidate_ref=candidate,
                 reviewer_attempt_id=candidate["author_attempt_id"],
+                reviewer_execution_ref={
+                    "kind": "HOST_SUBAGENT_ATTEMPT",
+                    "id": candidate["author_attempt_id"],
+                },
                 verdict="PASS",
                 findings=[],
             )
 
+        candidate_path.chmod(0o600)
         candidate_path.write_text(candidate_path.read_text(encoding="utf-8") + "\n静默修改\n", encoding="utf-8")
         with self.assertRaisesRegex(AlphaContractError, "Candidate.*changed"):
             self.pass_review(state, candidate, suffix="tampered")
@@ -959,15 +1023,31 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             operation_id="problem-revise-0",
             candidate_ref=candidate,
             reviewer_attempt_id="reviewer-r0",
+            reviewer_execution_ref={
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": "reviewer-r0",
+            },
             verdict="REVISE",
             findings=[
                 {
                     "finding_id": "F-1",
+                    "claim": "问题与目标链未闭合。",
+                    "evidence_refs": [candidate],
                     "severity": "MAJOR",
+                    "affected_scope": ["问题定义", "成功标准"],
+                    "invalidated_assumptions_or_artifacts": ["Problem Candidate"],
+                    "local_revision_sufficiency": "SUFFICIENT",
                     "status": "OPEN",
-                    "evidence": "问题与目标链未闭合",
                 }
             ],
+        )
+        state = self.controller.submit_review_route(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="problem-route-0",
+            review_ref=state["current_review"]["review_ref"],
+            lead_agent_attempt_id="lead-r0",
+            finding_refs=["F-1"],
             return_target="DIAGNOSE_VALUE",
             return_reason="问题诊断需要修正",
             affected_scope=["问题定义", "成功标准"],
@@ -994,14 +1074,37 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             operation_id="problem-revise-1",
             candidate_ref=revised,
             reviewer_attempt_id="reviewer-r1",
+            reviewer_execution_ref={
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": "reviewer-r1",
+            },
             verdict="REVISE",
-            findings=[],
-            return_target="DIAGNOSE_VALUE",
-            return_reason="仍需修复价值因果",
-            affected_scope=["价值因果"],
+            findings=[
+                {
+                    "finding_id": "F-2",
+                    "claim": "价值因果仍未闭合。",
+                    "evidence_refs": [revised],
+                    "severity": "MAJOR",
+                    "affected_scope": ["价值因果"],
+                    "invalidated_assumptions_or_artifacts": ["Problem Candidate"],
+                    "local_revision_sufficiency": "SUFFICIENT",
+                    "status": "OPEN",
+                }
+            ],
             review_mode="DIFF_AND_REGRESSION",
             diff_base_candidate_ref=candidate,
             global_regression="PASS",
+        )
+        state = self.controller.submit_review_route(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="problem-route-1",
+            review_ref=state["current_review"]["review_ref"],
+            lead_agent_attempt_id="lead-r1",
+            finding_refs=["F-2"],
+            return_target="DIAGNOSE_VALUE",
+            return_reason="仍需修复价值因果",
+            affected_scope=["价值因果"],
         )
         state = self.update_record(state, position="DIAGNOSE_VALUE", suffix="revision-2")
         state = self.controller.freeze_candidate(
@@ -1020,14 +1123,37 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             operation_id="problem-exhausted-research",
             candidate_ref=revised_twice,
             reviewer_attempt_id="reviewer-r2",
+            reviewer_execution_ref={
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": "reviewer-r2",
+            },
             verdict="REVISE",
-            findings=[],
-            return_target="RESEARCH",
-            return_reason="证据不足，不能继续自动修订",
-            affected_scope=["H1", "H2"],
+            findings=[
+                {
+                    "finding_id": "F-3",
+                    "claim": "现有证据不足以继续本地修订。",
+                    "evidence_refs": [revised_twice],
+                    "severity": "MAJOR",
+                    "affected_scope": ["H1", "H2"],
+                    "invalidated_assumptions_or_artifacts": ["价值证据"],
+                    "local_revision_sufficiency": "INSUFFICIENT",
+                    "status": "OPEN",
+                }
+            ],
             review_mode="DIFF_AND_REGRESSION",
             diff_base_candidate_ref=revised,
             global_regression="PASS",
+        )
+        state = self.controller.submit_review_route(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="problem-route-2",
+            review_ref=state["current_review"]["review_ref"],
+            lead_agent_attempt_id="lead-r2",
+            finding_refs=["F-3"],
+            return_target="RESEARCH",
+            return_reason="证据不足，不能继续自动修订",
+            affected_scope=["H1", "H2"],
         )
         self.assertEqual(state["position"], "RESEARCH")
         self.assertTrue(state["automatic_revision_exhausted"])
@@ -1070,51 +1196,35 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 observed.add((state["status"], state["position"], outcome))
         self.assertEqual(len(observed), 6)
 
-    def test_agent_commit_requires_exact_preauthorization_and_other_routes_require_owner(self) -> None:
+    def test_agent_commit_requires_message_bound_authorization_and_assessment(self) -> None:
         state, candidate = self.reach_decision_route(suffix="no-auth")
-        state = self.choose(
-            state,
-            candidate,
-            outcome="COMMIT_NOW",
-            actor_kind="AGENT",
-            suffix="no-auth",
-        )
-        self.assertEqual(state["status"], "OWNER_CHOICE_REQUIRED")
-        self.assertIsNone(state.get("decision"))
+        with self.assertRaisesRegex(AlphaContractError, "source message|authorization"):
+            self.choose(
+                state,
+                candidate,
+                outcome="COMMIT_NOW",
+                actor_kind="AGENT",
+                suffix="no-auth",
+                authorize=False,
+            )
 
-        state, candidate = self.reach_decision_route(
-            preauthorization={
-                "authorization_id": "auth-missing-assessment",
-                "allowed_outcome": "COMMIT_NOW",
-                "scope": "LOCAL_PLANNING_ONLY",
-            },
-            suffix="missing-assessment",
-        )
+        state, candidate = self.reach_decision_route(suffix="missing-assessment")
         state = self.choose(
             state,
             candidate,
             outcome="COMMIT_NOW",
             actor_kind="AGENT",
-            authorization_id="auth-missing-assessment",
             suffix="missing-assessment",
         )
         self.assertEqual(state["status"], "OWNER_CHOICE_REQUIRED")
         self.assertIsNone(state.get("decision"))
 
-        state, candidate = self.reach_decision_route(
-            preauthorization={
-                "authorization_id": "auth-exact",
-                "allowed_outcome": "COMMIT_NOW",
-                "scope": "LOCAL_PLANNING_ONLY",
-            },
-            suffix="auth",
-        )
+        state, candidate = self.reach_decision_route(suffix="auth")
         state = self.choose(
             state,
             candidate,
             outcome="COMMIT_NOW",
             actor_kind="AGENT",
-            authorization_id="auth-exact",
             agent_assessment=self.agent_assessment(state),
             suffix="auth",
         )
@@ -1248,17 +1358,13 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         self.assertIn("REQUIRED_PRODUCT_EVALS", required["ready"]["unmet"])
 
         fulfilled = self.reach_prd_authoring(intent="EXPERIMENT", suffix="fulfilled")
-        fulfilled = self.freeze_prd(
-            fulfilled,
-            applicability="REQUIRED",
-            generated=True,
-            suffix="fulfilled",
-        )
-        fulfilled = self.pass_review(
-            fulfilled, fulfilled["current_candidate"], suffix="fulfilled-prd"
-        )
-        self.assertEqual(fulfilled["status"], "READY")
-        self.assertEqual(fulfilled["product_evals"]["execution_status"], "NOT_RUN")
+        with self.assertRaisesRegex(AlphaContractError, "NOT_IMPLEMENTED|cannot generate"):
+            self.freeze_prd(
+                fulfilled,
+                applicability="REQUIRED",
+                generated=True,
+                suffix="fulfilled",
+            )
 
         recommended = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="recommended")
         recommended = self.freeze_prd(
@@ -1268,7 +1374,14 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             recommended, recommended["current_candidate"], suffix="recommended-prd"
         )
         self.assertEqual(recommended["status"], "READY")
-        self.assertEqual(recommended["product_evals"]["generation_status"], "NOT_AVAILABLE")
+        self.assertEqual(
+            recommended["product_evals"]["generator_capability"],
+            "NOT_IMPLEMENTED",
+        )
+        self.assertEqual(
+            recommended["product_evals"]["generator_invocation_status"],
+            "NOT_RUN",
+        )
         self.assertEqual(recommended["product_evals"]["execution_status"], "NOT_RUN")
 
     def test_new_general_template_is_single_prd_and_bound_to_candidate(self) -> None:
@@ -1300,10 +1413,12 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(manifest["template_ref"]["version"], "2.0-alpha.1")
         self.assertTrue(manifest["template_ref"]["hash"].startswith("sha256:"))
-        candidate_dir = self.project / state["current_candidate"]["artifact_path"]
-        self.assertTrue((candidate_dir / manifest["template_ref"]["path"]).is_file())
+        self.assertTrue((self.project / manifest["template_ref"]["path"]).is_file())
         self.assertTrue(
-            (candidate_dir / manifest["planning_record_snapshot_ref"]["path"]).is_file()
+            (self.project / manifest["planning_record_snapshot_ref"]["path"]).is_file()
+        )
+        self.assertTrue(
+            all("/objects/sha256/" in item["object_ref"]["path"] for item in manifest["files"])
         )
         self.assertEqual(manifest["accepted_decision"]["outcome"], "COMMIT_NOW")
         self.assertEqual(manifest["accepted_decision"]["source"], "OWNER_CHOICE")
@@ -1356,6 +1471,9 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(state["status"], "LOCAL_HANDOFF_COMPLETE")
         self.assertEqual(state["retrospective_status"], "COMPLETED")
+        self.assertEqual(
+            set(state["retrospective_requirements"]), {"check_ids", "statuses"}
+        )
 
     def test_retrospective_requires_method_conformance_and_preserves_findings_without_rewriting_handoff(self) -> None:
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="retro-conformance")
@@ -1399,6 +1517,156 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         self.assertEqual(completed["method_conformance_status"], "FAIL")
         self.assertEqual(completed["ready"], ready_before)
         self.assertEqual(completed["handoff"], handoff_before)
+
+    def test_run_binds_runtime_fingerprint_and_minimal_operation_facts(self) -> None:
+        state = self.start(suffix="repair-identity")
+
+        self.assertTrue(state["runtime_fingerprint"].startswith("sha256:"))
+        self.assertEqual(state["capabilities"]["evals_generator"], "NOT_IMPLEMENTED")
+
+        operation = state["operations"]["start-repair-identity"]
+        self.assertEqual(operation["action"], "start_run")
+        self.assertEqual(operation["outcome"], "SUCCESS")
+        self.assertEqual(operation["state_version_before"], 0)
+        self.assertEqual(operation["state_version_after"], 1)
+        self.assertTrue(operation["started_at"])
+        self.assertTrue(operation["completed_at"])
+        self.assertIsNone(operation["error_code_or_return_reason"])
+        self.assertFalse((self.controller.run_path(state["run_id"]) / "operations").exists())
+
+        state_path = self.controller.run_path(state["run_id"]) / "run.json"
+        persisted = json.loads(state_path.read_text(encoding="utf-8"))
+        persisted["runtime_fingerprint"] = "sha256:different-runtime"
+        state_path.write_text(json.dumps(persisted), encoding="utf-8")
+        with self.assertRaisesRegex(AlphaContractError, "recovery is stopped"):
+            self.controller.load_run(state["run_id"])
+
+    def test_candidate_freeze_uses_run_object_store_without_candidate_copy(self) -> None:
+        state, candidate = self.reach_problem_review(suffix="repair-object-store")
+
+        self.assertIn("/objects/sha256/", candidate["path"])
+        self.assertFalse((self.controller.run_path(state["run_id"]) / "candidates").exists())
+        self.assertEqual(
+            (self.project / candidate["path"]).read_bytes(),
+            (self.controller.run_path(state["run_id"]) / "planning-record.md").read_bytes(),
+        )
+
+    def test_prd_candidate_rejects_pre_generated_png(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="repair-png")
+        draft = self.write_prd_draft(state["run_id"])
+        assets = draft / "assets"
+        assets.mkdir()
+        (assets / "main-flow@2x.png").write_bytes(b"not-a-candidate-format")
+
+        with self.assertRaisesRegex(AlphaContractError, "Handoff-only"):
+            self.controller.freeze_candidate(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="freeze-prd-repair-png",
+                kind="PRD",
+                author_attempt_id="prd-author-repair-png",
+                source_dir=draft,
+                evals=self.evals("NOT_NEEDED"),
+                document_experience=self.document_experience(
+                    state, draft, suffix="repair-png"
+                ),
+            )
+
+    def test_decision_authorization_rejects_wrong_run_binding(self) -> None:
+        state, candidate = self.reach_decision_route(suffix="repair-auth")
+        exact_candidate = self.controller._candidate_ref(candidate)
+        with self.assertRaisesRegex(AlphaContractError, "exact scope"):
+            self.controller.submit_decision_route(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="decision-route-repair-auth",
+                candidate_ref=candidate,
+                actor={"kind": "OWNER", "id": "eli"},
+                outcome="COMMIT_NOW",
+                decision_authorization={
+                    "source_message_ref": {
+                        "kind": "HOST_MESSAGE",
+                        "id": "owner-message-repair-auth",
+                    },
+                    "run_id": "bpg2-run-another",
+                    "candidate_ref": exact_candidate,
+                    "allowed_outcome": "COMMIT_NOW",
+                    "permission_scope": "RUN_DECISION_ONLY",
+                    "issued_at": "2026-08-31T00:00:00+00:00",
+                },
+            )
+
+    def test_unimplemented_evals_generator_cannot_be_simulated_by_attachments(self) -> None:
+        state = self.reach_prd_authoring(intent="EXPERIMENT", suffix="repair-evals")
+
+        with self.assertRaisesRegex(AlphaContractError, "NOT_IMPLEMENTED|cannot generate"):
+            self.freeze_prd(
+                state,
+                applicability="REQUIRED",
+                generated=True,
+                suffix="repair-evals",
+            )
+
+    def test_non_pass_reviewer_reports_findings_then_lead_agent_routes(self) -> None:
+        state, candidate = self.reach_problem_review(suffix="repair-route")
+        state = self.controller.submit_review(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="review-findings-repair-route",
+            candidate_ref=candidate,
+            reviewer_attempt_id="reviewer-repair-route",
+            reviewer_execution_ref={
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": "reviewer-repair-route",
+            },
+            verdict="REVISE",
+            findings=[
+                {
+                    "finding_id": "F-REPAIR-ROUTE",
+                    "claim": "问题定义与成功标准之间缺少可验证关系。",
+                    "evidence_refs": [candidate],
+                    "severity": "MAJOR",
+                    "affected_scope": ["问题定义", "成功标准"],
+                    "invalidated_assumptions_or_artifacts": ["Problem Candidate"],
+                    "local_revision_sufficiency": "SUFFICIENT",
+                    "status": "OPEN",
+                }
+            ],
+        )
+        self.assertEqual(state["status"], "REVIEW_ROUTE_REQUIRED")
+        self.assertNotIn("return_target", state["current_review"])
+
+        state = self.controller.submit_review_route(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="lead-route-repair-route",
+            review_ref=state["current_review"]["review_ref"],
+            lead_agent_attempt_id="lead-repair-route",
+            finding_refs=["F-REPAIR-ROUTE"],
+            return_target="DIAGNOSE_VALUE",
+            return_reason="Finding 使问题诊断层失效。",
+            affected_scope=["问题定义", "成功标准"],
+        )
+        self.assertEqual((state["status"], state["position"]), ("ACTIVE", "DIAGNOSE_VALUE"))
+        self.assertEqual(state["review_routes"][-1]["decided_by"], "LEAD_AGENT")
+
+    def test_review_result_binds_minimal_host_execution_facts(self) -> None:
+        state, candidate = self.reach_problem_review(suffix="repair-review-binding")
+        state = self.pass_review(
+            state, candidate, suffix="repair-review-binding"
+        )
+
+        binding = state["current_review"]["execution_binding"]
+        self.assertEqual(
+            binding["host_attempt_ref"],
+            {
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": "reviewer-repair-review-binding",
+            },
+        )
+        self.assertEqual(binding["candidate_hash"], candidate["hash"])
+        self.assertTrue(binding["review_result_hash"].startswith("sha256:"))
+        self.assertEqual(binding["completion_status"], "COMPLETED")
 
 
 if __name__ == "__main__":
