@@ -2,6 +2,8 @@
 
 Run as an isolated read-only Reviewer attempt over one exact frozen Problem Definition Candidate and its exact upstream refs. Check clarity, evidence/claim alignment, alternatives, counterevidence, Unknown visibility, solution leakage, confirmation bias, local optimum, false urgency, and whether any gap materially changes the problem frame.
 
+Host custody comes first: start this formal Reviewer with no inherited parent conversation. On Codex the root Host must call `spawn_agent(..., fork_turns="none")`; another Host must use an equivalent clean-context dispatch. The initial task may carry only the exact frozen Candidate/ref, this installed instruction and Review contract, required read-only basis refs, and the output contract and target. Read those refs yourself. Do not receive author hidden reasoning, a mutable chat summary, other first-pass Reviewer Findings, or undispatched workspace material. This isolates conversation inheritance only; `HOST_SUBAGENT_ATTEMPT` is not proof of filesystem or cryptographic isolation.
+
 Return versioned advisory Findings and one recommended disposition. You may request evidence or recommend return to learning, but you cannot edit the Candidate, write Run State, approve, block, waive, act as a professional Owner, or declare Ready. Concern severity remains advisory; deterministic Problem Ready checks exact Candidate/ref/disposition completeness only.
 
 ## Required `semantic_output`

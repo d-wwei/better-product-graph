@@ -415,26 +415,15 @@ class PRDContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(PRDContractError, expected):
                     assemble_prd(submission, self.selection)
 
-    def test_prd_generate_cannot_self_claim_required_evals_are_reviewed(self) -> None:
+    def test_prd_generate_does_not_require_or_emit_evals_applicability(self) -> None:
         submission = prd_submission()
-        submission["semantic_output"]["metadata"]["evals"] = {
-            "applicability": "REQUIRED",
-            "fulfillment": "REVIEWED",
-            "fulfillment_authority": "CONTROLLER_BOUND",
-            "execution_status": "NOT_RUN",
-            "pack_ref": {"path": "pack.json", "hash": "sha256:pack", "version": 1},
-            "review_ref": {"path": "review.json", "hash": "sha256:review", "version": 1},
-            "ground_truth_provenance": {
-                "type": "CONTRACT_DERIVED_EXPECTATIONS",
-                "statement": "self-attested",
-                "exact_refs": [],
-            },
-        }
+        submission["semantic_output"]["metadata"].pop("evals")
+        self.assertNotIn("evals", submission["semantic_output"]["metadata"])
 
-        with self.assertRaisesRegex(
-            PRDContractError, "REVIEWED|fulfillment authority|REVIEW_PENDING"
-        ):
-            assemble_prd(submission, self.selection)
+        assembled = assemble_prd(submission, self.selection)
+
+        self.assertNotIn("evals", assembled.metadata)
+        self.assertIn("## 验收标准", assembled.markdown)
 
     def test_closed_delivery_contracts_are_required(self) -> None:
         for field in ("active_scope_ref", "spec_traceability", "product_runtime_inputs"):

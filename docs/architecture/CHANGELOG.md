@@ -1,5 +1,12 @@
 # PRD Graph 架构文档版本台账
 
+## BPG Product Planning Method v0.3 Candidate — 2026-09-01
+
+- 状态：`CANDIDATE / NOT_YET_RELEASED`；文件 `BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md`，SHA-256 `e82ec004ca7dcf7b022e8d7915f4416d332529defb2a11a138fdb4221c2b6570`。
+- Supersedes：`BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md`；v0.2 保持不可变，SHA-256 `00059adeef0b95ca09c4c0398cd1b35a1a8259aad8a6dddde18e54be63d3db49`。
+- 版本理由：新增 Solution Intelligence 适用性、Host 语义授权边界、Stage 4 disposition 重绑定、Clean Reviewer Context、Finding 闭环与 Product Evals 2.2 边界，并把 Alpha Candidate/Handoff 真源收敛为 `PRD.md` + Mermaid source；属于方法过程和责任边界的向前兼容新增，按 Minor 升级为 v0.3，而非覆盖已交付 v0.2。
+- 新 Run 与公开 Host Skill 选择 v0.3；历史 Run、旧安装和旧精确引用不迁移。
+
 ## 当前版本
 
 - Version: `v1.4`

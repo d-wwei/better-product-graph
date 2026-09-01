@@ -1,15 +1,22 @@
 # Changelog
 
+## 2.0.1 — 2026-09-01 — Review, Ready, and Handoff integrity hotfix
+
+- Repair the R1–R4 integrity gaps without adding a new capability: explicitly rebind the nine Stage 4 dispositions after Planning Record changes in PRD Authoring; keep live Candidate, Review, Ready, Handoff, and execution status out of durable product truth; preserve historical Reviews while recording Agent-owned Finding dispositions in the Planning Record; and keep `COMMIT_NOW` authorization judgment with the Host Agent instead of inventing a Controller receipt or Gate.
+- Resolve R5–R8 within the BPG 2.0 method boundary: retain a new whole-Candidate Review with difference review plus whole-product regression after Candidate changes; keep Candidate visuals as Mermaid source and defer rendering to Handoff; separate durable Planning Record reasoning from Controller-owned runtime status; and require an Agent-owned Solution Intelligence check or a concrete `NOT_APPLICABLE` rationale before Decision freeze.
+- Align R10 with the implemented BPG 2.0 scope. Product Evals applicability, Pack generation, and Eval Spec Review remain future 2.2 capabilities and do not block 2.0 Ready or Local Handoff. Product Evals execution and product-effect validation remain `NOT_RUN` unless separately observed.
+- Correct the conflicting v2.0.0 release-note claim that a `REQUIRED` Product Evals assessment blocks Ready. BPG 2.0 does not perform that applicability assessment at all; it neither generates an Eval Pack nor runs Eval Spec Review, and none of those future 2.2 responsibilities is a 2.0 Gate.
+- Require every formal semantic Reviewer to start with clean inherited context and only the exact dispatched immutable basis; this remains a Host execution rule and does not add a Runtime isolation receipt.
+- Make Local Handoff materialization and state completion atomic and recoverable: Mermaid SVG and optional HTML are generated only after Ready, rendering failures leave no partial final target, pre-existing user content is preserved, and an exact published Handoff can be recovered after a state-write failure.
+- Bind final development, public-snapshot, dual-Host package, checksum, and installed-identity evidence in `RELEASE_SOURCE.json`. Mechanical evidence does not claim Product Evals execution, human-reader validation, engineering implementation/tests, external delivery, or product effect.
+
 ## 2.0.0 — 2026-09-01 — BPG 2.0 default single-PRD architecture
 
 - Replace the legacy 0.x public route with the BPG 2.0 single-PRD runtime for every ordinary Better Product Graph request. The older `alpha` spelling remains only as a temporary alias and does not select a separate path.
 - Restore the complete Candidate Review and Ready contract: immutable exact review bases, independent content and Writing Reviewer attempts, six explicit responsibility dispositions, stale-evidence rejection, difference review plus whole-product regression, and truthful multi-axis evidence.
 - Move HTML generation out of Candidate Review and into Ready-after Handoff. Markdown plus assets remain the editable truth; `LOCAL_HTML` is an independent user-controlled switch that defaults on and can be disabled without blocking Local Handoff.
-- Keep Candidate visuals source-first with safe Mermaid/SVG review assets, and generate target-format derivatives only in Handoff. Self-contained HTML may inline validated SVG after content Review.
-- Make the unavailable Product Evals Generator explicit and fail closed: `RECOMMENDED` remains truthful and non-blocking, while `REQUIRED` cannot reach Ready and cannot be bypassed with simulated Eval attachments.
-- Bind Runs to an exact runtime fingerprint, store immutable Candidates by content hash, keep Reviewer Findings separate from the lead Agent's return route, and retain only the minimum committed operation facts needed for recovery.
 - Preserve the six decision outcomes, Owner authority, single-PRD Alpha scope, truthful Product Evals states, local-only Handoff, and post-Handoff retrospective. Multi-PRD, external delivery adapters, Product Eval execution, engineering implementation/tests, and product-effect validation remain unclaimed or `NOT_RUN`.
-- Establish `2.0.0` as the new software identity for the replacement architecture. The exact public source snapshot, Codex and Claude marketplace ZIPs, checksums, `v2.0.0` Tag, and GitHub Release are frozen from development commit `c79eaff4ba59de74bb8d9e572d6bc800eec77720`.
+- Establish `2.0.0` as the new software identity for the replacement architecture. The formal `v2.0.0` Tag and GitHub Release were published and frozen on 2026-09-01.
 
 ## 0.2.20 — 2026-08-31 — Opt-in BPG 2.0 single-PRD internal Alpha
 

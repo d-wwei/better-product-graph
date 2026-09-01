@@ -614,18 +614,7 @@ def evaluate_receipt_subjects(
             "artifact_refs": [],
         }
         try:
-            assembled = assemble_prd(
-                reconstructed,
-                selection,
-                # Ready separately verifies the exact Controller fulfillment
-                # receipt and Eval authority. This reconstructs the enriched
-                # Candidate without weakening authored prd.generate inputs.
-                allow_controller_reviewed_evals=(
-                    metadata.get("evals", {}).get("fulfillment") == "REVIEWED"
-                    and metadata.get("evals", {}).get("fulfillment_authority")
-                    == "CONTROLLER_BOUND"
-                ),
-            )
+            assembled = assemble_prd(reconstructed, selection)
         except (PRDContractError, KeyError, TypeError, ValueError) as error:
             raise ReceiptError(f"mechanical_contracts SCHEMA check failed: {error}") from error
         role_to_metadata = {

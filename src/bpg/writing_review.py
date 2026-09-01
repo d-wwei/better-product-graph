@@ -287,6 +287,9 @@ def _validate_assessment(
         )
     _non_empty_text(item.get("reason"), f"{label}.reason")
     if is_visual:
+        source_only_review = (
+            expected_visual_source_scan is None and not expected_visual_pairs
+        )
         raw_pairs = item.get("visual_pair_refs")
         if not isinstance(raw_pairs, list):
             raise WritingReviewError("visual_assessment.visual_pair_refs must be a list")
@@ -318,23 +321,38 @@ def _validate_assessment(
                     "visual_assessment NOT_NEEDED requires no Candidate visual pair"
                 )
         elif verdict == "PASS":
-            if (
-                observation != "OBSERVED"
-                or not expected_visual_pairs
-                or pairs != expected_visual_pairs
-            ):
+            if source_only_review:
+                valid_pass = observation == "SOURCE_REVIEWED" and not pairs
+            else:
+                valid_pass = (
+                    observation == "OBSERVED"
+                    and bool(expected_visual_pairs)
+                    and pairs == expected_visual_pairs
+                )
+            if not valid_pass:
                 raise WritingReviewError(
-                    "visual_assessment PASS must bind every exact safe visual pair as OBSERVED"
+                    "visual_assessment PASS must record semantic source review or bind "
+                    "every exact safe visual pair"
                 )
         elif verdict == "FINDING":
-            expected_observation = (
-                "NOT_RENDERED"
-                if required_source_issue_types
-                else ("OBSERVED" if expected_visual_pairs else "NOT_OBSERVED")
-            )
-            if observation != expected_observation or pairs != expected_visual_pairs:
+            if source_only_review:
+                valid_finding = (
+                    observation in {"SOURCE_REVIEWED", "NOT_OBSERVED"} and not pairs
+                )
+            else:
+                expected_observation = (
+                    "NOT_RENDERED"
+                    if required_source_issue_types
+                    else ("OBSERVED" if expected_visual_pairs else "NOT_OBSERVED")
+                )
+                valid_finding = (
+                    observation == expected_observation
+                    and pairs == expected_visual_pairs
+                )
+            if not valid_finding:
                 raise WritingReviewError(
-                    "visual_assessment FINDING observation must bind the exact safe visual pairs"
+                    "visual_assessment FINDING must describe semantic source observation "
+                    "without rendered-asset inheritance"
                 )
     issue_types = _unique_enum_list(
         item.get("issue_types"), DIAGNOSTIC_CATEGORIES, f"{label}.issue_types"
@@ -778,7 +796,18 @@ def load_and_validate_writing_coverage(
                 "legacy Writing Review requires the exact v1 coverage schema"
             )
         visual_source_scan = None
-        if schema_version == "document-experience-reader-review.v3":
+        visual_dispatch_contract = any(
+            field in context
+            for field in (
+                "reader_visible_visual_pairs",
+                "visual_source_scan",
+                "visual_asset_refs",
+            )
+        )
+        if (
+            schema_version == "document-experience-reader-review.v3"
+            and visual_dispatch_contract
+        ):
             visual_asset_refs = context.get("visual_asset_refs")
             if visual_asset_refs is None:
                 visual_source_scan = scan_reader_visible_visual_source(
@@ -825,6 +854,7 @@ def load_and_validate_writing_coverage(
         raise WritingReviewError(f"Writing Coverage artifact is unreadable: {error}") from error
     if (
         schema_version == "document-experience-reader-review.v3"
+        and visual_dispatch_contract
         and (
             context.get("reader_visible_visual_pairs") != scanned_visual_pairs
             or context.get("visual_source_scan") != visual_source_scan

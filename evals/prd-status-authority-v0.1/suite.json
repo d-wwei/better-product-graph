@@ -1,0 +1,18 @@
+{
+  "schema_version": "prd-status-authority-suite.v0.1",
+  "suite_id": "better-product-graph-prd-status-authority-v0.1",
+  "purpose": "Distinguish mutable Product Run status from durable product rules.",
+  "reviewer_responsibility_id": "DOCUMENT_EXPERIENCE",
+  "agent_review_execution": "NOT_RUN",
+  "claim_boundary": "Fixture and contract checks are not Agent performance evidence.",
+  "cases": [
+    {
+      "case_id": "mutable-run-status",
+      "candidate_path": "cases/mutable-run-status.md"
+    },
+    {
+      "case_id": "durable-product-rule",
+      "candidate_path": "cases/durable-product-rule.md"
+    }
+  ]
+}

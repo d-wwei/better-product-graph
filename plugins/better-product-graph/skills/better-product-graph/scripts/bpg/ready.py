@@ -118,26 +118,27 @@ def calculate_prd_ready(request: dict[str, Any]) -> ReadyResult:
         )
 
     evals = request.get("evals")
-    evals_valid = isinstance(evals, dict) and evals.get("applicability") in {
-        "NOT_NEEDED",
-        "RECOMMENDED",
-        "REQUIRED",
-    }
-    evals_repair_target = "FULFILL_EVAL_POLICY"
-    if evals_valid and evals["applicability"] == "NOT_NEEDED":
-        evals_valid = bool(evals.get("reason"))
-    elif evals_valid and evals["applicability"] == "REQUIRED":
-        evals_valid = (
-            evals.get("fulfillment") == "REVIEWED"
-            and evals.get("fulfillment_authority") == "CONTROLLER_BOUND"
-            and evals.get("execution_status") == "NOT_RUN"
-            and isinstance(evals.get("pack_ref"), dict)
-            and isinstance(evals.get("review_ref"), dict)
-            and isinstance(evals.get("ground_truth_provenance"), dict)
-        )
-        evals_repair_target = "WAIT_FOR_VERIFIABLE_EVAL_FULFILLMENT"
-    if not evals_valid:
-        unmet.append(_unmet("EVALS", evals, evals_repair_target, "evals.build"))
+    if evals is not None:
+        evals_valid = isinstance(evals, dict) and evals.get("applicability") in {
+            "NOT_NEEDED",
+            "RECOMMENDED",
+            "REQUIRED",
+        }
+        evals_repair_target = "FULFILL_EVAL_POLICY"
+        if evals_valid and evals["applicability"] == "NOT_NEEDED":
+            evals_valid = bool(evals.get("reason"))
+        elif evals_valid and evals["applicability"] == "REQUIRED":
+            evals_valid = (
+                evals.get("fulfillment") == "REVIEWED"
+                and evals.get("fulfillment_authority") == "CONTROLLER_BOUND"
+                and evals.get("execution_status") == "NOT_RUN"
+                and isinstance(evals.get("pack_ref"), dict)
+                and isinstance(evals.get("review_ref"), dict)
+                and isinstance(evals.get("ground_truth_provenance"), dict)
+            )
+            evals_repair_target = "WAIT_FOR_VERIFIABLE_EVAL_FULFILLMENT"
+        if not evals_valid:
+            unmet.append(_unmet("EVALS", evals, evals_repair_target, "evals.build"))
 
     presentation = request.get("presentation")
     presentation_valid = isinstance(presentation, dict) and (

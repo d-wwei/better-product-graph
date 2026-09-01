@@ -4,21 +4,29 @@
   "release_repository": "https://github.com/d-wwei/better-product-graph",
   "development_repository": "https://github.com/d-wwei/better-product-graph-dev",
   "development_branch": "main",
-  "development_snapshot_commit": "c79eaff4ba59de74bb8d9e572d6bc800eec77720",
-  "artifact_build_source_commit": "c79eaff4ba59de74bb8d9e572d6bc800eec77720",
+  "source_selection_status": "SELECTED_CLEAN_EXACT_COMMIT",
+  "development_snapshot_commit": "58e4fafaf7f3d9696a2d0060b7d12c299be6c8ab",
+  "development_snapshot_tree": "588dec5c00c5e10e9371808d8a1e2eeee766f51d",
+  "artifact_build_source_commit": "58e4fafaf7f3d9696a2d0060b7d12c299be6c8ab",
   "artifact_build_source_dirty": false,
-  "plugin_version": "2.0.0",
+  "plugin_version": "2.0.1",
   "release_channel": "Developer Alpha",
   "publication_status": "FORMAL_RELEASE",
-  "tag_status": "BOUND_BY_V2.0.0_TAG",
-  "github_release_status": "PUBLISHED_FROM_V2.0.0_TAG",
-  "public_identity_binding": "The annotated v2.0.0 Tag target is the exact public source commit containing this file. The GitHub Release binds that Tag to the exact asset hashes recorded below; this file intentionally contains no self-referential public commit hash.",
+  "tag_status": "BOUND_BY_V2.0.1_TAG",
+  "github_release_status": "PUBLISHED_FROM_V2.0.1_TAG",
+  "public_identity_binding": "The annotated v2.0.1 Tag target is the exact public source commit containing this file. The GitHub Release binds that Tag to the exact asset hashes recorded below; this file intentionally contains no self-referential public commit hash.",
   "selection_policy": "docs/decisions/ADR-007_DUAL_REPOSITORY_RELEASE_MODEL_v0.1.md",
+  "intended_release": {
+    "version": "2.0.1",
+    "tag": "v2.0.1",
+    "status": "FORMAL_RELEASE",
+    "url": "https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.1"
+  },
   "latest_frozen_github_release": {
-    "version": "2.0.0",
-    "tag": "v2.0.0",
-    "public_commit_binding": "v2.0.0^{}",
-    "url": "https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.0"
+    "version": "2.0.1",
+    "tag": "v2.0.1",
+    "public_commit_binding": "v2.0.1^{}",
+    "url": "https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.1"
   },
   "documents": {
     "product_prd": {
@@ -32,9 +40,9 @@
       "sha256": "f03ee71c0dde313b8227eaf5384d6ed3b20a0d906b66606fd5a0d28ee9007a29"
     },
     "bpg2_product_method": {
-      "path": "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md",
-      "version": "v0.2",
-      "sha256": "00059adeef0b95ca09c4c0398cd1b35a1a8259aad8a6dddde18e54be63d3db49"
+      "path": "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md",
+      "version": "v0.3",
+      "sha256": "e82ec004ca7dcf7b022e8d7915f4416d332529defb2a11a138fdb4221c2b6570"
     },
     "roadmap": {
       "path": "docs/roadmap/BETTER_PRODUCT_GRAPH_2_X_ROADMAP_v0.2.md",
@@ -47,56 +55,61 @@
       "sha256": "c276e951bba16ff868f5b2cf7dacb1642adf5eac512fb2a3898f4ad825ad64a4"
     },
     "bpg2_prd_template": {
-      "path": "src/core/templates/general/PRD_TEMPLATE_v2.0-alpha.md",
-      "version": "2.0-alpha.1",
-      "sha256": "762ae2df48106d8986c220b6f9c40a27a8dea34c69ab79bde29731325b218389"
+      "path": "src/core/templates/general/PRD_TEMPLATE_v2.0-alpha.3.md",
+      "version": "2.0-alpha.3",
+      "sha256": "0d5541d59e70e6813a1f5fd532632cf18af2730c003d893c93002d07a97c4edd"
+    },
+    "bpg2_prd_output_contract": {
+      "path": "src/core/templates/general/PRD_OUTPUT_CONTRACT_v2.0-alpha.3.json",
+      "version": "2.0-alpha.3",
+      "sha256": "20b8748b72068b21c720e3a46d4405c7436b6ba7fb9f69b9f81540b4dc734e43"
     },
     "source_changelog": {
       "path": "CHANGELOG.md",
-      "sha256": "b93656e3991b81b24789a9a57fccccef7d90ea585b7d9fe335ebc70d0eb9a39b"
+      "sha256": "47ce6002dab0b01a1d8231209f983f94d32e501876b88277ccc2df5621f14c70"
     },
     "source_readme": {
       "path": "README.md",
-      "sha256": "f6e1c39e9dc89c5aed8a651456de696520a33e8553fb7052e8a908e84f75c7ee"
+      "sha256": "cdd460beafa0bd8505eec4f25a4f3e8eaa07f1bf6b3c1dcf7645eae20ab6ee26"
     },
-    "latest_frozen_installation": {
-      "path": "docs/release/INSTALL_v2.0.0.md",
-      "version": "2.0.0",
-      "sha256": "9e3d196b3ec7783b95ce2bbfb2a7708d91b60aecc39ae01b8c2a787698bd1c2e"
+    "installation": {
+      "path": "docs/release/INSTALL_v2.0.1.md",
+      "version": "2.0.1",
+      "sha256": "0d098fb2b7530a7bb5f7d4e4542e06bcf18f30f9ae205bf31d0e5faea93becbf"
     },
     "release_notes": {
-      "path": "docs/release/RELEASE_NOTES_v2.0.0.md",
-      "version": "2.0.0",
-      "sha256": "1cbd170a5de84837a6c030be306b91c8eba8ffc07b35b03cc92b866e26c41618"
+      "path": "docs/release/RELEASE_NOTES_v2.0.1.md",
+      "version": "2.0.1",
+      "sha256": "232dc376d10020c4b0324d42c249fe742ebd0d110eda4107de4d56a35a3b086b"
     }
   },
   "release_artifacts": {
-    "publication_status": "PUBLISHED_AS_RELEASE_ASSETS",
+    "publication_status": "FROZEN_GATED_NOT_PUBLISHED",
     "codex_marketplace_zip": {
-      "name": "better-product-graph-codex-2.0.0.zip",
-      "sha256": "sha256:dcfe838205d1ffbddfdc6c5125f3d6906b1a71647a1e029c0ea387584cff6cfd",
-      "bytes": 522310,
-      "plugin_artifact_hash": "sha256:43df82d4437c8b1d52b87e83e3a8663298fcf199cff2991ee5d5df9f33e9686e"
+      "name": "better-product-graph-codex-2.0.1.zip",
+      "sha256": "0bcf20d43fc65671dfb9e8bd8c1adacaa045133adba07881804a07d252bea25e",
+      "bytes": 539068,
+      "plugin_artifact_hash": "sha256:0b0f0f6c197513133d3d2d42036ca9e2da6955465681e6f8535768c5ef4db4be",
+      "execution_contract_fingerprint": "sha256:c5518d16efe00ecccabfd8e9c2acdd4267ce0784eac791a1e306f5fa6848e3c0"
     },
     "claude_marketplace_zip": {
-      "name": "better-product-graph-claude-2.0.0.zip",
-      "sha256": "sha256:fb19d1982b175c17324e610803217b200359d47168a8c2c0b9a67d41535d5757",
-      "bytes": 523694,
-      "plugin_artifact_hash": "sha256:2e21b4ba72b9c87763665e86a66d5733cdc3afb527d6d4296f876e78603ef001"
+      "name": "better-product-graph-claude-2.0.1.zip",
+      "sha256": "c7382a8a86b408596642d342ffde5f62d5fef48f301e5fb55eb438037de8d0de",
+      "bytes": 540514,
+      "plugin_artifact_hash": "sha256:90e714277cf7e5a4ee1ad708618545e7a0c2d8d0b8133d57ebc27594b93c6551",
+      "execution_contract_fingerprint": "sha256:7761a534e04af71f6bd57ef99ae46ae582e95834b6eea8929e1e301412dd65f4"
     },
-    "sha256sums_sha256": "sha256:060db6bc08bac6ddc1486afb96e0d195aefdbf8d4d6f89a51fd182a294f52b9f",
-    "core_tree_fingerprint": "sha256:059ffa9feda14cedbc7dbe9568f142aa7cfbc1d872b695fb7dc94e0f21d5ac6d"
+    "sha256sums_sha256": "e2537f3272c2fbbe3103fe12cb2afb257260b991cf6c877c2d89d78fae9163ec",
+    "core_tree_fingerprint": "sha256:f41536b1ba343bef2a03364650e49cc3a624d5fe4012ec6c2f570a5ffbca05d3"
   },
   "evidence": {
-    "development_source_tests": "818/818 PASS on development commit c79eaff4ba59de74bb8d9e572d6bc800eec77720",
-    "current_repair_focus": "63/63 PASS",
-    "public_snapshot_source_tests": "736/736 PASS; skipped=1",
-    "dual_host_clean_deterministic_build": "PASS; repeated ZIP SHA-256 values are byte-identical",
-    "codex_exact_release_asset_install_and_self_check": "PASS",
-    "claude_exact_release_asset_strict_validate_install_and_self_check": "PASS",
-    "owner_initial_use_observation": "Owner reported that the version basically runs through; no exact Product Golden or product-effect claim is inferred.",
-    "authenticated_host_agent_on_2_0_0_artifact": "NOT_RUN",
-    "product_golden_on_2_0_0_artifact": "NOT_RUN",
+    "development_source_tests": "868/868 PASS at 58e4fafaf7f3d9696a2d0060b7d12c299be6c8ab",
+    "public_snapshot_source_tests": "784 tests: 783 PASS, 1 SKIPPED (optional local upstream cognitive-base source unavailable), 0 FAIL/ERROR",
+    "dual_host_clean_deterministic_build": "PASS; final and repro-b ZIP bytes are identical for both Hosts at 58e4fafaf7f3d9696a2d0060b7d12c299be6c8ab",
+    "codex_exact_release_asset_install_and_self_check": "PASS; isolated Codex marketplace install, identity, self-check, Plugin Contract, uninstall, rollback, and reinstall",
+    "claude_exact_release_asset_strict_validate_install_and_self_check": "PASS; strict marketplace validate, isolated Claude install, identity, self-check, Plugin Contract, uninstall, and rollback",
+    "product_evals_applicability_pack_and_spec_review": "NOT_PART_OF_BPG_2_0",
+    "product_evals_execution": "NOT_RUN",
     "external_delivery": "NOT_RUN",
     "engineering_receipt": "NOT_RUN",
     "engineering_tests": "NOT_RUN",
@@ -104,7 +117,8 @@
     "human_reader_study": "NOT_RUN"
   },
   "release_sanitizations": [
-    "Preserve the existing public replacements of developer-specific absolute paths with /Users/example equivalents in negative, optional-local, or invalidated historical fixtures; active runtime semantics are unchanged."
+    "Preserve existing public /Users/example substitutions in negative, optional-local, and invalidated historical fixtures.",
+    "Built Host trees use the declared redact-upstream-local-path-v1 transform for the frozen fallback template provenance line."
   ],
   "excluded_from_public_snapshot": [
     ".assistant project memory",
@@ -113,9 +127,11 @@
     ".product-audit local audit state",
     ".superpowers construction plans and SDD ledgers",
     "audits and adversarial working reports",
-    "artifacts including drafts, local Releases and Handoffs",
-    "docs/implementation construction plans",
-    "internal raw release and Eval reports",
-    "local evidence roots, secrets, caches, __pycache__ and bytecode"
+    "artifacts including drafts, local Releases, and Handoffs",
+    "internal Template Packs and internal-only Pack tests",
+    "src/AGENTS.md development instructions",
+    "evals/bpg-version-arena and other private arena material",
+    "user drafts and product-form knowledge-pack working files",
+    "local evidence roots, developer-machine paths, secrets, caches, __pycache__, and bytecode"
   ]
 }

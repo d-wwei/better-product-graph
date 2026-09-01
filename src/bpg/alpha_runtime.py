@@ -9,13 +9,19 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
-from .alpha_html import render_self_contained_prd_html
+from .alpha_html import (
+    MermaidRenderError,
+    extract_mermaid_sources,
+    render_mermaid_svgs,
+    render_self_contained_prd_html,
+)
 from .locking import exclusive_file_lock
 from .storage import (
     assert_managed_path,
@@ -27,7 +33,6 @@ from .storage import (
     sha256_bytes,
     sha256_file,
 )
-from .visual_assets import VisualAssetError, scan_reader_visible_visual_payloads
 from .writing_review import WritingReviewError, load_and_validate_writing_coverage
 
 
@@ -93,7 +98,7 @@ REVIEW_RESPONSIBILITY_IDS = frozenset(
         "USER_EXPERIENCE_AND_CONTENT",
         "PRODUCT_SYSTEM_COHERENCE",
         "ENGINEERING_FEASIBILITY",
-        "ACCEPTANCE_AND_PRODUCT_EVALS",
+        "ACCEPTANCE_AND_VALIDATION_BOUNDARY",
         "DOCUMENT_EXPERIENCE",
     }
 )
@@ -246,16 +251,16 @@ class BPG2AlphaController:
 
     @classmethod
     def _template_source(cls) -> Path:
-        return cls._core_reference_source("templates/general/PRD_TEMPLATE_v2.0-alpha.md")
+        return cls._core_reference_source("templates/general/PRD_TEMPLATE_v2.0-alpha.3.md")
 
     @classmethod
     def _review_authority_sources(cls) -> dict[str, tuple[Path, str]]:
         return {
             "output_contract": (
                 cls._core_reference_source(
-                    "templates/general/PRD_OUTPUT_CONTRACT_v2.0-alpha.json"
+                    "templates/general/PRD_OUTPUT_CONTRACT_v2.0-alpha.3.json"
                 ),
-                "2.0-alpha.2",
+                "2.0-alpha.3",
             ),
             "writing_profile": (
                 cls._core_reference_source("policies/prd-writing-profile-v0.5.json"),
@@ -267,9 +272,9 @@ class BPG2AlphaController:
             ),
             "writing_review_contract": (
                 cls._core_reference_source(
-                    "reviewer-profiles/prd-writing-reader-review-v3.1.json"
+                    "reviewer-profiles/prd-writing-reader-review-v3.1.1.json"
                 ),
-                "v3.1",
+                "v3.1.1",
             ),
         }
 
@@ -332,26 +337,21 @@ class BPG2AlphaController:
         outcome: str,
         permission_scope: str,
     ) -> dict[str, Any]:
-        expected = {
-            "source_message_ref",
+        required = {
             "run_id",
             "candidate_ref",
             "allowed_outcome",
             "permission_scope",
             "issued_at",
         }
-        if not isinstance(value, dict) or set(value) != expected:
-            raise AlphaContractError(
-                "Decision authorization requires one source message and exact Run/Candidate scope"
-            )
-        source_ref = value.get("source_message_ref")
         if (
-            not isinstance(source_ref, dict)
-            or set(source_ref) != {"kind", "id"}
-            or source_ref.get("kind") != "HOST_MESSAGE"
+            not isinstance(value, dict)
+            or not required.issubset(value)
+            or set(value) - required - {"source_message_ref"}
         ):
-            raise AlphaContractError("Decision authorization source message is invalid")
-        _nonempty(source_ref.get("id"), "Decision authorization source message id")
+            raise AlphaContractError(
+                "Decision authorization requires exact Run/Candidate/outcome/scope/time bindings"
+            )
         if (
             value.get("run_id") != run_id
             or not _same_ref(value.get("candidate_ref"), candidate_ref)
@@ -464,7 +464,6 @@ class BPG2AlphaController:
                 "# 产品规划主记录\n\n"
                 "## Signal 与当前边界\n\n"
                 f"原始 Signal：{signal}\n\n"
-                "当前阶段：UNDERSTAND\n\n"
                 "本记录是当前 Run 的产品事实与分析真源；正式 Review 只读取冻结 Candidate。\n"
             )
             record_path = run_path / "planning-record.md"
@@ -652,13 +651,22 @@ class BPG2AlphaController:
                 raise AlphaContractError("section removal basis is forbidden when no section is removed")
 
             normalized_stage4 = None
-            if position == "PLAN_PRODUCT_SYSTEM" and next_position == "PRD_AUTHORING":
+            entering_prd_authoring = (
+                position == "PLAN_PRODUCT_SYSTEM" and next_position == "PRD_AUTHORING"
+            )
+            reconfirming_in_prd_authoring = (
+                position == "PRD_AUTHORING"
+                and next_position is None
+                and stage4_dispositions is not None
+            )
+            if entering_prd_authoring or reconfirming_in_prd_authoring:
                 normalized_stage4 = self._validate_stage4_dispositions(stage4_dispositions)
                 if any(item["status"] == "BLOCKED" for item in normalized_stage4):
                     raise AlphaContractError("Stage 4 BLOCKED dispositions prevent PRD authoring")
             elif stage4_dispositions is not None:
                 raise AlphaContractError(
-                    "Stage 4 dispositions are accepted only when entering PRD authoring"
+                    "Stage 4 dispositions are accepted only when entering or explicitly "
+                    "reconfirming in PRD authoring"
                 )
 
             atomic_write_bytes(path, markdown.encode("utf-8"))
@@ -725,10 +733,25 @@ class BPG2AlphaController:
         stored = self._store_object(run_id, source.read_bytes())
         return self.project_root / stored["path"], self.file_ref(source)
 
-    def _validate_evals(self, evals: Any, source_dir: Path) -> dict[str, Any]:
+    def _normalize_2_0_evals_status(self, evals: Any) -> dict[str, Any]:
+        """Preserve the truthful 2.0 non-execution boundary.
+
+        Product Evals applicability, Pack generation, and specification Review belong
+        to 2.2.  The optional legacy-shaped input is accepted only so a caller cannot
+        smuggle a simulated Pack into 2.0; its future applicability value has no effect
+        on the 2.0 Candidate or Ready contract.
+        """
+        status = {
+            "generator_capability": EVALS_GENERATOR_CAPABILITY,
+            "generator_invocation_status": "NOT_RUN",
+            "execution_status": "NOT_RUN",
+            "attachment_paths": [],
+        }
+        if evals is None:
+            return status
         if not isinstance(evals, dict):
-            raise AlphaContractError("Agent Product Evals applicability assessment is required")
-        expected_fields = {
+            raise AlphaContractError("Product Evals status must be omitted in BPG 2.0")
+        legacy_fields = {
             "applicability",
             "reason",
             "generator_capability",
@@ -736,13 +759,19 @@ class BPG2AlphaController:
             "execution_status",
             "attachment_paths",
         }
-        if set(evals) != expected_fields:
+        if set(evals) == set(status):
+            if evals != status:
+                raise AlphaContractError(
+                    "BPG 2.0 Product Evals status must remain NOT_IMPLEMENTED / NOT_RUN"
+                )
+            return status
+        if set(evals) != legacy_fields:
             raise AlphaContractError(
-                "Product Evals assessment must use the closed Alpha degradation contract"
+                "BPG 2.0 does not accept Product Evals assessment or Pack fields"
             )
         applicability = evals.get("applicability")
         if applicability not in {"NOT_NEEDED", "RECOMMENDED", "REQUIRED"}:
-            raise AlphaContractError("Product Evals applicability is invalid")
+            raise AlphaContractError("legacy Product Evals applicability is invalid")
         _nonempty(evals.get("reason"), "Product Evals reason")
         if (
             evals.get("generator_capability") != EVALS_GENERATOR_CAPABILITY
@@ -758,7 +787,7 @@ class BPG2AlphaController:
             raise AlphaContractError(
                 "Evals Generator is NOT_IMPLEMENTED; generated Eval attachments are forbidden"
             )
-        return deepcopy(evals)
+        return status
 
     def _validate_document_experience(
         self,
@@ -838,37 +867,29 @@ class BPG2AlphaController:
         if not markdown_path.is_file() or markdown_path.is_symlink():
             raise AlphaContractError("PRD draft requires PRD.md as the editing truth source")
 
-        files: list[dict[str, Any]] = []
-        asset_payloads: dict[str, bytes] = {}
-        asset_refs: dict[str, dict[str, Any]] = {}
-        for path in sorted(source_dir.rglob("*")):
+        source_entries = sorted(source_dir.rglob("*"))
+        for path in source_entries:
             if path.is_symlink():
                 raise AlphaContractError("PRD Release Set cannot contain symlinks")
-            if path.is_file():
-                relative = path.relative_to(source_dir).as_posix()
-                if relative != "PRD.md" and not relative.startswith("assets/"):
-                    raise AlphaContractError(
-                        "PRD Candidate delivery source is limited to PRD.md and assets"
-                    )
-                if relative.casefold().endswith(".png"):
-                    raise AlphaContractError(
-                        "PNG is a Handoff-only derivative and cannot be pre-generated in Candidate"
-                    )
-                payload = path.read_bytes()
-                object_ref = self._store_versioned_object(run_id, payload, version)
-                files.append(
-                    {
-                        "path": relative,
-                        "hash": object_ref["hash"],
-                        "size": len(payload),
-                        "classification": "DELIVERY_SOURCE",
-                        "object_ref": object_ref,
-                    }
+            if path != markdown_path:
+                raise AlphaContractError(
+                    "BPG 2.0 PRD Candidate source must contain exactly PRD.md; "
+                    "additional files and assets are Handoff-only"
                 )
-                if relative.startswith("assets/"):
-                    asset_name = relative.removeprefix("assets/")
-                    asset_payloads[asset_name] = payload
-                    asset_refs[asset_name] = object_ref
+            if not path.is_file():
+                raise AlphaContractError("PRD.md must be one regular file")
+
+        payload = markdown_path.read_bytes()
+        object_ref = self._store_versioned_object(run_id, payload, version)
+        files = [
+            {
+                "path": "PRD.md",
+                "hash": object_ref["hash"],
+                "size": len(payload),
+                "classification": "DELIVERY_SOURCE",
+                "object_ref": object_ref,
+            }
+        ]
 
         prd_file = next(item for item in files if item["path"] == "PRD.md")
         prd_ref = deepcopy(prd_file["object_ref"])
@@ -908,19 +929,7 @@ class BPG2AlphaController:
             "writing_profile": authority_refs["writing_profile"],
             "writing_guide": authority_refs["writing_guide"],
             "writing_review_contract": authority_refs["writing_review_contract"],
-            "product_eval_attachments": [],
         }
-        try:
-            visual_source_scan = scan_reader_visible_visual_payloads(
-                markdown_path.read_bytes(),
-                candidate_ref=prd_ref,
-                assets=asset_payloads,
-                asset_refs=asset_refs,
-            )
-        except VisualAssetError as error:
-            raise AlphaContractError(
-                f"PRD visual source is not reviewable: {error}"
-            ) from error
         writing_review_context = {
             "schema_version": "writing-review-dispatch.v3",
             "candidate_ref": prd_ref,
@@ -940,9 +949,6 @@ class BPG2AlphaController:
                 authority_refs["writing_review_contract"],
                 authority_refs["output_contract"],
             ],
-            "reader_visible_visual_pairs": visual_source_scan["safe_visual_pairs"],
-            "visual_source_scan": visual_source_scan,
-            "visual_asset_refs": asset_refs,
         }
         review_requirements = {
             "schema_version": "bpg2-alpha-prd-review-requirements.v2",
@@ -984,7 +990,7 @@ class BPG2AlphaController:
             "document_experience": document_experience,
             "candidate_tree_hash": candidate_tree_hash,
             "review_requirements": review_requirements,
-            "editing_truth": "PRD.md + assets",
+            "editing_truth": "PRD.md",
             "delivery_rendering": "DEFERRED_TO_HANDOFF",
             "files": files,
         }
@@ -1046,7 +1052,7 @@ class BPG2AlphaController:
             if kind == "PRD":
                 if source_dir is None:
                     raise AlphaContractError("PRD Candidate requires a source directory")
-                normalized_evals = self._validate_evals(evals, source_dir)
+                normalized_evals = self._normalize_2_0_evals_status(evals)
                 normalized_document_experience = self._validate_document_experience(
                     document_experience,
                     source_dir=source_dir,
@@ -1296,24 +1302,15 @@ class BPG2AlphaController:
     ) -> dict[str, Any]:
         if not isinstance(value, dict) or value != expected:
             raise AlphaContractError("Review basis refs do not match the frozen Candidate")
-        for role, ref in value.items():
-            if role == "product_eval_attachments":
-                if not isinstance(ref, list):
-                    raise AlphaContractError("Review basis Product Evals refs must be a list")
-                for item in ref:
-                    self._verify_file_ref(item)
-            else:
-                self._verify_file_ref(ref)
+        for ref in value.values():
+            self._verify_file_ref(ref)
         return deepcopy(value)
 
     @staticmethod
     def _flatten_review_basis_refs(value: dict[str, Any]) -> list[dict[str, Any]]:
         refs: list[dict[str, Any]] = []
-        for role, ref in value.items():
-            if role == "product_eval_attachments":
-                refs.extend(deepcopy(ref))
-            else:
-                refs.append(deepcopy(ref))
+        for ref in value.values():
+            refs.append(deepcopy(ref))
         return refs
 
     def _validate_responsibility_coverage(
@@ -1455,11 +1452,6 @@ class BPG2AlphaController:
                 for item in review.get("professional_reviews", [])
             ):
                 unmet.append("REQUIRED_PROFESSIONAL_REVIEW")
-        evals = state.get("product_evals")
-        if not isinstance(evals, dict):
-            unmet.append("PRODUCT_EVALS_APPLICABILITY")
-        elif evals.get("applicability") == "REQUIRED":
-            unmet.append("REQUIRED_PRODUCT_EVALS")
         planning_ref = candidate.get("planning_record_ref", {})
         try:
             self._verify_file_ref(planning_ref)
@@ -1482,17 +1474,19 @@ class BPG2AlphaController:
                 unmet.append("DOCUMENT_EXPERIENCE_EVIDENCE")
             if state.get("delivery_intent") == "COMMIT_NOW":
                 stage4 = state.get("stage4_dispositions")
+                stage4_items = stage4.get("items", []) if isinstance(stage4, dict) else []
                 if (
                     not isinstance(stage4, dict)
-                    or stage4.get("record_ref") != candidate.get("planning_record_ref")
-                    or len(stage4.get("items", [])) != len(STAGE4_ARTIFACT_IDS)
+                    or len(stage4_items) != len(STAGE4_ARTIFACT_IDS)
                     or any(
                         item.get("status") == "BLOCKED"
-                        for item in stage4.get("items", [])
+                        for item in stage4_items
                         if isinstance(item, dict)
                     )
                 ):
                     unmet.append("STAGE4_DISPOSITIONS")
+                elif stage4.get("record_ref") != candidate.get("planning_record_ref"):
+                    unmet.append("STAGE4_RECORD_REF_STALE")
             accepted = manifest.get("accepted_decision")
             decision = state["decision"]
             if (
@@ -1504,6 +1498,35 @@ class BPG2AlphaController:
             ):
                 unmet.append("ACCEPTED_DECISION")
         return list(dict.fromkeys(unmet))
+
+    @staticmethod
+    def _ready_unmet_details(
+        state: dict[str, Any],
+        *,
+        unmet: list[str],
+    ) -> list[dict[str, Any]]:
+        details: list[dict[str, Any]] = []
+        if "STAGE4_RECORD_REF_STALE" in unmet:
+            stage4 = state.get("stage4_dispositions")
+            current_ref = state.get("planning_record_ref")
+            bound_ref = stage4.get("record_ref") if isinstance(stage4, dict) else None
+            details.append(
+                {
+                    "reason": "STAGE4_RECORD_REF_STALE",
+                    "expected_current_hash": (
+                        current_ref.get("hash") if isinstance(current_ref, dict) else None
+                    ),
+                    "actual_bound_hash": (
+                        bound_ref.get("hash") if isinstance(bound_ref, dict) else None
+                    ),
+                    "recovery": (
+                        "In PRD_AUTHORING, use replace-record with the complete current "
+                        "Planning Record and submit the complete nine Stage 4 dispositions "
+                        "after the Lead Agent re-evaluates their product semantics."
+                    ),
+                }
+            )
+        return details
 
     @staticmethod
     def _ready_evidence_summary(
@@ -1731,11 +1754,18 @@ class BPG2AlphaController:
             if verdict == "PASS":
                 if candidate["kind"] == "PRD":
                     unmet = self._ready_unmet(state)
+                    if "STAGE4_RECORD_REF_STALE" in unmet:
+                        candidate["status"] = "STALE"
+                        state["position"] = "PRD_AUTHORING"
+                        state["candidate_required"] = True
                     state["ready"] = {
                         "status": "READY" if not unmet else "NOT_READY",
                         "candidate_ref": self._candidate_ref(candidate),
                         "review_ref": review["review_ref"],
                         "unmet": unmet,
+                        "unmet_details": self._ready_unmet_details(
+                            state, unmet=unmet
+                        ),
                         "evidence_summary": self._ready_evidence_summary(
                             state, unmet=unmet
                         ),
@@ -2096,6 +2126,146 @@ class BPG2AlphaController:
             mutate=apply,
         )
 
+    def _recover_exact_local_handoff(
+        self,
+        target: Path,
+        *,
+        run_id: str,
+        candidate: dict[str, Any],
+        ready: dict[str, Any],
+        delivery_options: dict[str, bool],
+        source_truth_ref: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Validate one fully published Handoff after an interrupted state commit."""
+
+        failure = (
+            "Local Handoff target already exists and is not the exact recoverable "
+            "output for this Run, Candidate, Ready state, and delivery selection"
+        )
+        try:
+            if target.is_symlink() or not target.is_dir():
+                raise AlphaContractError(failure)
+            manifest_path = assert_managed_path(target, Path("HANDOFF_MANIFEST.json"))
+            manifest = read_json(manifest_path)
+            if (
+                manifest.get("schema_version") != "bpg2-alpha-local-handoff.v3"
+                or manifest.get("run_id") != run_id
+                or manifest.get("candidate_ref") != self._candidate_ref(candidate)
+                or manifest.get("ready_ref") != ready
+                or manifest.get("delivery_options") != delivery_options
+            ):
+                raise AlphaContractError(failure)
+            delivery = manifest.get("delivery")
+            if (
+                not isinstance(delivery, dict)
+                or delivery.get("source_truth_ref") != source_truth_ref
+                or delivery.get("selected_modes")
+                != sorted(mode for mode, enabled in delivery_options.items() if enabled)
+            ):
+                raise AlphaContractError(failure)
+
+            raw_files = manifest.get("files")
+            if not isinstance(raw_files, list):
+                raise AlphaContractError(failure)
+            declared: dict[str, dict[str, Any]] = {}
+            expected_directories: set[str] = set()
+            for item in raw_files:
+                if not isinstance(item, dict) or set(item) != {"path", "hash", "size"}:
+                    raise AlphaContractError(failure)
+                relative = _nonempty(item.get("path"), "Handoff file path")
+                if relative in declared or relative == "HANDOFF_MANIFEST.json":
+                    raise AlphaContractError(failure)
+                path = assert_managed_path(target, Path(relative))
+                if (
+                    path.is_symlink()
+                    or not path.is_file()
+                    or sha256_file(path) != item.get("hash")
+                    or path.stat().st_size != item.get("size")
+                ):
+                    raise AlphaContractError(failure)
+                declared[relative] = item
+                parent = Path(relative).parent
+                while parent != Path("."):
+                    expected_directories.add(parent.as_posix())
+                    parent = parent.parent
+
+            actual_files: set[str] = set()
+            actual_directories: set[str] = set()
+            for path in target.rglob("*"):
+                if path.is_symlink():
+                    raise AlphaContractError(failure)
+                relative = path.relative_to(target).as_posix()
+                if path.is_file():
+                    if relative != "HANDOFF_MANIFEST.json":
+                        actual_files.add(relative)
+                elif path.is_dir():
+                    actual_directories.add(relative)
+                else:
+                    raise AlphaContractError(failure)
+            if actual_files != set(declared) or actual_directories != expected_directories:
+                raise AlphaContractError(failure)
+
+            refs = [delivery.get("primary_reading_ref")]
+            outputs = delivery.get("outputs")
+            if not isinstance(outputs, dict) or set(outputs) != set(delivery_options):
+                raise AlphaContractError(failure)
+            for mode, enabled in delivery_options.items():
+                output = outputs[mode]
+                expected_implementation = (
+                    "IMPLEMENTED"
+                    if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+                    else "NOT_IMPLEMENTED"
+                )
+                expected_status = (
+                    "GENERATED"
+                    if enabled
+                    else (
+                        "SKIPPED_BY_USER"
+                        if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+                        else "DISABLED"
+                    )
+                )
+                if (
+                    not isinstance(output, dict)
+                    or set(output)
+                    != {"enabled", "implementation_status", "status", "output_ref"}
+                    or output.get("enabled") is not enabled
+                    or output.get("implementation_status") != expected_implementation
+                    or output.get("status") != expected_status
+                    or (enabled and output.get("output_ref") is None)
+                    or (not enabled and output.get("output_ref") is not None)
+                ):
+                    raise AlphaContractError(failure)
+                if output.get("output_ref") is not None:
+                    refs.append(output["output_ref"])
+
+            expected_prd_ref = self.versioned_file_ref(
+                target / "PRD.md", candidate["version"]
+            )
+            if expected_prd_ref.get("hash") != source_truth_ref.get("hash"):
+                raise AlphaContractError(failure)
+            expected_primary = (
+                outputs["LOCAL_HTML"]["output_ref"]
+                if outputs["LOCAL_HTML"]["status"] == "GENERATED"
+                else expected_prd_ref
+            )
+            expected_evidence = deepcopy(ready["evidence_summary"])
+            expected_evidence["handoff_rendering"] = outputs["LOCAL_HTML"]["status"]
+            if (
+                delivery.get("primary_reading_ref") != expected_primary
+                or manifest.get("evidence_summary") != expected_evidence
+            ):
+                raise AlphaContractError(failure)
+            for ref in refs:
+                path = self._verify_file_ref(ref)
+                path.relative_to(target)
+
+            return manifest, self.file_ref(manifest_path)
+        except AlphaContractError:
+            raise
+        except Exception as error:
+            raise AlphaContractError(failure) from error
+
     def prepare_local_handoff(
         self,
         run_id: str,
@@ -2139,164 +2309,229 @@ class BPG2AlphaController:
             candidate = state["current_candidate"]
             self._verify_candidate(candidate)
             candidate_manifest = read_json(self.project_root / candidate["path"])
-            target = self.run_path(run_id) / "handoff" / "local"
-            if target.exists():
-                raise AlphaContractError("Local Handoff target already exists outside idempotent replay")
-            target.mkdir(parents=True)
-            for item in candidate_manifest.get("files", []):
-                if item.get("classification") != "DELIVERY_SOURCE":
-                    continue
-                object_path = self._verify_file_ref(item.get("object_ref"))
-                destination = assert_managed_path(target, Path(item["path"]))
-                atomic_write_bytes(destination, object_path.read_bytes())
-            if candidate_manifest.get("delivery_rendering") != "DEFERRED_TO_HANDOFF":
-                raise AlphaContractError("PRD delivery rendering contract is invalid")
             source_truth_ref = candidate_manifest["review_requirements"][
                 "review_basis_refs"
             ]["prd"]
-            local_prd_ref = self.versioned_file_ref(
-                target / "PRD.md", candidate["version"]
+            source_truth_path = self._verify_file_ref(source_truth_ref)
+            final_target = assert_managed_path(
+                self.run_path(run_id), Path("handoff/local")
             )
-            outputs = {
-                mode: {
-                    "enabled": enabled,
-                    "implementation_status": (
-                        "IMPLEMENTED"
-                        if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
-                        else "NOT_IMPLEMENTED"
-                    ),
-                    "status": (
-                        "PENDING"
-                        if enabled
-                        else (
-                            "SKIPPED_BY_USER"
-                            if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
-                            else "DISABLED"
-                        )
-                    ),
-                    "output_ref": None,
+
+            def record_complete_handoff(
+                manifest: dict[str, Any], manifest_ref: dict[str, Any]
+            ) -> None:
+                state["handoff"] = {
+                    "status": "LOCAL_HANDOFF_COMPLETE",
+                    "path": final_target.relative_to(self.project_root).as_posix(),
+                    "manifest_ref": manifest_ref,
+                    "delivery_options": deepcopy(normalized_delivery_options),
+                    "delivery": deepcopy(manifest["delivery"]),
                 }
-                for mode, enabled in normalized_delivery_options.items()
-            }
-            if normalized_delivery_options["LOCAL_HTML"]:
-                assets = (
-                    {
-                        path.relative_to(target).as_posix(): path.read_bytes()
-                        for path in sorted((target / "assets").rglob("*"))
-                        if path.is_file()
-                    }
-                    if (target / "assets").is_dir()
-                    else {}
+                state["status"] = "LOCAL_HANDOFF_COMPLETE"
+                state["external_delivery"] = "NOT_RUN"
+                state["retrospective_status"] = "NOT_RUN"
+                state["retrospective_requirements"] = deepcopy(
+                    manifest["retrospective_requirements"]
                 )
-                html_bytes = render_self_contained_prd_html(
-                    (target / "PRD.md").read_text(encoding="utf-8"), assets
-                ).encode("utf-8")
-                atomic_write_bytes(target / "PRD.html", html_bytes)
-                outputs["LOCAL_HTML"] = {
-                    **outputs["LOCAL_HTML"],
-                    "status": "GENERATED",
-                    "output_ref": self.versioned_file_ref(
-                        target / "PRD.html", candidate["version"]
-                    ),
-                }
-            evidence_summary = deepcopy(state["ready"]["evidence_summary"])
-            evidence_summary["handoff_rendering"] = outputs["LOCAL_HTML"]["status"]
-            primary_reading_ref = (
-                outputs["LOCAL_HTML"]["output_ref"]
-                if outputs["LOCAL_HTML"]["status"] == "GENERATED"
-                else local_prd_ref
-            )
-            primary_reading_name = (
-                "PRD.html"
-                if outputs["LOCAL_HTML"]["status"] == "GENERATED"
-                else "PRD.md"
-            )
-            option_lines = "".join(
-                f"  - {mode}：{'ON' if option['enabled'] else 'OFF'} · "
-                f"{option['status']}\n"
-                for mode, option in outputs.items()
-            )
-            note = (
-                "# Local Handoff\n\n"
-                "本交接只包含当前精确 PRD Release Set 的本地文件。\n\n"
-                f"- 默认阅读：{primary_reading_name}\n"
-                "- 编辑真源：PRD.md 与 assets\n"
-                "- Handoff 方式开关：\n"
-                f"{option_lines}"
-                f"- Contract Readiness：{evidence_summary['contract_readiness']}\n"
-                f"- Agent Review：{evidence_summary['agent_review']}\n"
-                f"- Writing Review：{evidence_summary['writing_review']}\n"
-                f"- Handoff Rendering：{evidence_summary['handoff_rendering']}\n"
-                f"- Human Reader Validation：{evidence_summary['human_reader_validation']}\n"
-                f"- Product Eval Execution：{evidence_summary['product_eval_execution']}\n"
-                f"- 外部发送：{evidence_summary['external_delivery']}\n"
-                f"- 研发接收：{evidence_summary['engineering_received']}\n"
-                f"- 工程测试：{evidence_summary['engineering_tests']}\n"
-                f"- 产品效果验证：{evidence_summary['product_effect_validation']}\n"
-            )
-            atomic_write_bytes(target / "HANDOFF.md", note.encode("utf-8"))
-            files = []
-            for path in sorted(target.rglob("*")):
-                if path.is_file() and path.name != "HANDOFF_MANIFEST.json":
-                    files.append(
-                        {
-                            "path": path.relative_to(target).as_posix(),
-                            "hash": sha256_file(path),
-                            "size": path.stat().st_size,
-                        }
+
+            if final_target.exists():
+                manifest, manifest_ref = self._recover_exact_local_handoff(
+                    final_target,
+                    run_id=run_id,
+                    candidate=candidate,
+                    ready=state["ready"],
+                    delivery_options=normalized_delivery_options,
+                    source_truth_ref=source_truth_ref,
+                )
+                record_complete_handoff(manifest, manifest_ref)
+                return
+
+            source_markdown = source_truth_path.read_text(encoding="utf-8")
+            try:
+                mermaid_sources = extract_mermaid_sources(source_markdown)
+                rendered_mermaid = render_mermaid_svgs(source_markdown)
+            except MermaidRenderError as error:
+                raise AlphaContractError(
+                    f"Local Handoff Mermaid rendering failed: {error}"
+                ) from error
+            if len(rendered_mermaid) != len(mermaid_sources):
+                raise AlphaContractError(
+                    "Local Handoff Mermaid source count "
+                    f"{len(mermaid_sources)} differs from generated SVG count "
+                    f"{len(rendered_mermaid)}"
+                )
+            final_target.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory(
+                prefix=".local-staging-", dir=final_target.parent
+            ) as staging_name:
+                target = Path(staging_name)
+
+                def published_ref(
+                    staged_path: Path, *, version: int | str | None = None
+                ) -> dict[str, Any]:
+                    ref = self.file_ref(staged_path)
+                    relative = staged_path.relative_to(target)
+                    ref["path"] = (
+                        final_target / relative
+                    ).relative_to(self.project_root).as_posix()
+                    if version is not None:
+                        ref["version"] = version
+                    return ref
+
+                for item in candidate_manifest.get("files", []):
+                    if item.get("classification") != "DELIVERY_SOURCE":
+                        continue
+                    object_path = self._verify_file_ref(item.get("object_ref"))
+                    destination = assert_managed_path(target, Path(item["path"]))
+                    atomic_write_bytes(destination, object_path.read_bytes())
+                for index, svg_bytes in enumerate(rendered_mermaid, start=1):
+                    destination = assert_managed_path(
+                        target,
+                        Path(f"assets/generated/mermaid-{index:03d}.svg"),
                     )
-            manifest = {
-                "schema_version": "bpg2-alpha-local-handoff.v3",
-                "run_id": run_id,
-                "candidate_ref": self._candidate_ref(candidate),
-                "ready_ref": deepcopy(state["ready"]),
-                "prd_type": candidate_manifest["prd_type"],
-                "delivery_options": deepcopy(normalized_delivery_options),
-                "delivery": {
-                    "source_truth_ref": source_truth_ref,
-                    "selected_modes": sorted(
-                        mode
-                        for mode, enabled in normalized_delivery_options.items()
-                        if enabled
-                    ),
-                    "primary_reading_ref": primary_reading_ref,
-                    "outputs": outputs,
-                },
-                "delivery_capabilities": {
-                    "implemented": sorted(IMPLEMENTED_HANDOFF_DELIVERY_MODES),
-                    "not_implemented": [
-                        "LOCAL_DOCUMENT",
-                        "FEISHU_DOCUMENT",
-                        "PROJECT_MANAGEMENT_MCP",
-                    ],
-                },
-                "files": files,
-                "local_only": True,
-                "external_delivery": "NOT_RUN",
-                "engineering_received": "NOT_RUN",
-                "tests": "NOT_RUN",
-                "product_effect_validation": "NOT_RUN",
-                "evidence_summary": evidence_summary,
-                "retrospective_requirements": {
-                    "check_ids": sorted(RETROSPECTIVE_CONFORMANCE_IDS),
-                    "statuses": ["PASS", "FINDING", "NOT_APPLICABLE"],
-                },
-            }
-            manifest_path = target / "HANDOFF_MANIFEST.json"
-            atomic_write_json(manifest_path, manifest)
-            state["handoff"] = {
-                "status": "LOCAL_HANDOFF_COMPLETE",
-                "path": target.relative_to(self.project_root).as_posix(),
-                "manifest_ref": self.file_ref(manifest_path),
-                "delivery_options": deepcopy(normalized_delivery_options),
-                "delivery": deepcopy(manifest["delivery"]),
-            }
-            state["status"] = "LOCAL_HANDOFF_COMPLETE"
-            state["external_delivery"] = "NOT_RUN"
-            state["retrospective_status"] = "NOT_RUN"
-            state["retrospective_requirements"] = deepcopy(
-                manifest["retrospective_requirements"]
-            )
+                    atomic_write_bytes(destination, svg_bytes)
+                if candidate_manifest.get("delivery_rendering") != "DEFERRED_TO_HANDOFF":
+                    raise AlphaContractError("PRD delivery rendering contract is invalid")
+                local_prd_ref = published_ref(
+                    target / "PRD.md", version=candidate["version"]
+                )
+                outputs = {
+                    mode: {
+                        "enabled": enabled,
+                        "implementation_status": (
+                            "IMPLEMENTED"
+                            if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+                            else "NOT_IMPLEMENTED"
+                        ),
+                        "status": (
+                            "PENDING"
+                            if enabled
+                            else (
+                                "SKIPPED_BY_USER"
+                                if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+                                else "DISABLED"
+                            )
+                        ),
+                        "output_ref": None,
+                    }
+                    for mode, enabled in normalized_delivery_options.items()
+                }
+                if normalized_delivery_options["LOCAL_HTML"]:
+                    assets = (
+                        {
+                            path.relative_to(target).as_posix(): path.read_bytes()
+                            for path in sorted((target / "assets").rglob("*"))
+                            if path.is_file()
+                        }
+                        if (target / "assets").is_dir()
+                        else {}
+                    )
+                    html_bytes = render_self_contained_prd_html(
+                        source_markdown,
+                        assets,
+                        mermaid_svgs=rendered_mermaid,
+                    ).encode("utf-8")
+                    atomic_write_bytes(target / "PRD.html", html_bytes)
+                    outputs["LOCAL_HTML"] = {
+                        **outputs["LOCAL_HTML"],
+                        "status": "GENERATED",
+                        "output_ref": published_ref(
+                            target / "PRD.html", version=candidate["version"]
+                        ),
+                    }
+                evidence_summary = deepcopy(state["ready"]["evidence_summary"])
+                evidence_summary["handoff_rendering"] = outputs["LOCAL_HTML"]["status"]
+                primary_reading_ref = (
+                    outputs["LOCAL_HTML"]["output_ref"]
+                    if outputs["LOCAL_HTML"]["status"] == "GENERATED"
+                    else local_prd_ref
+                )
+                primary_reading_name = (
+                    "PRD.html"
+                    if outputs["LOCAL_HTML"]["status"] == "GENERATED"
+                    else "PRD.md"
+                )
+                option_lines = "".join(
+                    f"  - {mode}：{'ON' if option['enabled'] else 'OFF'} · "
+                    f"{option['status']}\n"
+                    for mode, option in outputs.items()
+                )
+                note = (
+                    "# Local Handoff\n\n"
+                    "本交接只包含当前精确 PRD Release Set 的本地文件。\n\n"
+                    f"- 默认阅读：{primary_reading_name}\n"
+                    "- 编辑真源：PRD.md\n"
+                    "- Handoff 方式开关：\n"
+                    f"{option_lines}"
+                    f"- Contract Readiness：{evidence_summary['contract_readiness']}\n"
+                    f"- Agent Review：{evidence_summary['agent_review']}\n"
+                    f"- Writing Review：{evidence_summary['writing_review']}\n"
+                    f"- Handoff Rendering：{evidence_summary['handoff_rendering']}\n"
+                    f"- Human Reader Validation：{evidence_summary['human_reader_validation']}\n"
+                    f"- Product Eval Execution：{evidence_summary['product_eval_execution']}\n"
+                    f"- 外部发送：{evidence_summary['external_delivery']}\n"
+                    f"- 研发接收：{evidence_summary['engineering_received']}\n"
+                    f"- 工程测试：{evidence_summary['engineering_tests']}\n"
+                    f"- 产品效果验证：{evidence_summary['product_effect_validation']}\n"
+                )
+                atomic_write_bytes(target / "HANDOFF.md", note.encode("utf-8"))
+                files = []
+                for path in sorted(target.rglob("*")):
+                    if path.is_file() and path.name != "HANDOFF_MANIFEST.json":
+                        files.append(
+                            {
+                                "path": path.relative_to(target).as_posix(),
+                                "hash": sha256_file(path),
+                                "size": path.stat().st_size,
+                            }
+                        )
+                manifest = {
+                    "schema_version": "bpg2-alpha-local-handoff.v3",
+                    "run_id": run_id,
+                    "candidate_ref": self._candidate_ref(candidate),
+                    "ready_ref": deepcopy(state["ready"]),
+                    "prd_type": candidate_manifest["prd_type"],
+                    "delivery_options": deepcopy(normalized_delivery_options),
+                    "delivery": {
+                        "source_truth_ref": source_truth_ref,
+                        "selected_modes": sorted(
+                            mode
+                            for mode, enabled in normalized_delivery_options.items()
+                            if enabled
+                        ),
+                        "primary_reading_ref": primary_reading_ref,
+                        "outputs": outputs,
+                    },
+                    "delivery_capabilities": {
+                        "implemented": sorted(IMPLEMENTED_HANDOFF_DELIVERY_MODES),
+                        "not_implemented": [
+                            "LOCAL_DOCUMENT",
+                            "FEISHU_DOCUMENT",
+                            "PROJECT_MANAGEMENT_MCP",
+                        ],
+                    },
+                    "files": files,
+                    "local_only": True,
+                    "external_delivery": "NOT_RUN",
+                    "engineering_received": "NOT_RUN",
+                    "tests": "NOT_RUN",
+                    "product_effect_validation": "NOT_RUN",
+                    "evidence_summary": evidence_summary,
+                    "retrospective_requirements": {
+                        "check_ids": sorted(RETROSPECTIVE_CONFORMANCE_IDS),
+                        "statuses": ["PASS", "FINDING", "NOT_APPLICABLE"],
+                    },
+                }
+                manifest_path = target / "HANDOFF_MANIFEST.json"
+                atomic_write_json(manifest_path, manifest)
+                manifest_ref = published_ref(manifest_path)
+                if final_target.exists():
+                    raise AlphaContractError(
+                        "Local Handoff target appeared during materialization"
+                    )
+                target.rename(final_target)
+
+            record_complete_handoff(manifest, manifest_ref)
 
         return self._mutate(
             run_id,

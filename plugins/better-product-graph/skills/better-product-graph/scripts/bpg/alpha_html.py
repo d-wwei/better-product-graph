@@ -6,6 +6,9 @@ import base64
 import html
 import mimetypes
 import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import PurePosixPath
 
 from .visual_assets import VisualAssetError, _validate_svg
@@ -18,6 +21,124 @@ _TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")
 _LIST_ITEM = re.compile(
     r"^(?P<indent>[ \t]*)(?:(?P<number>\d+)[.)]|(?P<bullet>[-*+]))\s+(?P<text>.*)$"
 )
+_FENCE_OPEN = re.compile(r"^ {0,3}(?P<fence>`{3,})(?P<language>[^`]*)$")
+_FENCE_CLOSE = re.compile(r"^ {0,3}(?P<fence>`{3,})[ \t]*$")
+
+
+class MermaidRenderError(ValueError):
+    """A Handoff Mermaid source could not be materialized."""
+
+
+def _markdown_lines(markdown: str) -> list[str]:
+    return markdown.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+
+def _fenced_code_block(
+    lines: list[str], index: int
+) -> tuple[str, list[str], int, bool] | None:
+    opener = _FENCE_OPEN.match(lines[index])
+    if opener is None:
+        return None
+    fence_width = len(opener.group("fence"))
+    code_lines: list[str] = []
+    index += 1
+    while index < len(lines):
+        closer = _FENCE_CLOSE.match(lines[index])
+        if closer is not None and len(closer.group("fence")) >= fence_width:
+            return opener.group("language").strip(), code_lines, index + 1, True
+        code_lines.append(lines[index])
+        index += 1
+    return opener.group("language").strip(), code_lines, index, False
+
+
+def extract_mermaid_sources(markdown: str) -> list[str]:
+    """Extract Mermaid fences using the same syntax as the Markdown renderer."""
+
+    lines = _markdown_lines(markdown)
+    sources: list[str] = []
+    index = 0
+    while index < len(lines):
+        block = _fenced_code_block(lines, index)
+        if block is None:
+            index += 1
+            continue
+        language, code_lines, next_index, closed = block
+        if not closed:
+            if language.casefold() == "mermaid":
+                raise MermaidRenderError("unclosed Mermaid code fence")
+            break
+        if language.casefold() == "mermaid":
+            sources.append("\n".join(code_lines).strip())
+        index = next_index
+    return sources
+
+
+def render_mermaid_svgs(markdown: str) -> list[bytes]:
+    """Materialize fenced Mermaid sources at Handoff without judging semantics."""
+
+    sources = extract_mermaid_sources(markdown)
+    if not sources:
+        return []
+    executable = shutil.which("mmdc")
+    if executable is None:
+        raise MermaidRenderError(
+            "Mermaid renderer mmdc is NOT_IMPLEMENTED in this Host environment"
+        )
+
+    rendered: list[bytes] = []
+    try:
+        with tempfile.TemporaryDirectory(prefix="bpg-mermaid-handoff-") as raw_temp:
+            temp = PurePosixPath(raw_temp)
+            for index, source in enumerate(sources, start=1):
+                if not source:
+                    raise MermaidRenderError(
+                        f"Mermaid diagram {index} has no source to materialize"
+                    )
+                source_path = str(temp / f"diagram-{index:03d}.mmd")
+                output_path = str(temp / f"diagram-{index:03d}.svg")
+                with open(source_path, "w", encoding="utf-8") as handle:
+                    handle.write(source + "\n")
+                completed = subprocess.run(
+                    [
+                        executable,
+                        "--input",
+                        source_path,
+                        "--output",
+                        output_path,
+                        "--backgroundColor",
+                        "transparent",
+                        "--quiet",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=False,
+                )
+                if completed.returncode != 0:
+                    detail = (completed.stderr or completed.stdout).strip()
+                    raise MermaidRenderError(
+                        f"Mermaid diagram {index} could not be materialized"
+                        + (f": {detail}" if detail else "")
+                    )
+                try:
+                    with open(output_path, "rb") as handle:
+                        payload = handle.read()
+                except OSError as error:
+                    raise MermaidRenderError(
+                        f"Mermaid diagram {index} produced no SVG output"
+                    ) from error
+                if not payload:
+                    raise MermaidRenderError(
+                        f"Mermaid diagram {index} produced an empty SVG output"
+                    )
+                rendered.append(payload)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise MermaidRenderError(f"Mermaid renderer failed explicitly: {error}") from error
+    if len(rendered) != len(sources):
+        raise MermaidRenderError(
+            "Handoff Mermaid source count differs from generated SVG count"
+        )
+    return rendered
 
 
 def _safe_asset_path(value: str) -> str:
@@ -153,11 +274,17 @@ def _render_list(
     return f"<{list_kind}{start_attribute}>{''.join(items)}</{list_kind}>", index
 
 
-def _render_body(markdown: str, assets: dict[str, bytes]) -> str:
-    lines = markdown.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+def _render_body(
+    markdown: str,
+    assets: dict[str, bytes],
+    mermaid_svgs: list[bytes] | None = None,
+) -> str:
+    lines = _markdown_lines(markdown)
     output: list[str] = []
     paragraph: list[str] = []
     index = 0
+    mermaid_index = 0
+    generated_mermaid = mermaid_svgs or []
 
     def flush_paragraph() -> None:
         if paragraph:
@@ -171,21 +298,33 @@ def _render_body(markdown: str, assets: dict[str, bytes]) -> str:
             flush_paragraph()
             index += 1
             continue
-        if stripped.startswith("```"):
+        block = _fenced_code_block(lines, index)
+        if block is not None:
             flush_paragraph()
-            language = stripped[3:].strip()
-            code_lines: list[str] = []
-            index += 1
-            while index < len(lines) and not lines[index].strip().startswith("```"):
-                code_lines.append(lines[index])
-                index += 1
-            if index >= len(lines):
+            language, code_lines, index, closed = block
+            if not closed:
                 raise ValueError("unclosed Markdown code fence")
-            class_name = f' class="language-{html.escape(language, quote=True)}"' if language else ""
-            output.append(
-                f"<pre><code{class_name}>{html.escape(chr(10).join(code_lines))}</code></pre>"
-            )
-            index += 1
+            if language.casefold() == "mermaid":
+                if mermaid_index >= len(generated_mermaid):
+                    raise ValueError("Mermaid source was not materialized for Handoff")
+                encoded = base64.b64encode(generated_mermaid[mermaid_index]).decode(
+                    "ascii"
+                )
+                mermaid_index += 1
+                output.append(
+                    '<figure><img src="data:image/svg+xml;base64,'
+                    + encoded
+                    + f'" alt="Mermaid diagram {mermaid_index}" loading="eager"></figure>'
+                )
+            else:
+                class_name = (
+                    f' class="language-{html.escape(language, quote=True)}"'
+                    if language
+                    else ""
+                )
+                output.append(
+                    f"<pre><code{class_name}>{html.escape(chr(10).join(code_lines))}</code></pre>"
+                )
             continue
         heading = re.match(r"^(#{1,6})\s+(.+)$", stripped)
         if heading:
@@ -229,14 +368,21 @@ def _render_body(markdown: str, assets: dict[str, bytes]) -> str:
         paragraph.append(stripped)
         index += 1
     flush_paragraph()
+    if mermaid_index != len(generated_mermaid):
+        raise ValueError("Handoff Mermaid output count differs from source count")
     return "\n".join(output)
 
 
-def render_self_contained_prd_html(markdown: str, assets: dict[str, bytes]) -> str:
+def render_self_contained_prd_html(
+    markdown: str,
+    assets: dict[str, bytes],
+    *,
+    mermaid_svgs: list[bytes] | None = None,
+) -> str:
     """Render one safe, self-contained PRD reading view without external resources."""
 
     normalized_assets = {_safe_asset_path(path): value for path, value in assets.items()}
-    body = _render_body(markdown, normalized_assets)
+    body = _render_body(markdown, normalized_assets, mermaid_svgs)
     return """<!doctype html>
 <html lang="zh-CN">
 <head>

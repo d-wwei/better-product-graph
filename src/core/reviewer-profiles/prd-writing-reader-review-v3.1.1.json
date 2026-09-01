@@ -1,0 +1,134 @@
+{
+  "schema_version": "writing-reader-review-contract.v3.1.1",
+  "resource_id": "prd-writing-reader-review-v3.1.1",
+  "version": "v3.1.1",
+  "authority": "ADVISORY_ONLY",
+  "review_schema": "document-experience-reader-review.v3",
+  "supported_profile_id": "prd-plain-language-zh-CN",
+  "supported_profile_version": "0.5.0",
+  "profile_ref": {
+    "path": "references/policies/prd-writing-profile-v0.5.json",
+    "hash": "sha256:a2e2e3f9e3a56e2c59898e404199660807096b781b0e7b02b0f8dca9d96faaa0",
+    "version": "0.5.0"
+  },
+  "guide_ref": {
+    "path": "references/policies/prd-writing-guide-v0.5.md",
+    "hash": "sha256:98e6f0883c243063405736ede0196aae09c851627cfbcee846bd89d5f2403962",
+    "version": "0.5.0"
+  },
+  "reviewer_role": "writing_standard",
+  "isolated_input_order": [
+    "candidate_ref",
+    "profile_ref",
+    "guide_ref",
+    "review_contract_ref",
+    "output_contract_ref"
+  ],
+  "responsibility_boundary": {
+    "writing_reviewer_assesses": "CLARITY_LOCATABILITY_AND_MERMAID_SOURCE_MEANING",
+    "substantive_completeness_owners": [
+      "PRODUCT",
+      "ENGINEERING_FEASIBILITY",
+      "TESTABILITY"
+    ],
+    "missing_content_policy": "DO_NOT_INVENT_OR_REASSIGN_AS_WRITING_FINDING",
+    "repair_selection": "ALLOW_EVIDENCE_BACKED_ALTERNATIVES_FOR_SAME_READER_OBJECTIVE"
+  },
+  "status_authority_boundary": {
+    "responsibility_id": "DOCUMENT_EXPERIENCE",
+    "owner": "WRITING_REVIEWER",
+    "test": "STATUS_DRIFT_TEST",
+    "failure_condition": "PRD_BECOMES_SECOND_MUTABLE_WORKFLOW_TRUTH",
+    "finding_stance": "REVISE",
+    "diagnostic_categories": [
+      "COMPLETION_SEMANTICS_AMBIGUOUS",
+      "ARTIFACT_MATURITY_OVERCLAIM"
+    ],
+    "repair_techniques": [
+      "MOVE",
+      "BOUNDARY"
+    ],
+    "product_planning_record_owns": "PRODUCT_REASONING_DECISIONS_AND_DURABLE_FINDING_DISPOSITIONS",
+    "prd_owns": "DURABLE_PRODUCT_CONTRACT_AND_DURABLE_PRODUCT_UNKNOWNS",
+    "runtime_status_authorities": [
+      "CONTROLLER_STATUS",
+      "EXACT_RECEIPTS"
+    ],
+    "keyword_scanning": "FORBIDDEN"
+  },
+  "reader_readback_contract": {
+    "required_fields": [
+      "problem_and_outcome",
+      "primary_relationships",
+      "mental_model",
+      "main_path_and_recovery",
+      "decision_conditions_and_risks",
+      "navigation_map"
+    ],
+    "mental_model_min_components": 3,
+    "mental_model_max_components": 5,
+    "navigation_targets": [
+      "PRODUCT_RULES",
+      "ACCEPTANCE",
+      "RISKS_UNKNOWNS_NEXT"
+    ]
+  },
+  "reader_outcomes": [
+    "UNDERSTAND",
+    "SEE",
+    "MODEL",
+    "RETELL",
+    "DECIDE",
+    "LOCATE"
+  ],
+  "diagnostic_categories": [
+    "SEMANTIC_REPETITION",
+    "FLAT_PEER_OVERLOAD",
+    "REPRESENTATION_COLLISION",
+    "DETAIL_IN_MAIN_PATH",
+    "DENSE_TABLE",
+    "JARGON_INTRUSION",
+    "CHECKLIST_FUNCTION_LOSS",
+    "COMPLETION_SEMANTICS_AMBIGUOUS",
+    "ARTIFACT_MATURITY_OVERCLAIM"
+  ],
+  "repair_techniques": [
+    "REORDER",
+    "GROUP",
+    "EXPLAIN",
+    "EXAMPLE",
+    "VISUALIZE",
+    "LAYER",
+    "MERGE",
+    "REFERENCE",
+    "MOVE",
+    "TRIM",
+    "RESTORE_FUNCTION",
+    "BOUNDARY"
+  ],
+  "assessment_verdicts": {
+    "verbosity": ["PASS", "FINDING"],
+    "checklist": ["PASS", "FINDING"],
+    "visual": ["PASS", "FINDING", "NOT_NEEDED"]
+  },
+  "visual_assessment_contract": {
+    "candidate_visual_source": "MERMAID_IN_EXACT_MARKDOWN_ONLY",
+    "pass": "SOURCE_REVIEWED_WITHOUT_RENDERED_ASSET",
+    "finding_with_source": "SOURCE_REVIEWED_WITH_NORMAL_SEMANTIC_FINDING",
+    "finding_without_source": "NOT_OBSERVED_WITH_NORMAL_SEMANTIC_FINDING",
+    "not_needed": "AGENT_DETERMINED_NO_VISUAL_NEEDED_WITH_CONCRETE_REASON",
+    "trigger_semantics": "INSPECTION_SIGNALS_NOT_AUTOMATIC_ILLUSTRATION_REQUIREMENTS",
+    "missing_visual_finding_gate": "CURRENT_TEXT_CANNOT_REASONABLY_COMMUNICATE_KEY_RELATIONSHIP_AND_MINIMAL_VISUAL_MATERIALLY_IMPROVES_IT",
+    "candidate_rendering": "FORBIDDEN_UNTIL_HANDOFF",
+    "semantic_claim_boundary": "INDEPENDENT_REVIEWER_ATTESTATION_OVER_SOURCE_NOT_CONTROLLER_PERCEPTION",
+    "handoff_claim_boundary": "SVG_OR_HTML_GENERATION_PROVES_MATERIALIZATION_ONLY"
+  },
+  "finding_union_rule": "TOP_LEVEL_FINDING_REFS_EQUAL_OUTCOME_AND_ASSESSMENT_FINDING_UNION",
+  "independence": {
+    "author_kind": "HOST_AGENT_ATTEMPT",
+    "reviewer_kind": "HOST_SUBAGENT_ATTEMPT",
+    "different_ids_required": true,
+    "claim_boundary": "RECORDED_DISTINCT_DURABLE_ATTEMPTS_NOT_EXTERNAL_IDENTITY_PROOF"
+  },
+  "claim_boundary": "AGENT_REVIEW_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN"
+}

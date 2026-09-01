@@ -151,9 +151,9 @@ FINDINGS: dict[str, dict[str, Any]] = {
         _id("test_evals_authority", "ReviewedEvalsAuthorityTests", "test_required_review_pending_is_honestly_not_ready"),
     ),
     "EVAL-C2": _finding(
-        "A skills-only Host cannot self-attest independent REQUIRED Eval fulfillment: generate, Ready, and Release fail closed without side effects; RECOMMENDED remains releasable and typed Pack/Review validation is specification-only.",
-        _id("test_installed_reaudit_bypasses", "InstalledPublicReauditTests", "test_installed_same_host_cannot_self_attest_required_evals_and_release"),
-        _id("test_prd_contract", "PRDContractTests", "test_prd_generate_cannot_self_claim_required_evals_are_reviewed"),
+        "BPG 2.0 rejects unbound future Product Evals metadata before Ready; dormant typed Pack/Review validation remains specification-only.",
+        _id("test_installed_reaudit_bypasses", "InstalledPublicReauditTests", "test_installed_bpg2_rejects_unbound_future_evals_metadata_before_ready"),
+        _id("test_prd_contract", "PRDContractTests", "test_prd_generate_does_not_require_or_emit_evals_applicability"),
         _id("test_evals_authority", "ReviewedEvalsAuthorityTests", "test_required_reviewed_is_not_ready_without_verifiable_fulfillment_authority"),
         _id("test_reviews_ready", "ReviewsReadyTests", "test_required_evals_cannot_reach_full_release_without_verifiable_fulfillment_authority"),
         _id("test_installed_reaudit_bypasses", "InstalledPublicReauditTests", "test_installed_recommended_evals_can_complete_without_fulfillment_authority"),

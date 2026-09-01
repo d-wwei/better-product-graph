@@ -20,6 +20,9 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v7
+        with:
+          # Historical compatibility tests bind an exact released RC commit.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v7

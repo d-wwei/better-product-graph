@@ -37,7 +37,36 @@ shortness: the author and Reviewer must not use word, line, section, or table-ro
 as automatic quality gates. A long necessary table or appendix is valid
 when the main path stays complete and navigation is clear.
 
-The Host Agent must author the full PRD product content. Begin with the independently deliverable user outcome and next action; preserve evidence, assumptions, Unknowns, authority and scope boundaries. Bind exact version/hash refs; never use `latest/current`, raw `TBD`, unfilled `{{...}}`, empty tables, or make up facts to fill a template. Apply the frozen PRD writing Profile's ELI5 rules: concrete event before abstraction, conclusion before explanation, one main point per paragraph, plain Chinese before the first technical term, and a meaningful visual when a non-trivial flow, branch, sequence, state, data path, module relationship, or responsibility boundary is otherwise hard to understand. If a conditional body section is truly not applicable and the Output Contract allows omission, omit its heading, empty table, and placeholder; keep the corresponding Checklist item as `不适用｜理由：具体原因`. Unknown, not designed, not executed, and mandatory semantics are not “not applicable” and must remain visible. Include observable acceptance, dependencies, abnormal/recovery paths, risk/rollback, version/change visibility, and conditional Eval applicability/fulfillment without claiming tests ran. Do not put mutable workflow claims such as current Review status, Eval fulfillment/execution result, or remote Handoff sent/received/approved status into the immutable PRD body; keep them in Controller-owned metadata, receipts, or status views so they cannot become a second stale authority. For the default general template, keep a visible Markdown heading named `## 附录 C：文档变更日志` and a concrete version row; a human-readable heading is the contract, so do not insert an internal filename merely to satisfy validation. In the current skills-only Host, REQUIRED Evals metadata must remain `REVIEW_PENDING`/`NOT_RUN`: the Host cannot prove independent fulfillment, so neither `prd.generate` nor `prd.optimize` may claim `REVIEWED`.
+### STATUS_DRIFT_TEST
+
+Before submitting the existing Document Experience self-check, separate three
+authorities and record the result in its existing `diagnoses` and `actions`
+lists; do not add a field or a second status document:
+
+- the PRD owns the durable product contract and durable product Unknowns;
+- the Product Planning Record owns product reasoning, decisions, evidence and
+  durable Finding disposition history;
+- Controller status and exact receipts own the mutable truth about where this
+  Product Run is now.
+
+Apply one semantic test to every sentence that looks like status: if product
+requirements stay unchanged but advancing only the Product Run by one step
+would make the sentence stale, it fails `STATUS_DRIFT_TEST` and must not remain
+in the PRD. This includes current Candidate, Review, Ready, or Handoff status;
+current Evals Generator capability or fulfillment; and current engineering
+receipt, test, release, or delivery status. Move durable product reasoning or a
+durable Finding disposition to the Product Planning Record. Read live progress
+from Controller status or its exact receipt instead of copying it into prose.
+
+The test is semantic, not a keyword scan. A durable requirement such as “when
+product validation has not run, the product must not claim its effect is
+validated” is a product contract, not current Run status. Record in
+`diagnoses` what was checked and in `actions` what was removed, moved, or kept
+with its durable reason.
+
+The Host Agent must author the full PRD product content. Begin with the independently deliverable user outcome and product decision boundary; preserve evidence, assumptions, durable product Unknowns, authority and scope boundaries. Bind exact version/hash refs; never use `latest/current`, raw `TBD`, unfilled `{{...}}`, empty tables, or make up facts to fill a template. Apply the frozen PRD writing Profile's ELI5 rules: concrete event before abstraction, conclusion before explanation, one main point per paragraph, plain Chinese before the first technical term, and a meaningful Mermaid source block when a non-trivial flow, branch, sequence, state, data path, module relationship, or responsibility boundary is otherwise hard to understand. In the BPG 2.0 single-PRD runtime, the Candidate source file set is exactly `PRD.md`; keep visuals as Mermaid source in that Markdown only. Do not add asset files, generate or attach SVG preview, PNG or HTML before Ready, or perform picture safety or pixel preflight. If a conditional body section is truly not applicable and the Output Contract allows omission, omit its heading, empty table, and placeholder; keep the corresponding Checklist item as `不适用｜理由：具体原因`. A durable product Unknown, not-yet-designed product behavior, and mandatory product semantic are not “not applicable” and must remain visible; mutable execution status follows `STATUS_DRIFT_TEST` instead. Include observable acceptance, dependencies, abnormal/recovery paths, risk/rollback, durable document change visibility, and the truthful boundary that unexecuted validation cannot support a product-effect claim. Do not put mutable workflow claims such as current Review status, Eval fulfillment/execution result, or remote Handoff sent/received/approved status into the immutable PRD body; keep them in Controller-owned metadata, receipts, or status views so they cannot become a second stale authority. For the default general template, keep a visible Markdown heading named `## 附录 C：文档变更日志` and a concrete version row; a human-readable heading is the contract, so do not insert an internal filename merely to satisfy validation.
+
+BPG 2.0 does not perform Product Evals applicability assessment, Eval Pack generation, or Eval Spec Review. The Author submits no Eval assessment or attachment for PRD freeze and must not manufacture one. Product Evals execution and product-effect validation remain `NOT_RUN`; this truthful boundary does not block 2.0 Ready or Local Handoff. Applicability, Pack, specification Review, and their Ready Gate begin only with the versioned 2.2 method and runtime.
 
 Choose the PRD's human title in the user's working language: use an explicit
 language preference when present, otherwise use the language the user is using
@@ -114,6 +143,11 @@ Legal standalone example:
 
 ### Managed PRD asset input
 
+This legacy asset input contract is not used by the BPG 2.0 single-PRD runtime.
+That runtime keeps Mermaid source in the Markdown Candidate and materializes SVG
+or HTML only at Handoff. Do not use `asset_change_set` to create Candidate SVG
+preview or PNG derivatives for a BPG 2.0 Run.
+
 When the Markdown references a reader-visible visual, do not embed raw inline
 `<svg>`. Produce a safe local `.svg` plus same-stem `@2x.png`, then declare the
 exact source bytes through the optional closed `asset_change_set`. The Host may
@@ -167,7 +201,7 @@ a structure so that the submitted shape remains visible and auditable.
 {
   "structure_mode": "legacy",
   "asset_change_set": {"schema_version": "prd-asset-change-set.v1", "upsert": [], "remove": []},
-  "document_markdown": "# BPG-PRD-BOOTSTRAP-001_项目上下文快速理解_v0.1_2026-08-24\n\n版本：v0.1｜状态：CANDIDATE\n\n## 阅读摘要\n\n结论：交付一个安全、可恢复、可追溯的项目 Bootstrap 闭环。\n\n## 目标与成功边界\n\n目标是只读取允许的项目上下文并形成可审计结果；不得读取秘密或越出项目根目录。\n\n## 范围与交付切片\n\n本期只包含一个可独立验证和回滚的 Bootstrap 核心切片。\n\n## 验收标准\n\n- Given 一个隔离项目，When 运行 Bootstrap，Then 只读取允许文件并输出带来源的 Profile 与 Readiness。\n\n## 风险、未知与回滚\n\n未知包括代表性项目中的输出价值；出现秘密读取、路径越界或不可恢复状态时停止并回滚。\n\n## 版本与变更\n\nv0.1：首次形成候选；测试执行与远程交付均未在本步骤发生。\n",
+  "document_markdown": "# BPG-PRD-BOOTSTRAP-001_项目上下文快速理解_v0.1_2026-08-24\n\n## 阅读摘要\n\n结论：交付一个安全、可恢复、可追溯的项目 Bootstrap 闭环。\n\n## 目标与成功边界\n\n目标是只读取允许的项目上下文并形成可审计结果；不得读取秘密或越出项目根目录。\n\n## 范围与交付切片\n\n本期只包含一个可独立验证和回滚的 Bootstrap 核心切片。\n\n## 验收标准\n\n- Given 一个隔离项目，When 运行 Bootstrap，Then 只读取允许文件并输出带来源的 Profile 与 Readiness。\n\n## 风险、未知与回滚\n\n未知包括代表性项目中的输出价值；出现秘密读取、路径越界或不可恢复状态时停止并回滚。\n\n## 版本与变更\n\nv0.1：首次形成产品合同。\n",
   "template_mapping": {
     "summary": "阅读摘要",
     "goal": "目标与成功边界",
@@ -240,12 +274,6 @@ a structure so that the submitted shape remains visible and auditable.
     "evidence_refs": [
       {"path": ".better-product-graph/runs/run-example/attempts/attempt-evidence/node-result.json", "hash": "sha256:evidence", "version": 1}
     ],
-    "evals": {
-      "applicability": "RECOMMENDED",
-      "reason": "Behavior includes safety and recovery claims that benefit from a future Eval Pack.",
-      "fulfillment": "NOT_STARTED",
-      "execution_status": "NOT_RUN"
-    },
     "experiment_contract": {
       "schema_version": "experiment-contract.v1",
       "key_unknown": "受控提示是否减少失败后的重复提交",

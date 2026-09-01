@@ -1,6 +1,6 @@
 {
   "plugin_name": "better-product-graph",
-  "plugin_version": "2.0.0",
+  "plugin_version": "2.0.1",
   "architecture_baseline": {
     "path": "docs/architecture/PRD_GRAPH_v1.4.md",
     "version": "V1.4",
@@ -23,8 +23,8 @@
       "fingerprint": true
     },
     {
-      "source": "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md",
-      "target": "skills/better-product-graph/references/alpha/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md",
+      "source": "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md",
+      "target": "skills/better-product-graph/references/alpha/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md",
       "fingerprint": true
     }
   ],

@@ -1,9 +1,10 @@
 # 更好产品图（BPG）2.0 产品规划工作方法：已确认结论
 
-状态：已确认工作基线（Working Baseline）  
-日期：2026-08-29  
-适用范围：更好产品图（Better Product Graph，BPG）2.0 产品规划主框架  
-维护方式：持续更新；普通决策直接写入当前文档，不为每次讨论生成新版本文件  
+版本：v0.3
+状态：已确认工作基线（Working Baseline）
+日期：2026-09-01
+适用范围：更好产品图（Better Product Graph，BPG）2.0 产品规划主框架
+维护方式：版本化冻结；交付后的语义修改必须创建新版本文件，不覆盖旧版本
 性质：方法与产品边界记录，不代表运行时已经实现、测试或发布
 
 ## 0. 本文档如何使用
@@ -13,10 +14,10 @@
 本文档遵循三条规则：
 
 1. 已确认的原则、边界和结构，写入正文。
-2. 五个阶段已经逐阶段确认；后续修改必须原位更新对应阶段的内部动作、工作产物、退出标准和角色边界，不能只修改总览而造成合同漂移。
-3. 本决策记录采用持续更新方式。普通结论直接原位追加或修订；只有重大阶段正式冻结、确实需要保留不可变基线，或产品责任人明确要求时，才新建版本文件。
+2. 五个阶段已经逐阶段确认；后续版本必须同步更新对应阶段的内部动作、工作产物、退出标准和角色边界，不能只修改总览而造成合同漂移。
+3. 本决策记录采用显式版本。当前版本交付后保持不可变；任何影响含义的修订都必须按 Patch、Minor 或 Major 创建新路径，并在版本台账中记录 supersedes 关系。
 
-这条维护规则只适用于本决策记录。进入正式审查的候选版本仍然保持不可变，认知发生实质变化时仍需生成新的候选版本，以保证审查对象没有被静默替换。
+进入正式审查的 Candidate 同样保持不可变；认知发生实质变化时生成新的 Candidate 版本，以保证审查对象没有被静默替换。
 
 五个阶段均已经按以下结构完成当前基线冻结：
 
@@ -92,7 +93,7 @@ BPG 默认让 Agent 完成尽可能多的工作。只要 Agent 能够在可接�
 程序化脚手架只有在具有 Agent 难以替代的独特优势时才允许引入。当前认可的优势类型包括：
 
 - 精确对象、身份、版本和引用绑定。
-- 权限、授权和责任边界校验。
+- 外部副作用等机器可判定的权限和责任边界校验；当前本地规划的对话授权不在此列，由主 Agent 根据语义判断。
 - 当前状态、合法状态迁移和正式状态提交。
 - 幂等性、重复副作用和不可逆操作防护。
 - 哈希、格式、结构和确定性机械校验。
@@ -1021,7 +1022,7 @@ Decision Review → 自动决策条件判断 → Agent 提交 / Owner Choice
 主 Agent 必须完成：
 
 1. 精确绑定已经通过 Problem Review 的 Problem Candidate，并确认当前需要决定的方案问题、约束、允许的行动范围和暂不决定的内容。
-2. 按问题需要研究直接竞品、行业最佳实践、相邻领域、跨学科机制、用户当前替代方案、失败案例和反模式；目标是理解机制和适用前提，不是制作功能对比表。
+2. 按问题需要研究直接竞品、行业最佳实践、相邻领域、跨学科机制、用户当前替代方案、失败案例和反模式；目标是理解机制和适用前提，不是制作功能对比表。这里必须先区分两类研究：平台或环境事实只能证明可行性与约束，不能单独充当方案情报；Agent 自己枚举出多个方案也只算替代方案生成，不等于已经研究外部或相邻实践。
 3. 从案例中抽象降低认知负担、减少步骤、改变激励、提供反馈、建立信任、降低风险、重分配责任或改变默认选项等底层解决机制。
 4. 进行替代方案搜索和反事实检查，至少回答：是否存在机制不同的合理替代、最小改变或非产品方案是什么、延迟或不做会怎样、当前方案是否受既有产品或行业惯例限制。
 5. 生成真正有意义的候选方案。存在两个或三个合理方向时应完整呈现；只有一个明显成立的方向时可以只输出一个，但必须解释其他方向为什么不成立；没有值得投入的方向时可以推荐 STOP、WAIT 或 RESEARCH，不能为了有方案而制造伪方案。
@@ -1031,7 +1032,8 @@ Decision Review → 自动决策条件判断 → Agent 提交 / Owner Choice
 9. 明确每个主要方案的 Guardrails、Kill Condition、改判条件和下一步验证方式。
 10. 主 Agent 选择一个明确推荐行动，并将其映射到 STOP / WAIT / RESEARCH / FUTURE ROADMAP / EXPERIMENT / COMMIT NOW 六类结果之一。
 11. 完成自我挑战，说明最强替代方案、为什么暂不选择它、最大风险和未知，以及什么变化会推翻当前推荐。
-12. 冻结精确 Decision Candidate，准备进入独立 Decision Review。
+12. 冻结前完成一次方案情报语义自检：说明当前机制参考了哪些真正相关的直接产品、行业或相邻实践、失败案例或反模式，提取了什么可迁移机制和适用前提；确实不适用时，给出与当前问题和决策相关的具体 `NOT_APPLICABLE` 理由。研究深度由 Agent 按风险、新颖性、复用范围和长期维护成本判断；《产品规划主记录》只保留结论和关键证据，不堆积搜索流水。
+13. 冻结精确 Decision Candidate，准备进入独立 Decision Review。
 
 ### 9.6 必须产出的 Artifact
 
@@ -1077,6 +1079,8 @@ Decision Review → 自动决策条件判断 → Agent 提交 / Owner Choice
 9. 主 Agent 给出一个明确推荐，而不是把分析责任交给 Owner。
 10. 推荐行动能够映射到六类产品决策结果之一。
 
+独立 Decision Reviewer 使用同一个语义问题复核方案情报。对于高复用、高维护成本或新型系统，如果 Candidate 只有平台事实和 Agent 自行枚举的选项，既没有相关方案实践、失败案例或反模式的关键证据，也没有具体的 `NOT_APPLICABLE` 理由，Reviewer 应产生一个普通 advisory Finding，并建议 `REVISE`。低风险、低复用的局部改动允许按比例缩小研究；不得要求固定来源数量、强制联网、搜索流水、Schema、Checklist 或程序 Gate。
+
 Decision Review 的正式结果及回流规则为：
 
 - `PASS`：进入“自动决策条件判断”；满足预授权条件时由 Agent 自动提交 `COMMIT NOW`，否则进入 Owner Choice。PASS 只证明建议经受了独立挑战，不自动等于任何路线已经获准。
@@ -1099,7 +1103,7 @@ Agent 自动提交必须同时满足：
 6. 风险较低、行动可逆，且没有会改变行动选择的高影响未知。
 7. 主 Agent 已把自动决策依据、风险、授权来源、改判条件和重新检查条件写入《产品规划主记录》。
 
-以上条件是否在产品语义上成立，由主 Agent 判断并写出依据，Reviewer 负责挑战。全部满足时，Agent 可以申请自动提交 `COMMIT NOW`。Controller 不判断“低风险、可逆、无重大未知或未改变价值权重”等语义；它只验证当前 Decision Candidate、绑定的 `PASS` Review、没有正式 `NEEDS_OWNER`、精确预授权记录所允许的路线与本地无外部副作用边界，以及状态迁移是否合法，并记录决策来源为“Agent 在授权范围内自动决定”。缺少可绑定的明确预授权时默认升级 Owner，不得让 Controller 猜测自然语言授权，也不得把 Agent 决定伪装成人类 Owner Choice。
+以上条件以及当前对话是否已经授权本次 `COMMIT NOW`，都由主 Agent 根据语义判断并写出依据，Reviewer 负责挑战。全部满足时，Agent 可以提交 `COMMIT NOW`。Controller 不判断或验证授权是否成立，不检查 Host 消息真假，也不推断消息语义是否覆盖当前行动；`source_message_ref` 可以省略，Host 提供时也只是原样保存、便于回看的不透明追溯线索，不是程序独立验证过的授权证据。Controller 可以继续检查当前 Decision Candidate、绑定的 `PASS` Review、提交结果、声明范围、时间与合法状态迁移是否自洽，但这些机械绑定不证明用户已经授权。对话含义不明确或范围可能超出本地产品规划时，主 Agent 必须直接询问 Owner。不得为此增加消息摘要校验、授权票据、签名、Schema、Gate 或新的状态机，也不得把 Agent 决定伪装成人类 Owner Choice。
 
 以下任一情况出现时，必须升级给人类 PM / Owner：
 
@@ -1124,13 +1128,13 @@ Owner Choice 如果改变目标、用户、问题或价值权重，必须返回�
 | 人类 PM | 补充内部约束、资源现实和方案偏好，并接受主 Agent 对方案偏见和预设答案的 Grilling |
 | Owner | 定义 Agent 自主决策边界；在超出边界或出现重大风险、未知、资源与价值取舍时明确选择行动并承担责任；默认与 PM 是同一个人 |
 | Reviewer | 独立挑战推荐方案、替代方案、证据、假设、取舍和改判条件，不替主 Agent 修改或替 Owner 决策 |
-| Controller | 只绑定精确 Candidate、Review、自动决策授权或 Owner Choice，以及合法路线和决策来源，不判断哪个方案更好 |
+| Controller | 只检查并保存精确 Candidate、Review、提交结果、声明范围、时间、合法路线和决策来源的一致性；不验证 Host 消息真假，不判断授权语义或哪个方案更好 |
 
 ### 9.11 Agent 与程序化脚手架分工
 
 方案情报研究、机制抽象、方案生成、替代搜索、比较、推荐、分歧挑战和 Artifact 编写全部由 Agent 完成。
 
-程序只用于精确 Candidate / Review / 授权范围 / Owner Choice 绑定、版本冻结、合法路线、决策来源和正式状态提交。程序不得通过固定方案数量、加权总分、字段完整度或自动推荐模型替代 Agent 的方案判断。
+程序只用于精确 Candidate / Review / 提交结果 / 声明范围 / 时间的一致性、版本冻结、合法路线、决策来源和正式状态提交。授权是否成立、是否覆盖当前行动由主 Agent 根据当前对话语义判断；程序不得把字段存在或 `source_message_ref` 写成独立验证过的授权，也不得通过固定方案数量、加权总分、字段完整度或自动推荐模型替代 Agent 的方案判断。
 
 ### 9.12 实验（Experiment）路径
 
@@ -1364,6 +1368,8 @@ Owner Choice 如果改变目标、用户、问题或价值权重，必须返回�
 ### 10.13 Agent 与程序化脚手架的分工
 
 主 Agent 负责所有语义规划、推理、整合、追溯和适用性判断。程序化脚手架只用于冻结版本、生成精确引用、维护文件关系、执行格式或结构检查和提交状态；除非程序在一致性、可重复性或可验证性上具有不可替代的优势，否则不得用程序生成语义产品方案。
+
+进入 `PRD_AUTHORING` 后，产品语义变化导致《产品规划主记录》产生新精确引用时，主 Agent 必须重新判断并完整提交九项阶段四 disposition；Controller 只验证完整性、`BLOCKED` 状态、当前精确引用和状态合法性，不推断语义等价，也不自动重新绑定。若变化触及方案决策、问题诊断、目标或用户等上游内容，主 Agent 仍须返回最早受影响阶段，不能用阶段四重新确认掩盖上游变化。
 
 ### 10.14 产品形态识别与条件式场景韧性推演
 
@@ -1620,9 +1626,9 @@ BPG 2.0 采用**一套自适应通用基础模板 + 条件式内容模块**，�
 
 新通用模板分为四层：
 
-1. **PRD 内容契约**：规定必须表达、条件式表达、禁止进入 PRD 以及应移交 Engineering SPEC、Test 或 Product Evals 的语义边界。
+1. **PRD 内容契约**：规定必须表达、条件式表达、禁止进入 PRD 以及应移交 Engineering SPEC、Test，或在 2.2 以后移交 Product Evals 的语义边界。
 2. **自适应基础模板**：提供正式 PRD 的稳定阅读主线和章节结构。
-3. **条件式内容模块库**：按产品形态、风险和实际需求调用流程、状态、权限、数据上报、多语言、地区适配、边缘场景、迁移、运营配套、Product Evals 等模块；不适用时不进入正文。
+3. **条件式内容模块库**：按产品形态、风险和实际需求调用流程、状态、权限、数据上报、多语言、地区适配、边缘场景、迁移、运营配套等模块；Product Evals 模块从 2.2 开始进入该机制，不适用时不进入正文。
 4. **Writing Profile 与 Renderer Profile**：分别控制跨格式写作与排版原则，以及 HTML、DOCX、PDF 等目标格式的具体呈现与导出保真。
 
 正式 PRD 默认从“标题 + 产品概览（TL;DR）”开始，正文采用以下六个稳定一级章节：
@@ -1642,25 +1648,11 @@ BPG 2.0 采用**一套自适应通用基础模板 + 条件式内容模块**，�
 
 ### 11.5 产品评测（Product Evals）
 
-产品评测不是独立主流程节点，而是产品需求文档的条件式附件。主 Agent 对每份 PRD Candidate 先进行一次轻量适用性判断；这项判断不等于生成 Eval Pack，也不增加人类确认步骤：
+Product Evals 是后续小迭代 2.2 的条件式能力，不是 BPG 2.0 的主流程节点或附件 Gate。BPG 2.0 不运行 Product Evals 适用性判断、Eval Pack 生成或独立 Eval Spec Review，也不把这些未来能力放入 PRD freeze、PRD Review work order、Ready 或 Local Handoff 的当前必经条件。不能因为 Roadmap 已经定义未来能力，就让当前完整主链进入一个只有未来版本才能解除的永久等待状态。
 
-- `NOT_NEEDED`：普通确定性验收已经足够，不生成额外 Artifact，只保留简短理由。
-- `RECOMMENDED`：增加产品评测有明显价值，由 Agent 根据收益、成本和当前信息决定是否生成；未生成时不默认阻断 Ready，但必须保留建议和理由。
-- `REQUIRED`：普通验收不足以覆盖关键产品质量。具备 Evals Generator 时由 Agent 调用；当前单 PRD Alpha 的 Evals Generator 明确为 `NOT_IMPLEMENTED`，因此只记录适用性、理由和 `NOT_RUN`，并阻断 Ready，不得用手写附件模拟生成器已经运行。
+BPG 2.0 仍必须保持真实边界：Product Evals 执行和产品效果验证均为 `NOT_RUN`，Ready 与 Local Handoff 只表示当前精确 PRD 内容完成审查并可本地交接，不表示产品已经被测试、上线或验证有效。Agent 不得手写、生成、附加或接受假的 Eval Pack，也不得把普通验收条件或 Reviewer 意见包装成 Product Evals 执行结果。
 
-项目模板和 Owner 仍可明确要求生成 Product Evals，但不再是唯一触发来源。适用性、案例、Rubric、覆盖与未知等语义判断由 Agent 完成，程序不得通过关键词、需求长度或固定字段自动决定。
-
-`evals-generator` 采用“BPG 内置、架构可插拔”的原子能力边界：
-
-- 主 Agent 负责 Product Evals 的适用性语义判断；BPG Core 只记录该判断及理由，并负责精确 PRD Candidate 绑定、版本、新鲜度、Review、Release Set 聚合和 Ready 规则的确定性执行。
-- 内置 Evals 能力包负责 Agent 的 Eval Pack 生成、修订方法和独立评测规格 Reviewer；首期随 BPG 安装，但保持独立能力版本和兼容声明，可由满足同一合同的项目能力或其他 Agent Provider 替换。
-- 它不提供独立公开命令、顶层 Graph 节点、独立 Product Run 或第二套状态系统。
-- Product Evals 规格与对应 PRD 绑定为同一个 PRD Release Set Candidate；评测规格由独立 Reviewer 审查，并与其他 PRD Review 结果聚合形成整套 Candidate 的结论。
-- Test Graph 或其他获授权执行方继续负责环境、数据、实际执行、execution receipt 和最终测试 verdict；BPG 只生成与审查评测规格，不得把 `NOT_RUN` 表达成已测试或通过。
-
-当前 Alpha 中，`NOT_NEEDED` 路径正常运行；`RECOMMENDED` 保留明确状态但不默认阻断；`REQUIRED` 可以继续形成 PRD Candidate，但不能进入 Ready。它只能等待后续 Evals Generator 实现，不能由 Agent、PM 或手写附件绕过。
-
-当前迭代一只实现上述“能力不可用时的真实降级”。Eval Spec 的文件组织、Ground Truth、Rubric、Output Contract 和 Eval Pack 拆分策略属于后续小迭代 2.2 的 Evals Generator，不在本次 Alpha 运行中提前实现。
+小迭代 2.2 真正实现 Evals Generator 时，再由该版本的方法、Host Skill 和 Runtime 一起引入 Agent-first 适用性判断、`NOT_NEEDED / RECOMMENDED / REQUIRED`、精确 Candidate 与 Eval Pack 绑定、独立规格 Review、新鲜度和对应 Ready Gate。2.0 不提前建设通用版本切换器、兼容层或未来状态机，也不迁移或重写历史 Run。
 
 ### 11.6 可交接就绪（Ready）与交接（Handoff）
 
@@ -1670,19 +1662,18 @@ BPG 2.0 采用**一套自适应通用基础模板 + 条件式内容模块**，�
 
 1. 完整 PRD Release Set 已获得正式 `PASS`，且该 Verdict 与当前 Candidate 精确绑定、没有过期。
 2. 不存在未解决的 Blocker、Major、`NEEDS_OWNER` 或尚未处置的重大 Reviewer 分歧。
-3. 本次适用且被定义为必需的正式交付物、条件式附件和专业 Review 已经存在，版本匹配，并包含在同一个 Release Set 中。
-4. Product Evals 为 `REQUIRED` 时，Eval Pack 已补齐、与当前 PRD Candidate 绑定并完成独立规格 Review；`RECOMMENDED` 未生成时保留真实状态和理由，但不默认阻断。
-5. Markdown 与 assets 编辑真源的文件清单、版本和引用当前有效；HTML、DOCX、飞书文档或项目管理提交等交付格式不进入 Candidate，也不是 Ready 的前置条件。
-6. 当前 Candidate、接受的 Decision、产品规划主记录快照、Review Result 和必要附件之间不存在陈旧、缺失、被替换或无法解析的依赖。
+3. BPG 2.0 当前版本实际支持、适用且被定义为必需的正式交付物和 Review 已经存在，版本匹配，并包含在同一个 Release Set 中；未来版本能力不能成为当前 Gate。
+4. 迭代一 Candidate 的编辑真源精确只有 `PRD.md`，视觉以其中的 Mermaid source 表达；任何额外 source file 或 asset 都在封存前按文件集合边界拒绝。HTML、SVG、PNG、DOCX、飞书文档或项目管理提交等交付格式不进入 Candidate，也不是 Ready 的前置条件。
+5. 当前 Candidate、接受的 Decision、产品规划主记录快照和 Review Result 之间不存在陈旧、缺失、被替换或无法解析的依赖。
 
 其中内容质量、Finding 处置是否成立、专业能力是否适用以及附件是否语义充分由 Agent 和 Reviewer 判断；Controller 只验证已经提交的正式 Verdict、状态、版本、文件清单、引用、新鲜度和合法迁移，不通过字段完整度重新评审产品质量。
 
-可交接就绪后才进入 Handoff，并从精确 Ready 的 Markdown 与 assets 选择交付适配器生成派生结果。每种 Handoff 方式必须有独立的用户可设置开关，允许一次交接同时启用零个、一个或多个已实现方式；未明确设置时采用该方式公开、稳定的默认值。迭代一只实现本地自包含 HTML，默认开启但允许用户关闭；关闭后仍以 Markdown 与 assets 完成本地交接。本地文档、飞书文档以及通过项目管理 MCP 提交到飞书项目等方式属于后续 Handoff 适配器，开关默认关闭；未实现时必须明确标记 `NOT_IMPLEMENTED`，一旦尝试开启就阻止执行，不得模拟外部成功。Handoff 不代表研发完成、测试通过、发布或外部接收。
+可交接就绪后才进入 Handoff，并从精确 Ready 的 Markdown 选择交付适配器生成 SVG、HTML 等派生结果。每种 Handoff 方式必须有独立的用户可设置开关，允许一次交接同时启用零个、一个或多个已实现方式；未明确设置时采用该方式公开、稳定的默认值。迭代一只实现本地自包含 HTML，默认开启但允许用户关闭；关闭后仍以 Markdown 及 Handoff 实际生成的派生 assets 完成本地交接。本地文档、飞书文档以及通过项目管理 MCP 提交到飞书项目等方式属于后续 Handoff 适配器，开关默认关闭；未实现时必须明确标记 `NOT_IMPLEMENTED`，一旦尝试开启就阻止执行，不得模拟外部成功。Handoff 不代表研发完成、测试通过、发布或外部接收。
 
 ### 11.7 已确认的阶段五运行规则
 
 1. **以完整 PRD Release Set 为原子审查对象。** 无论交付物是一份 PRD，还是“总 PRD + 多份子 PRD”，正式 PRD Review 和 Ready 都绑定同一个精确、不可变的 PRD Release Set Candidate。存在多份文档时，可以在同一轮中并行执行子文档或专业审查，但必须聚合检查跨文档的一致性、覆盖和组合运行能力，并对整套 Candidate 形成一个正式结论，不能只依靠每份文档各自通过。
-2. **满足唯一 Ready 合同后自动 Ready。** 当精确 PRD Release Set Candidate 满足第 11.6 节全部条件时，由 Controller 自动提交 Ready 状态，不增加一次形式化的人类确认；单独一个 `PASS` 不得绕过必需附件、新鲜度或 Product Evals 条件。
+2. **满足唯一 Ready 合同后自动 Ready。** 当精确 PRD Release Set Candidate 满足第 11.6 节全部条件时，由 Controller 自动提交 Ready 状态，不增加一次形式化的人类确认；单独一个 `PASS` 不得绕过当前版本真正支持的必需附件或新鲜度条件，未来 2.2 的 Product Evals 条件不进入 2.0 Gate。
 3. **规划复盘必须执行但不阻塞交接。** Local Handoff 完成后，主 Agent 对本次规划过程、有效做法、认知错误、遗漏、返工原因和可复用改进进行复盘。复盘不能修改已经冻结和交接的 PRD；需要改变产品需求时，必须形成新的 Signal、主记录变更和 PRD Candidate。复盘可以更新项目内的方法路由、检查项或 Playbook；核心框架只能形成改进提案，不能由单次运行自动改写。
 
 ### 11.8 PRD 的责任定义与内容契约
@@ -1714,7 +1705,7 @@ PRD 正式定义为**产品行为与验收契约**：回答产品为什么做、
 
 1. **PRD 必须定义验收标准，但不编写测试步骤。** 验收标准只描述适用的产品条件、用户或其他参与者可观察的产品结果，以及必要的产品边界或最低门槛；不得展开测试步骤、测试数据、执行环境、初始化与清理方式或内部技术断言。
 2. **完整测试用例不属于 PRD。** 一个验收标准可以派生多个正常、边界、异常、兼容和回归测试用例。需要完整测试设计时，后续形成独立的 Test Design Artifact；PRD 只保留产品级验收边界和精确引用。
-3. **Product Evals 只处理普通确定性验收无法充分覆盖的复杂产品质量。** 例如语义忠实度、推荐价值、生成质量、可用性或其他需要代表性样本、评价维度、评分规则和门槛的质量。主 Agent 按 11.5 的 Agent-first 规则先做轻量适用性判断；项目模板和 Owner 可以明确要求生成，但不是唯一触发来源。Eval Pack 定义如何评价，不代表评测已经执行或产品已经通过。
+3. **Product Evals 只处理普通确定性验收无法充分覆盖的复杂产品质量。** 例如语义忠实度、推荐价值、生成质量、可用性或其他需要代表性样本、评价维度、评分规则和门槛的质量。BPG 2.0 只保留这条产品责任边界，不执行适用性判断或 Eval Pack 工作；相应 Agent-first 判断、生成和规格 Review 从 2.2 开始。任何未来 Eval Pack 也只定义如何评价，不代表评测已经执行或产品已经通过。
 4. **不默认使用 Given / When / Then。** 只有复杂条件、状态转换或时序关系容易产生实质歧义，并且该表达能明显减少歧义时才使用；不能把它作为所有需求的固定格式，进而机械生成大量测试用例式验收标准。
 
 验收标准的稳定判断是：当测试方法、测试数据或技术实现变化，而产品应有的行为和结果没有变化时，验收标准仍应成立。详细产品行为优先维护在需求、规则、状态或权限定义中，验收标准负责绑定关键接受边界和追溯关系，不重复抄写全部需求正文。
@@ -1762,7 +1753,7 @@ PRD 必须支持三种阅读方式：
 3. **人类交接信息进入独立 Handoff Note。** Handoff Note 只提供本次文档清单、总稿与子稿关系、阅读顺序、当前交付版本、仍需处理的未决事项和合理下一动作，不复制产品需求和完整运行历史。
 4. **PRD 正文默认不显示文档版本信息。** 版本通过交接包、文件身份、Machine Manifest 和 Controller 状态绑定；只有项目专属模板因组织制度或真实协作需要明确要求时，才在 PRD 内增加最小的人类可见文档标识。
 
-Local Handoff Package 以精确 Ready 的 Markdown 与 assets 编辑真源为固定内容，并根据用户设置的方式开关生成派生交付物、Handoff Note 和 Machine Manifest。`LOCAL_HTML` 默认开启；用户关闭时不生成 `PRD.html`，Markdown 成为本次主阅读文件。Candidate 与正式 PRD Review 不包含 HTML。未来的本地文档、飞书文档、项目管理 MCP、DOCX、PDF 及其他目标格式都作为带独立开关的可选 Handoff 适配器按实际协作需要生成。完整变更历史继续保留在产品规划主记录、Candidate 历史、Review Findings 和 Controller 记录中；当前版本变化只有确实影响研发理解时，才在 Handoff Note 中简要说明。
+Local Handoff Package 以精确 Ready 的 `PRD.md` 为唯一编辑真源，并根据其中的 Mermaid source 与用户设置的方式开关生成派生 assets、交付物、Handoff Note 和 Machine Manifest。`LOCAL_HTML` 默认开启；用户关闭时不生成 `PRD.html`，Markdown 成为本次主阅读文件。Candidate 与正式 PRD Review 不包含 HTML 或派生 assets。未来的本地文档、飞书文档、项目管理 MCP、DOCX、PDF 及其他目标格式都作为带独立开关的可选 Handoff 适配器按实际协作需要生成。完整变更历史继续保留在产品规划主记录、Candidate 历史、Review Findings 和 Controller 记录中；当前版本变化只有确实影响研发理解时，才在 Handoff Note 中简要说明。
 
 ### 11.13 PRD 的通用文字表达规则
 
@@ -1787,22 +1778,21 @@ PRD 写作规范不能只规定遣词、句段和叙事方式，还必须包含�
 
 ### 11.14 PRD 的编辑真源与多格式交付
 
-1. **Markdown 与 assets 是唯一可编辑真源。** 每份 PRD 以 Markdown 正文和本地图片、图表等 assets 组成一个完整发布单元。所有正式内容修改必须先回到这套真源，不能同时维护多份可编辑正文。
-2. **自包含单文件 HTML 是迭代一默认开启的 Handoff 阅读视图。** HTML 只在 PRD 完成全部内容 Review 并进入 Ready 后，由 Handoff 从精确绑定的 Markdown 与 assets 派生，负责版式、图片呈现、导航和低疲劳阅读体验。用户可以关闭 `LOCAL_HTML` 开关；关闭后不生成 HTML，并以 Markdown 作为本次主阅读文件。HTML 不进入 Candidate，不参与内容 Review，也不是新的内容真源。
+1. **迭代一只有 `PRD.md` 是可编辑真源。** Mermaid source 直接写在 Markdown 中；Candidate 不携带额外 asset 文件。所有正式内容修改必须先回到这一个真源，不能同时维护多份可编辑正文或图片真源。
+2. **自包含单文件 HTML 是迭代一默认开启的 Handoff 阅读视图。** HTML 只在 PRD 完成全部内容 Review 并进入 Ready 后，由 Handoff 从精确绑定的 Markdown 与当次生成的派生 assets 物化，负责版式、图片呈现、导航和低疲劳阅读体验。用户可以关闭 `LOCAL_HTML` 开关；关闭后不生成 HTML，并以 Markdown 作为本次主阅读文件。HTML 与派生 assets 不进入 Candidate，不参与内容 Review，也不是新的内容真源。
 3. **DOCX 是条件式导出适配器（Export Adapter）。** 只有目标组织、协作工具或正式分发流程确实需要 Word 文档时才生成 DOCX，不把 DOCX 作为每次运行的固定必产物或主要编辑载体。
 4. **PDF 是条件式只读输出。** 只有归档、签审、打印或固定版式分发等场景需要时才生成 PDF；PDF 不承担协作编辑责任。
-5. **每种 Handoff 方式都有独立开关。** HTML、本地文档、飞书文档、项目管理 MCP、DOCX、PDF 等方式分别启用或关闭；开启未实现方式必须明确失败，关闭某种派生格式不影响 Markdown 与 assets 的本地交接。
-6. **所有阅读和分发格式从同一真源派生。** HTML、DOCX 和 PDF 应分别从同一个精确 Markdown、assets 及统一文档模型生成，而不是把 HTML 再转换成 DOCX，或让不同格式形成各自独立的产品结论。
-7. **派生格式不得反向成为事实来源。** 如果人类在 HTML、DOCX 或 PDF 上提出修改，主 Agent 必须把有效变更合并回 Markdown 与 assets，形成新的 Candidate，重新完成适用的 Review，再统一生成所有目标格式。不得直接修改派生文件后继续交接。
-8. **内容 Review 与 Handoff 格式验证分离。** PRD Review 只审查精确绑定的 Markdown 与 assets，保证产品语义、边界、验收契约、信息结构和源资产正确。Handoff 生成实际交付格式后，再验证该格式的版式、图片、导航、裁切和导出保真；这项验证只证明交付呈现，不重新证明内容质量。若格式验证暴露内容问题，必须回到 Markdown 与 assets 形成新 Candidate 并重新完成适用 Review；纯格式问题只修复对应 Renderer 后重新生成交付物。
+5. **每种 Handoff 方式都有独立开关。** HTML、本地文档、飞书文档、项目管理 MCP、DOCX、PDF 等方式分别启用或关闭；开启未实现方式必须明确失败，关闭某种派生格式不影响 Markdown 的本地交接。
+6. **所有阅读和分发格式从同一真源派生。** HTML、DOCX 和 PDF 应分别从同一个精确 Markdown、Handoff 当次生成的 assets 及统一文档模型生成，而不是把 HTML 再转换成 DOCX，或让不同格式形成各自独立的产品结论。
+7. **派生格式不得反向成为事实来源。** 如果人类在 HTML、SVG、DOCX 或 PDF 上提出修改，主 Agent 必须把有效变更合并回 Markdown，形成新的 Candidate，重新完成适用的 Review，再统一生成所有目标格式。不得直接修改派生文件后继续交接。
+8. **内容 Review 与 Handoff 呈现分离。** PRD Review 只审查精确绑定的 Markdown Candidate，保证产品语义、边界、验收契约、信息结构和 Mermaid source 表达正确。Handoff 从已经 Ready 的真源生成实际交付格式；最低确定性检查只证明文件成功生成或物化，不重新判断图的产品语义，也不把派生格式反向当成 Candidate 或 Review 证据。若呈现暴露内容问题，必须回到 Markdown 形成新 Candidate 并重新完成适用 Review；纯呈现问题只修复 Handoff 输出后重新生成。
 
-配图采用以下格式与验证规则：
+配图采用以下轻量规则：
 
-- Candidate 阶段采用 source-first：关系图优先保留安全的 Mermaid 源文件，并生成可审查的安全 SVG 预览；不适合 Mermaid 的图直接以安全 SVG 作为可编辑真源。两者都与精确 Candidate 绑定。
-- PNG 是按目标 Handoff 适配器需要生成的可选派生格式，不是 Candidate 冻结或内容 Review 的前置条件。只有目标阅读环境不可靠支持 SVG 时，才在 Handoff 最后生成并验证 2x 或 3x PNG。
-- Candidate Review 检查 Mermaid / SVG 源资产的安全性、可读内容和关系表达，不打开 HTML，也不要求预生成 PNG。
-- 自包含 HTML Handoff 从已经通过内容 Review 的 Markdown 与安全 SVG 派生，并直接内联 SVG；不得把 HTML 反向当成 Candidate 或内容 Review 证据。
-- Handoff 格式验证以实际目标格式为准，检查中文、尺寸、裁切、重叠、关系可追踪性和跨格式保真；源文件可打开或成功导出本身不等于目标格式验证通过。
+- Candidate 阶段只保留 Mermaid source，不生成、挂载或审查 SVG preview、PNG 或 HTML。Author 与 Reviewer 直接审查 Mermaid 所表达的产品语义、关系、标签和阅读性。
+- Candidate / Ready 不执行 SVG path、style、class、安全性或像素尺寸的机械 preflight，也不建立第二套图片 Validator。
+- Handoff 才把已经 Ready 的 Mermaid source 物化为最终 SVG，并按开启的交付方式生成 HTML。若当前 Host 没有真实可用的 Mermaid Renderer，必须明确失败，不能模拟图片已经生成。
+- Handoff 程序只确认派生文件是否成功生成或物化；图的语义仍由 Agent 在 Candidate Review 判断。SVG、HTML 和未来按适配器需要生成的 PNG 都是 presentation artifact，不是 Candidate、Review evidence 或新的内容真源。
 
 写作规范负责跨格式稳定的内容、表达与排版原则；各 Renderer Profile 和 Export Adapter 负责 HTML、DOCX、PDF 的格式实现与保真规则。格式能力不得反向迫使 PRD 改写成适合某一种工具的内容结构。
 
@@ -1829,7 +1819,7 @@ PRD Review 的原子对象是完整 PRD Release Set，而不是某一个 Markdow
 - Markdown、图片和其他编辑真源。
 - 不包含派生交付格式；HTML 及其他实际交付格式只在 Ready 后的 Handoff 中生成。
 - 被 PRD 精确引用且会影响需求理解、执行或验收的条件式附件。
-- 本次实际包含的 Product Evals、数据采集需求表、语言与地区适配矩阵或其他专项产物。
+- 本次实际包含的数据采集需求表、语言与地区适配矩阵或其他专项产物；Product Evals 从 2.2 开始才可能进入该 Review Bundle，2.0 不包含。
 
 存在多份文档或专业审查时，可以并行检查局部对象，但最终 Verdict 必须针对同一个精确 Release Set 聚合，不能用“每份文档分别通过”替代跨文档一致性、覆盖关系和组合运行能力的整体结论。
 
@@ -1872,8 +1862,8 @@ PRD Review 不再使用一个扁平的“七个审查维度”列表，而是由
 2. **用户体验与内容 Reviewer**：检查端到端体验、入口与出口、主路径、分支、空状态、加载、错误、中断、恢复、反馈、产品文案、认知负担和基本可用性。
 3. **产品系统一致性 Reviewer**：检查核心流程、模块、角色、对象、状态、权限、产品数据语义、共享规则、依赖以及父子 PRD 是否能够组合运行。它只审查逻辑产品系统，不把 PRD 扩写成代码或技术架构说明。
 4. **工程可行性 Reviewer**：检查明显不可实现之处、与已知架构或依赖的冲突，以及性能、容量、兼容、迁移、灰度、回滚和可观测性对产品行为形成的约束；同时阻止 PRD 越界规定内部实现。它不编写 Engineering SPEC，也不替研发承诺工期。
-5. **可验收性与 Product Evals Reviewer**：检查产品行为是否可观察、验收条件是否位于产品层，重要边界、错误、权限、恢复和可观测性是否足以验证，并判断何时仅靠确定性验收条件不足、需要 Product Evals。它不编写完整测试用例，也不执行测试。
-6. **文档体验 Reviewer**：在 Markdown 与 assets 内容真源上检查 TL;DR、信息层级、阅读顺序、长度、段落、列表、表格、配图、术语一致性、信息可定位性和干净 PRD。HTML、DOCX、飞书文档等目标格式的视觉与保真检查属于 Ready 后的 Handoff 格式验证，不属于该 Reviewer 的内容 Verdict。它不得为了改善表达而发明缺失的产品要求，实质缺口必须路由给对应 Reviewer 或返回上游。
+5. **可验收性与验证边界 Reviewer**：检查产品行为是否可观察、验收条件是否位于产品层，重要边界、错误、权限、恢复和可观测性是否足以验证，并阻止把 `NOT_RUN` 写成已测试或产品效果已验证。BPG 2.0 的该责任不判断 Product Evals 适用性、不接收 Eval Pack，也不执行测试。
+6. **文档体验 Reviewer**：在精确 `PRD.md` 内容真源上检查 TL;DR、信息层级、阅读顺序、长度、段落、列表、表格、Mermaid source、术语一致性、信息可定位性和干净 PRD。HTML、SVG、DOCX、飞书文档等目标格式的物化与保真检查属于 Ready 后的 Handoff，不属于该 Reviewer 的内容 Verdict。它不得为了改善表达而发明缺失的产品要求，实质缺口必须路由给对应 Reviewer 或返回上游。
 
 简单、低风险 PRD 可以让较少的独立 Reviewer Agent 分别承担多个角色画像，但每类责任的 Findings 和结论仍须可区分。标准或复杂 PRD 应根据认知负担和风险拆开角色。主 Agent 是作者，不能同时作为正式 Reviewer。
 
@@ -1908,6 +1898,12 @@ Reviewer Panel 共同遵守以下协议：
 8. **修订后做差异复查与整体回归**：新 Candidate 既要复查实际改动和原 Finding，也必须检查目标、范围、Guardrails、端到端体验、共享契约与验收等全局不变量。Finding 不能因为局部文字已经修改就关闭；只有局部问题得到解决且没有破坏整体，才能判定修复成立。
 9. **证据强度保持可见**：`PASS` 不能把缺失、陈旧、间接、单一来源或不可复现的证据伪装成已证实事实。它们必须作为剩余风险、未知或条件留在正式结论中。
 
+**Clean Reviewer Context（Host 执行要求）**：所有正式语义 Reviewer，包括 Problem Review、Decision Review、PRD content Reviewer、Writing Reviewer，以及仍适用的内部 Writing Eval Reviewer，都必须从不继承作者或主 Agent 对话的干净上下文启动。在 Codex Host 上必须使用 `spawn_agent(..., fork_turns="none")`，不得使用 `fork_turns="all"` 或正整数继承历史；其他 Host 必须使用等价的 clean context / no history inheritance。此要求只约束正式 Reviewer，普通实现、研究或协作型子 Agent 不受影响。
+
+Reviewer 的初始任务消息只传精确冻结的 Candidate/ref、已安装 Reviewer instruction 与 Review contract、Controller 派发的必要只读 basis refs，以及输出 contract/target，并让 Reviewer 自己读取这些精确引用。不得传入作者隐藏推理、可变聊天摘要、其他首轮 Reviewer Finding 或未派发的工作区材料。修订后的差异复查只有在 work order 将上一轮 Findings、精确 diff 与修复说明列为不可变 basis refs 时才可读取它们。
+
+`fork_turns="none"` 只隔离继承对话，不提供文件系统或密码学隔离；Reviewer 仍可能共享同一工作区。`HOST_SUBAGENT_ATTEMPT` 只能证明 Host 记录了一个不同尝试，不能夸大成程序已经验证 Host 调用参数或 Reviewer 独立性。这里不新增 Runtime 校验、Schema、状态、Action、Gate 或 fork receipt；独立派生由 Host 指令和 Agent 执行负责。
+
 Reviewer Findings 是形成 `PASS / REVISE / NEEDS_OWNER` 的输入；正式 Verdict 仍绑定完整 PRD Release Set。Reviewer 不替作者修改，不替 Owner 决策，也不直接提交状态。
 
 #### 11.16.4 Finding 分级、处置与修订回归
@@ -1929,6 +1925,12 @@ Finding 不使用百分制、字母评级或加权总分，只按产品影响分
 相同底层问题、影响范围和修复位置的 Findings 可以聚合，但必须保留全部 Reviewer 和证据来源。措辞相似但成因、影响或修复目标不同的问题不得强行合并。每条正式 Finding 至少记录稳定编号、Reviewer 责任、问题与精确证据、影响级别、证据强度、影响范围、被推翻的假设或产物、局部修订是否足够、建议方向和处置结果。主 Agent 另行保存返回阶段、理由和影响范围；不能把 Reviewer 意见直接当成状态迁移命令。
 
 处置结果限定为：已修复；不成立并给出反证；已降级为非阻断问题；已接受限制；需要 Owner；或因上游变化而失效。Reviewer 的建议不是修改命令；主 Agent 可以依据证据拒绝或调整建议，但必须保留处置理由。
+
+历史审查是发现当时的事实：每份 historical Review 和其当时的 `OPEN` Finding 都保持 immutable，不原地改写或伪装成“当时已关闭”。闭环的当前产品语义只写回现有 `planning-record.md`，作为持久 Finding 处置历史，不新建处置产物。对每条已路由的 Finding，主 Agent 必须记录 source Review ref、Finding ID、outcome、reason 和 evidence，并指明受影响的当前规划内容或新 Candidate。`outcome` 只使用 `FIXED`、`DISPROVED`、`DOWNGRADED`、`ACCEPTED_LIMITATION`、`NEEDS_OWNER` 或 `INVALIDATED_BY_UPSTREAM_CHANGE`。这是 Agent 对产品语义和证据的判断，must not become a Controller schema, state, action, or Ready gate；Controller 不解析文本来猜测 Finding 是否关闭。
+
+修订后，new independent Reviewer 必须对新 Candidate 语义复核每条 disposition，并在宣称“已修复”时验证实际修复，同时执行 difference review 与 whole-product regression；新版 `PASS` 是新审查证据，不会改写旧 Review。Reviewer 应先读取前后差异、上一轮 Findings 和修复说明，重点复核受影响内容，再做一次简短的全局回归。任何 remaining material product limitation 如果会影响研发理解、验收或风险承担，应吸收到最终 PRD 的产品边界中；普通审查过程和处置流水不进入 PRD。
+
+整体 Candidate 的内容/身份 hash 只用于把 Review 精确绑定到所审版本，不解释变更语义，也不决定 Review 可否复用。Candidate 一旦改变，旧 Review 即陈旧，不得继承旧 Review；当前版本必须由独立 Reviewer 产生 new Review。不得新增 component hash、responsibility hash、Review receipt inheritance 或程序化 diff 分类器；差异影响与复核范围由 Agent 结合前后内容和 Findings 作语义判断。
 
 自动修订最多两轮，含义是主 Agent 最多基于正式 Review 生成两个新的 Candidate：
 
@@ -2000,6 +2002,7 @@ BPG 吸收 Product Goal-Based Audit 中的目标承诺冻结、独立审查、�
 必须遵守：
 
 - 同一事实、假设、结论或决策只在一个当前章节中维护，不在多个阶段文件中重复形成竞争真源。
+- 当前 Candidate、Review 状态、下一步等易变运行状态由 Controller status 动态投影，不由主 Agent 手写进《产品规划主记录》；不得为了同步这些运行状态而整份替换主记录。
 - 每个逻辑 Artifact 仍需有稳定标题、明确边界、最低内容和适用性状态，以便独立检查和 Review。
 - 上游认知变化时，在同一主记录中更新受影响章节和下游关系；不能只修改局部结论而留下互相矛盾的叙事。
 - 主记录保存经过分析后当前接受的事实与结论，并精确引用原始来源；它不是所有原始数据、访谈全文和外部材料的物理仓库。
@@ -2013,8 +2016,8 @@ BPG 吸收 Product Goal-Based Audit 中的目标承诺冻结、独立审查、�
 必须区分三类语义：
 
 - **PM 认知输入与工作决策**：对背景、目标、用户、分群、需求、问题、价值、方案、约束、优先级和研究范围的补充、纠正、确认、暂定、拒绝或延后。它们会改变主记录中的产品认知，但不自动形成正式 Graph 路线。
-- **Agent 授权范围内的正式规划决策**：Decision Review PASS 后，Agent 只有在低风险、可逆、无重大未知且只继续本地规划的范围内才能自动提交 `COMMIT NOW`。授权必须精确绑定一条真实 Host 消息、当前 Run、当前 Decision Candidate、唯一允许结果、权限范围和签发时间；仅写“已预授权”或只有授权编号无效。必须记录授权来源和决策来源，不能伪装成人类 Owner Choice。
-- **Owner 正式决策**：超出 Agent 授权范围，或涉及目标、价值权重、风险承担、资源承诺和其他必须由人类负责的事项时，由 Owner 绑定当前 Decision Candidate 作出明确选择。Owner Choice 使用同一组最小来源事实：真实 Host 消息、当前 Run 与 Candidate、选择结果、权限范围和时间；界面中的选择不能在缺少来源证明时被解释为授权。
+- **Agent 授权范围内的正式规划决策**：Decision Review PASS 后，Agent 只有在低风险、可逆、无重大未知且只继续本地规划的范围内才能自动提交 `COMMIT NOW`。主 Agent 根据当前对话语义判断授权是否成立以及是否覆盖本次行动；不明确时直接询问 Owner。记录当前 Run、当前 Decision Candidate、唯一结果、声明范围、时间、授权来源和决策来源；`source_message_ref` 如果存在，只是回看对话的追溯线索，不是 Controller 已验证的授权证明。不得把这项自主判断扩展到研发实施、发布、外部操作或其他真实副作用，也不能伪装成人类 Owner Choice。
+- **Owner 正式决策**：超出 Agent 授权范围，或涉及目标、价值权重、风险承担、资源承诺和其他必须由人类负责的事项时，由 Owner 对当前 Decision Candidate 作出明确选择。主 Agent 根据当前对话语义识别该选择，存在多种合理解释时继续询问；记录的消息引用只帮助回看，不能被表达为程序已经证明 Owner 授权。
 
 阶段一至阶段三至少记录：
 
@@ -2046,7 +2049,7 @@ BPG 吸收 Product Goal-Based Audit 中的目标承诺冻结、独立审查、�
 6. 已冻结的 Problem Candidate、Decision Candidate 或 PRD Candidate 保持不可变；后续 Agent 正式决策或人类决策引发实质修改时，更新当前主记录并形成新的 Candidate 版本。
 7. 不复制原始聊天记录，不记录隐藏推理过程，只保留支持理解、审查、追溯和改判所需的事实、结论、理由、分歧和影响。
 
-主 Agent 负责识别、总结、写入和维护这些决策。Reviewer 可以挑战决策依据和一致性，但不替 Agent 或 PM / Owner 作正式路线决定；Controller 只负责精确版本、Candidate、Review、授权范围、Agent 自动决策或 Owner Choice 的绑定，不判断产品结论是否正确。
+主 Agent 负责识别、总结、写入和维护这些决策，并根据当前对话语义判断授权是否成立、范围是否覆盖当前行动。Reviewer 可以挑战决策依据和一致性，但不替 Agent 或 PM / Owner 作正式路线决定；Controller 只负责精确版本、Candidate、Review、提交结果、声明范围、时间、Agent 自动决策或 Owner Choice 的结构一致性，不验证对话真假与授权语义，也不判断产品结论是否正确。
 
 ### 12.4 必须独立保存的例外
 
@@ -2055,7 +2058,7 @@ BPG 吸收 Product Goal-Based Audit 中的目标承诺冻结、独立审查、�
 1. **原始证据和大型附件**：数据导出、访谈全文、截图、录屏、HTML、PNG、原型和外部研究材料。主记录只保留分析结论、证据强度和精确引用。
 2. **不可变 Candidate 快照**：进入 Problem Review、Decision Review 或 PRD Review 时，系统才冻结主记录的精确版本或精确相关视图。工作中的主记录保持可持续修改，不为每次编辑、内部 Artifact 更新、补充证据或推演自动建立快照。迭代一统一采用 Run 内内容寻址对象库：同一字节内容只存一份，Candidate、Review 和 Handoff Manifest 保存逻辑文件名与精确对象引用；Candidate 不再复制整棵 Work 目录，Handoff 只在最终交接时物化一次交付文件。用户不需要手工维护多份候选文件。
 3. **独立 Reviewer 记录**：Reviewer 必须只读冻结 Candidate 并独立保存 Findings。已接受的修改和 Finding 处置结果回写到下一版主记录；Reviewer 记录是审查证据，不是第二套当前产品结论。
-4. **正式交付物**：实验型 PRD、总 PRD、子 PRD、必要的 Product Evals 和 Local Handoff 具有独立读者、版本、审查与交付边界，必须独立保存并精确关联主记录。
+4. **正式交付物**：实验型 PRD、总 PRD、子 PRD 和 Local Handoff 具有独立读者、版本、审查与交付边界，必须独立保存并精确关联主记录；必要的 Product Evals 从 2.2 开始按该原则加入。
 
 除以上情况外，只有拆分能实质提高理解、独立审查、权限隔离、交付、版本管理或大型附件处理质量时，才允许增加物理文件。不得为了体现流程完整而按 Artifact 机械建文件。
 
@@ -2269,13 +2272,13 @@ BPG 的能力库只覆盖形成高质量 PRD 所必需的产品规划能力。
 
 以下内容的产品边界和迭代位置已经确认；其余工作属于对应迭代的详细设计、实现与验证，不阻塞迭代一内部 Alpha，除非条目中明确列入迭代一：
 
-1. **Evals Generator 轻量化重构**：产品与打包边界已经确认采用“BPG 内置、架构可插拔”的原子能力；BPG Core 管理适用性、Candidate、版本、Review 和 Ready，能力包负责 Agent 生成，Test Graph 负责真实执行。生成器本体重构已安排进入小迭代 2.2；迭代一只保留适用性、条件式挂载点、Release Set / Ready 边界和缺失能力时的真实降级。
+1. **Evals Generator 轻量化重构**：产品与打包边界已经确认采用“BPG 内置、架构可插拔”的原子能力；BPG Core 管理适用性、Candidate、版本、Review 和 Ready，能力包负责 Agent 生成，Test Graph 负责真实执行。生成器本体及其适用性、条件式挂载点、Eval Pack、规格 Review 和 Ready Gate 全部安排进入小迭代 2.2；迭代一只保留 Product Evals 执行与产品效果验证为 `NOT_RUN` 的真实边界。
 2. **产品形态场景知识包**：产品形态画像、条件式场景与韧性推演、Artifact 和 Reviewer 分级已经确认；后续仍需详细设计桌面端、iOS、Android、Web、Agent、本地、云端、API / SDK 和内部运维等场景知识包，建立可扩展的方法卡、适用信号和示例，并继续积累不同领域的真实边缘场景。
 3. **更好的 PRD 模板**：PRD 内容契约、可读性方法、正式章节、图形格式和 Review 规则已经确认；新默认模板与 Ready 后由 Handoff 开关控制的自包含 HTML 阅读视图属于迭代一内部 Alpha 的实现与验证范围，不直接沿用现有模板。
 4. **语言与地区配置及适配矩阵实现**：轻量适用性判断、语言 / Locale / 市场三层模型、PRD 与 Engineering SPEC 边界、条件式 Artifact 和专业人员升级规则已经确认；后续仍需设计可配置的 Locale & Market Profile、适配矩阵模板、Checklist、项目配置方式和产品形态知识包之间的组合规则。
 5. **项目级数据采集配置与模板实现**：曝光、交互、调用和必要结果数据的产品边界、条件式数据采集需求表及 PRD / Engineering SPEC 分工已经确认；后续仍需设计可配置的 Data Collection Profile，支持项目必填、可选、禁采、敏感确认、平台差异和组织命名规范，并决定它与项目 PRD Template Profile 的组合方式。
 6. **语言与文化类专业 Reviewer 实现**：语言精确性、产品文案、地区文化和条件式合规 Review 的职责与调用原则已经确认；后续仍需设计各 Reviewer 的输入合同、方法卡、Finding 类型、聚合规则、可用语言或地区能力声明，以及缺少合格专业人员时的 `NOT_RUN` 处理。
-7. **Handoff 适配器与多格式 Renderer**：每种方式具有独立用户开关；Markdown 与 assets 编辑真源、Ready 后默认开启但可关闭的本地自包含 HTML Handoff 进入迭代一；本地文档、飞书文档、项目管理 MCP、DOCX、PDF 及跨格式渲染保真进入后续小迭代。
+7. **Handoff 适配器与多格式 Renderer**：每种方式具有独立用户开关；`PRD.md` 唯一编辑真源、Handoff 派生 assets、Ready 后默认开启但可关闭的本地自包含 HTML 进入迭代一；本地文档、飞书文档、项目管理 MCP、DOCX、PDF 及跨格式渲染保真进入后续小迭代。
 
 ### 17.3 BPG 2.0 开发基线与旧版本边界
 
@@ -2299,11 +2302,11 @@ BPG 2.0 采用一个内部 Alpha 和五个后续小迭代。每个迭代都必�
 迭代一必须交付：
 
 - 一份持续更新的《产品规划主记录》。
-- Markdown 与 assets 编辑真源。
+- `PRD.md` 唯一编辑真源与其中的 Mermaid source。
 - 新的通用 PRD 模板，以及 Ready 后由用户开关控制的自包含 HTML Local Handoff 阅读视图。
 - 不可变 Candidate、独立 Review Findings、`PASS / REVISE / NEEDS_OWNER` 和整体回归。
 - 最小 Controller 所需的当前 Run、精确绑定、合法状态提交、暂停恢复、Ready 与本地 Handoff。
-- Product Evals 的轻量适用性判断、条件式附件挂载点和真实降级；不移植旧 Evals Generator 的重型流水线。
+- Product Evals 执行与产品效果验证的 `NOT_RUN` 真实边界；不运行适用性判断、条件式附件、Eval Pack、规格 Review 或 Ready Gate，这些属于 2.2。
 
 迭代一不支持多 PRD 父子 Run，不迁移旧 Run，不实现 DOCX / PDF、外部 Connector、Test Graph、知识库、完整产品形态 Profile、专业 Reviewer 能力包或独立 `eli-me` 命令。
 
@@ -2314,7 +2317,7 @@ BPG 2.0 采用一个内部 Alpha 和五个后续小迭代。每个迭代都必�
 - 当前 Run、当前阶段、安全暂停点和恢复位置。
 - Problem Candidate、Decision Candidate、PRD Release Set Candidate 三类正式审查对象的冻结、版本与精确引用；实验型 PRD 复用 PRD Candidate 合同，不建立第四套系统。
 - 作者、Reviewer、Findings、Verdict、最多两轮 Candidate 修订和陈旧失效的绑定。
-- Agent 自动决策或 Owner Choice 的精确授权来源，以及六类路线的合法状态提交。
+- Agent 自动决策或 Owner Choice 的决策来源追溯，以及六类路线的合法状态提交；来源引用不构成 Controller 独立验证过的授权证明。
 - 第 11.6 节 Ready 合同、最小 Release Set 文件清单和 Local Handoff 的确定性提交。
 - 只保存恢复、追溯、不可变审查和本地交接确实需要的最小 Machine Manifest；不得复制产品语义正文。
 - `run.json` 只保存已提交操作的最小事实：操作 ID、动作、载荷哈希、开始/结束时间以及前后状态版本；不再生成 `operations/*.json`。默认不记录排队时长、Token、Agent/Controller 分段耗时或每步文件/字节增量；只有独立性能诊断明确需要时才临时采集。
@@ -2361,6 +2364,6 @@ BPG 2.0 采用一个内部 Alpha 和五个后续小迭代。每个迭代都必�
 
 实现条件式 DOCX / PDF 输出、资源内嵌、精确版本绑定和跨格式保真检查，并提供独立 `eli-me` 命令进入最严格、无情的产品经理 Grilling 模式。
 
-最低验收结果是：所有派生格式与同一 Markdown / assets 真源一致且不形成第二事实来源；复杂图表、分页和中文排版可用；`eli-me` 能显著提高质询强度，但不绕过证据、Owner 权限、停止条件或正常 BPG Graph。
+最低验收结果是：所有派生格式与同一 Markdown 真源以及 Handoff 当次生成的 assets 一致且不形成第二事实来源；复杂图表、分页和中文排版可用；`eli-me` 能显著提高质询强度，但不绕过证据、Owner 权限、停止条件或正常 BPG Graph。
 
 完成小迭代 2.5 且全部前序回归仍成立后，才进入 BPG 2.0 正式 Release Candidate 判断。任何小迭代如果实际范围过大，可以继续拆成内部任务或垂直切片，但不能把未完成能力包装成已交付。

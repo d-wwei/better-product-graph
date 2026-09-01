@@ -1,5 +1,12 @@
 # Better Product Graph 通用 PRD 模板 Changelog
 
+## BPG 2.0 Alpha Contract 2.0-alpha.3 Candidate — 2026-09-01
+
+- 状态：`CANDIDATE / NOT_YET_RELEASED`；Runtime source 为 `src/core/templates/general/PRD_TEMPLATE_v2.0-alpha.3.md`（SHA-256 `sha256:0d5541d59e70e6813a1f5fd532632cf18af2730c003d893c93002d07a97c4edd`）和 `PRD_OUTPUT_CONTRACT_v2.0-alpha.3.json`（SHA-256 `sha256:20b8748b72068b21c720e3a46d4405c7436b6ba7fb9f69b9f81540b4dc734e43`）。
+- Supersedes：Alpha template / output contract 2.0-alpha.2。旧 `PRD_TEMPLATE_v2.0-alpha.md` 与 `PRD_OUTPUT_CONTRACT_v2.0-alpha.json` 保持不可变，SHA-256 分别为 `sha256:762ae2df48106d8986c220b6f9c40a27a8dea34c69ab79bde29731325b218389` 与 `sha256:c036329b8d571f7652be12ea284c7050532e7ff18f4653da5788535139aa32a7`。
+- alpha.3 将编辑真源明确为 `PRD.md`、把 Product Evals 保持在 2.2 边界，并以 `ACCEPTANCE_AND_VALIDATION_BOUNDARY` 取代当前 2.0 不适用的 Product Evals checklist；新 Run selector 使用 alpha.3，历史 Run 不迁移。
+- 本次只版本化 `src/core` 的 BPG 2.0 Alpha 资源，不修改顶层 `general@0.2.0 / RELEASED_DEFAULT` 模板包或其 Registry。
+
 ## v0.3.0 Draft — Invalidated — 2026-08-24
 
 - 状态：`INVALIDATED / NOT_REGISTERED`；未改变 `general@0.2.0 / RELEASED_DEFAULT`、default 或 general fallback。

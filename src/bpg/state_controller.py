@@ -808,7 +808,9 @@ class StateController:
             "prd-writing-profile-v0.4",
             "prd-writing-guide-v0.4",
             "prd-writing-reader-review-v3.1",
+            "prd-writing-reader-review-v3.1.1",
             "prd-writing-reader-review-v3.2",
+            "prd-writing-reader-review-v3.2.1",
             "prd-writing-profile-v0.5",
             "prd-writing-guide-v0.5",
         }
@@ -3331,7 +3333,7 @@ class StateController:
             {
                 "profile_id": "prd-writing-profile-v0.5",
                 "guide_id": "prd-writing-guide-v0.5",
-                "contract_id": "prd-writing-reader-review-v3.2",
+                "contract_id": "prd-writing-reader-review-v3.2.1",
                 "profile_contract_id": "prd-writing-reader-review-v3.1",
                 "diagnostic_count": 11,
                 "dispatch_schema": "writing-review-dispatch.v3",
@@ -3991,7 +3993,6 @@ class StateController:
                 "writing_coverage_ref": writing_coverage_ref,
             },
             "upstream_refs": upstream_refs,
-            "evals": metadata["evals"],
             "presentation": {
                 "template_profile_ref": evidence_refs["template_profile"],
                 "version_record_ref": evidence_refs["version_record"],
@@ -4002,6 +4003,8 @@ class StateController:
             "delivery_intent": metadata["delivery_intent"],
             "experiment_contract": metadata.get("experiment_contract"),
         }
+        if "evals" in metadata:
+            request["evals"] = metadata["evals"]
         return archived, request, subjects
 
     def prevalidate_ready_evals(self, run_id: str) -> None:
@@ -4015,6 +4018,8 @@ class StateController:
         if len(metadata_paths) != 1:
             raise TransitionRejected("Ready Evals require self-contained Candidate metadata")
         metadata = read_json(metadata_paths[0])
+        if "evals" not in metadata:
+            return
         evals = metadata.get("evals", {})
         if (
             evals.get("applicability") == "REQUIRED"
@@ -4028,7 +4033,8 @@ class StateController:
             return
         if evals.get("fulfillment_authority") != "CONTROLLER_BOUND":
             raise TransitionRejected(
-                "REVIEWED Evals lack exact Controller-bound fulfillment"
+                "BPG 2.0 forbids unbound future Product Evals metadata; "
+                "metadata.evals is not part of the active 2.0 PRD contract"
             )
         input_hashes: dict[str, str] = {}
         for ref in state.get("artifact_refs", {}).values():

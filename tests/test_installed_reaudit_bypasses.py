@@ -2001,6 +2001,7 @@ class InstalledPublicReauditTests(unittest.TestCase):
         by_kind = {item["kind"]: item for item in upstream_refs}
         submission = prd_submission()
         metadata = submission["semantic_output"]["metadata"]
+        metadata.pop("evals", None)
         if candidate_version != metadata["version"]:
             submission["semantic_output"]["document_markdown"] = submission[
                 "semantic_output"
@@ -2858,7 +2859,18 @@ class InstalledPublicReauditTests(unittest.TestCase):
         return completed, run_id, archived_path, review_path
 
     def test_installed_review_finalize_creates_same_version_controller_companion(self) -> None:
-        self._run_installed_review_finalize_lifecycle()
+        completed, _run_id, archived_path, _review_path = (
+            self._run_installed_review_finalize_lifecycle()
+        )
+
+        self.assertEqual(completed["status"], "COMPLETED")
+        self.assertEqual(completed["state"]["current_node"], "handoff.dispatch")
+        self.assertIsInstance(completed["state"].get("handoff_ref"), dict)
+        released = (
+            self.project / "artifacts" / "prds" / "released" / archived_path.name
+        )
+        metadata_path = next(released.glob("*.metadata.json"))
+        self.assertNotIn("evals", read_json(metadata_path))
 
     def test_installed_review_aggregate_accepts_explicit_empty_disagreements(self) -> None:
         completed, _run_id, archived_path, _review_path = (
@@ -3394,7 +3406,7 @@ class InstalledPublicReauditTests(unittest.TestCase):
         )
         self.assertFalse(receipt_root.exists() and any(receipt_root.iterdir()))
 
-    def test_installed_same_host_cannot_self_attest_required_evals_and_release(self) -> None:
+    def test_installed_bpg2_rejects_unbound_future_evals_metadata_before_ready(self) -> None:
         completed, run_id, archived_path, _review_path = (
             self._run_installed_review_finalize_lifecycle(
                 self_reviewed_typed_evals=True,
@@ -3403,9 +3415,10 @@ class InstalledPublicReauditTests(unittest.TestCase):
         )
 
         self.assertNotEqual(completed.returncode, 0)
-        self.assertRegex(
+        self.assertIn(
+            "BPG 2.0 forbids unbound future Product Evals metadata; "
+            "metadata.evals is not part of the active 2.0 PRD contract",
             completed.stderr,
-            "REQUIRED|fulfillment authority|independent|Raw Signal|provenance",
         )
         state = read_json(
             self.project / ".better-product-graph" / "runs" / run_id / "state.json"

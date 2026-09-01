@@ -1,6 +1,8 @@
 # PRD Review — Agent Instructions v0.2
 
-Run as isolated read-only attempts over one exact frozen PRD Candidate, its conditional Eval Pack, and the same Goal Fidelity Review inputs. First-round Reviewers cannot see one another's findings. Logical coverage must include separate Product Goal/Scope Fidelity, Engineering Feasibility, Testability and Writing Standard work orders. The root may later assemble their validated advisory outputs into the one ordinary Review Node Result, but it cannot merge or omit their execution identities.
+Run as isolated read-only attempts over one exact frozen PRD Candidate and the same Goal Fidelity Review inputs. First-round Reviewers cannot see one another's findings. Logical coverage must include separate Product Goal/Scope Fidelity, Engineering Feasibility, Testability and Writing Standard work orders. The root may later assemble their validated advisory outputs into the one ordinary Review Node Result, but it cannot merge or omit their execution identities. In the BPG 2.0 single-PRD runtime, the Reviewer does not receive or review an Eval Pack, make a Product Evals applicability decision, or wait for Eval Spec Review; those work orders begin in 2.2.
+
+Host custody comes first for every formal PRD content Reviewer and Writing Reviewer: start it with no inherited parent conversation. On Codex the root Host must call `spawn_agent(..., fork_turns="none")`; another Host must use an equivalent clean-context dispatch. The initial task may carry only the exact frozen Candidate/ref, installed Reviewer instruction and Review contract, required read-only basis refs, and the output contract and target. Each Reviewer reads those refs itself. Do not pass author hidden reasoning, a mutable chat summary, other first-pass Reviewer Findings, or undispatched workspace material. This isolates conversation inheritance only; `HOST_SUBAGENT_ATTEMPT` is not proof of filesystem or cryptographic isolation.
 
 Before starting Product, Engineering Feasibility, Testability and Writing
 Standard review work, the root Host must prebind four separate work orders.
@@ -24,6 +26,35 @@ Do not add a new confirmation or consent checkpoint when exact commitments alrea
 把人类阅读体验和产品边界作为正式审查面，但 Reviewer 仍然只有 `ADVISORY_ONLY` 建议权。先读取 dispatch 绑定的 Document Experience Profile 与 Writing Guide，再判断 Candidate 是否做到：先建立全局框架，再逐层展开；让标题、摘要、正文和验收口径使用一致的语言；控制单段信息密度；只在确实能降低理解成本时使用图表；让第一次接触项目的产品经理能够看懂目标、范围、关键流程、取舍、未知和下一步。
 
 PRD 应说明产品问题、用户结果、范围、业务规则、边界条件和可观察验收。对象拆分、内部 Schema、存储布局、线程模型、类与函数设计等通常属于下游 Engineering SPEC，不应为了显得完整而塞进 PRD；只有当某项技术约束会改变外部行为、安全、隐私、兼容性、性能承诺或产品取舍时，才把它提升为产品要求。发现问题时，使用正常 Finding 合同给出 exact basis、影响和建议，不得新增 Gate、阻塞权或强制确认点。
+
+### STATUS_AUTHORITY_BOUNDARY
+
+The Writing Reviewer owns this boundary under responsibility
+`DOCUMENT_EXPERIENCE`. Apply `STATUS_DRIFT_TEST`: if product requirements remain
+unchanged but advancing only the Product Run by one step would make a PRD
+sentence stale, the PRD has become a second mutable workflow truth. Return a
+normal Writing Finding with stance=`REVISE`, exact Candidate basis and repair
+target `CURRENT_PRD`. Use the existing diagnosis
+`COMPLETION_SEMANTICS_AMBIGUOUS` or `ARTIFACT_MATURITY_OVERCLAIM`, whichever best
+describes the observed reader error, and recommend `MOVE` or `BOUNDARY`; do not
+invent a diagnosis, schema, Gate, or Controller text scanner.
+
+The mutable class includes current Candidate, Review, Ready, or Handoff status;
+current Evals Generator capability or fulfillment; and current engineering
+receipt, test, release, or delivery status. The durable destination is not one
+catch-all document: product reasoning, decisions and durable Finding disposition
+history belong in the Product Planning Record, while live progress belongs in
+Controller status and exact receipts. The PRD keeps only the durable product
+contract and durable product Unknowns.
+
+This is a semantic responsibility: the Reviewer must not scan or fail keywords.
+For example, “when product validation has not run, the product must not claim
+its effect is validated” is a durable product rule and does not produce a
+Finding merely because it mentions validation. A sentence saying this Candidate awaits independent
+Review or cannot currently become Ready does produce the Finding because the
+same product contract would outlive that Run status. Reviewer authority remains
+`ADVISORY_ONLY`; `REVISE` is the Finding stance routed through the existing
+aggregate, disposition and re-review path.
 
 ### COMPACT_V3_WRITING_REVIEW
 
@@ -60,52 +91,22 @@ or local Handoff look remotely sent, received, or approved. Record the exact
 claim boundary `AGENT_REVIEW_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN`; Agent
 review is not an observed human-reader test.
 
-The dispatch field `writing_review_context.visual_source_scan` is produced
-before any visual renderer or rich-content inspector. When its status is
-`REVIEWABLE_UNSAFE_NOT_RENDERED`, access mode is `SOURCE_TEXT_ONLY` and render
-status is `NOT_RENDERED`; every Reviewer may inspect only the exact Candidate
-source bytes. For `RAW_INLINE_SVG`, the Writing Reviewer must return a visual
-`FINDING` with `observation_status=NOT_RENDERED`, issue type
-`RAW_INLINE_SVG`, and the exact scan line basis. `PASS` and `NOT_NEEDED` are
-invalid. The Finding remains advisory and follows the ordinary disposition,
-optimize, and re-review lifecycle. Candidate path/hash/permission failures stop
-dispatch instead of becoming a Finding.
+Candidate visual review is source-only and semantic. Candidate / Ready contains
+Mermaid source in the exact Markdown; it contains no generated SVG preview, PNG
+or HTML and dispatch supplies no mechanical visual scan or rendered-pair work
+order. The Author and Reviewers judge whether the Mermaid expresses the right
+product relationships, labels, direction, branches and reading order. When the
+source succeeds, visual `PASS` uses `observation_status=SOURCE_REVIEWED` with an
+empty `visual_pair_refs`; when no visual is needed, keep `NOT_NEEDED` with a
+concrete semantic reason. A semantic defect or a relationship that text alone
+cannot communicate uses one normal advisory Finding with exact Candidate line
+basis. Do not add an SVG path/style/class/safety scanner, component hash,
+responsibility hash, visual receipt or a Controller judgment of diagram meaning.
 
-The source scanner resolves Markdown literal boundaries before interpreting
-HTML comments. Arbitrary-length backtick/tilde fences with valid info strings,
-indented code and inline code spans remain literals; real HTML comments are
-then excluded in source order. A literal unclosed `<!--` must never hide a
-later active `<svg>`. Reviewers use the supplied exact scan and do not
-reinterpret code/comment examples as rendered visuals.
-
-The dispatch field `writing_review_context.reader_visible_visual_pairs` is the
-Controller-validated complete list of Markdown-visible SVG plus same-stem
-`@2x.png` pairs. Mechanical validation proves only local safety, pairing, and
-exact bytes; it does not prove semantic usefulness. The SVG `viewBox` defines
-coordinate space, not pixels. Its PNG fallback must instead have a short side
-of at least 320 px, a long side of at least 640 px, and preserve the SVG aspect
-ratio within 5%. The Controller validates the complete inert SVG/PNG byte
-streams; the Reviewer alone attests that it actually observed the rendered
-relationship. Reader-visible raw inline `<svg>` is forbidden even when it looks
-inert: move it to the Candidate `assets/` directory and reference the managed
-SVG plus same-stem PNG pair. Before Ready and Release the Controller validates
-the entire final asset tree, including files not referenced in Markdown, and
-rejects malicious or safe-but-unreferenced orphan pairs, unpaired extras,
-unknown visual files, symlinks and hash/tree drift. Remote rendered images are
-also invalid. When that
-list is non-empty,
-a visual `PASS` must use `"observation_status": "OBSERVED"` and copy every pair
-unchanged into `"visual_pair_refs"`. A visual `FINDING` uses `OBSERVED` with the
-same exact pairs when assets exist, or `NOT_OBSERVED` with an empty list when a
-needed visual is absent; source-only unsafe visuals use `NOT_RENDERED` as
-described above. `NOT_NEEDED` is legal only when the dispatch list and source
-scan issues are empty, must use `"observation_status": "NOT_NEEDED"`, an empty
-`"visual_pair_refs"`, and a concrete reason. Example of the additional exact
-fields for a present visual:
-
-```json
-{"verdict": "PASS", "observation_status": "OBSERVED", "visual_pair_refs": [{"svg_ref": {"path": "<exact Candidate-tree SVG path>", "hash": "<exact SVG hash>", "version": "reader-visual.v1"}, "png_ref": {"path": "<exact Candidate-tree @2x PNG path>", "hash": "<exact PNG hash>", "version": "reader-visual.v1"}}]}
-```
+Handoff alone materializes already Ready Mermaid source into final SVG and the
+enabled HTML presentation. Successful generation proves only materialization;
+it is not Candidate or Review evidence. If the Host renderer is unavailable or
+generation fails, report the failure explicitly and do not simulate an image.
 
 Compact complete zero-Finding example (replace every representative ref and
 readback statement with exact dispatch-bound evidence):
@@ -538,14 +539,15 @@ When the exact committed Reviewer result contains no Findings, use this complete
 
 The main Host Agent decides which advisory repairs to adopt. When `node_id=prd.optimize`, read the exact `optimize_context`: revise only its accepted current-PRD Findings, use its exact source Candidate and `next_version`, and author the complete replacement PRD rather than a patch. Submit `source_candidate_ref`, the declared `{prd_id, version}` Candidate identity, the canonical `proposed_scope_projection`, full `document_markdown`, `template_mapping`, and metadata. Preserve the user's explicit/current working language (fallback `zh-CN`) in `metadata.document_language`; use a short human title in that language rather than introducing a hidden English slug. Recompute the immutable `<prd_id>_<short_title>_<version>_<date>` stem for the new version, and make the directory, Markdown filename, and unique H1 exact matches. Never rename the source Candidate in place. The projection contains exactly the Plan-owned Slice fields `id`, `user_outcome`, sorted `modules`, `iteration`, sorted `dependencies`, `validation`, `split_reason`, and `delivery_intent`. Caller claims such as `scope_changed=false` do not decide the route: the Controller recomputes the exact Plan projection. A mismatch returns `PLAN_RECONCILE_REQUIRED` before Candidate persistence; an unclassifiable or missing projection returns `AMBIGUOUS_SCOPE_CHANGE` for the current Owner, never a Reviewer Gate.
 
-`prd.optimize` may also include the exact closed `prd-asset-change-set.v1`
-defined in PRD Generate. `upsert` adds or replaces managed `.svg`/`@2x.png`
-bytes from exact regular non-symlink source refs; `remove` deletes names from
-the copied source Candidate asset tree. Unknown fields, traversal, hash drift,
-unsafe payloads, or an incomplete visible pair fail before archive. The new
-Candidate tree invalidates the prior Review and re-enters `review.parallel`.
+For a revised Candidate, the new Reviewer first performs a difference review
+over the exact before/after diff, prior Findings and the Lead Agent's repair explanation. It focuses
+semantic checking on affected content, then performs a short whole-product regression
+and records one new Review for the exact current Candidate. The new
+Candidate invalidates the prior Review; never inherit the old Review. The whole
+Candidate hash binds evidence to reviewed bytes only. Do not add component hash,
+responsibility hash, Review receipt inheritance or a programmatic diff classifier.
 
-Metadata must preserve upstream authority and the closed active-scope/trace/runtime contracts, declare exact `supersedes`, and include a `change_log` with the source Candidate, every repaired Finding ID, all unadopted dispositions unchanged, material delta, and re-review scope. `optimize_context.metadata_authority.spec_traceability` is the complete closed `spec-traceability.v1` selected by the Controller, including the exact current `source_candidate` and committed `review_aggregate_result` origins. Copy it byte-for-byte into `metadata.spec_traceability`; do not extend, replace, infer, reorder, or retain superseded trace roles yourself. A Product Planning reconciliation carries those same two roles into its later `prd.generate`. A legal Evals specification update may be submitted, but in the current skills-only Host REQUIRED Evals must remain `REVIEW_PENDING`/`NOT_RUN` without active stale Pack/review refs; typed Pack/review consistency cannot prove independent fulfillment or grant release authority. Python validates and archives these Agent-authored bytes; it never generates the revision.
+Metadata must preserve upstream authority and the closed active-scope/trace/runtime contracts, declare exact `supersedes`, and include a `change_log` with the source Candidate, every repaired Finding ID, all unadopted dispositions unchanged, material delta, and re-review scope. `optimize_context.metadata_authority.spec_traceability` is the complete closed `spec-traceability.v1` selected by the Controller, including the exact current `source_candidate` and committed `review_aggregate_result` origins. Copy it byte-for-byte into `metadata.spec_traceability`; do not extend, replace, infer, reorder, or retain superseded trace roles yourself. A Product Planning reconciliation carries those same two roles into its later `prd.generate`. BPG 2.0 does not accept an Evals specification update in this path; version 2.2 owns that future contract. Python validates and archives these Agent-authored bytes; it never generates the revision.
 
 The `metadata.change_log` contract is closed-world. Copy `source_candidate_ref` and `unadopted_dispositions` byte-for-byte from `optimize_context`. Build `repaired_finding_ids` from every `accepted_dispositions[].finding_id` in the same order; do not use only the Findings mentioned in prose. `material_delta` and `rereview_scope` are non-empty lists of non-empty human-readable strings. Do not add private closure flags or rename these keys.
 

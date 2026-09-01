@@ -120,7 +120,7 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 / "better-product-graph"
                 / "references"
                 / "alpha"
-                / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md"
+                / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
             )
 
             self.assertIn("Default BPG 2.0 single-PRD runtime", skill)
@@ -132,8 +132,34 @@ class BPG2AlphaHostTests(unittest.TestCase):
             self.assertNotIn("--operation prepare-evals", skill)
             self.assertIn("replace-record", skill)
             self.assertNotIn("`update-record`", skill)
+            self.assertIn(
+                "Do not rewrite `planning-record.md` merely to mirror the current Candidate, Review status, or next action",
+                skill,
+            )
+            self.assertIn(
+                "In `PRD_AUTHORING`, submit the complete nine Stage 4 dispositions again",
+                skill,
+            )
             self.assertIn("document-experience-reader-review.v3", skill)
             self.assertIn("Do not generate, open or review HTML during Candidate Review", skill)
+            self.assertIn("semantic `STATUS_DRIFT_TEST`", skill)
+            self.assertIn(
+                "existing `document_experience.diagnoses` and `document_experience.actions`",
+                skill,
+            )
+            self.assertIn(
+                "durable product contract and durable product Unknowns",
+                skill,
+            )
+            self.assertIn(
+                "product reasoning, decisions, and durable Finding disposition history",
+                skill,
+            )
+            self.assertIn(
+                "sole live authority for current Candidate, Review, Ready, Handoff, Product Evals, and engineering status",
+                skill,
+            )
+            self.assertIn("Never implement this as a keyword scan", skill)
             self.assertIn("This Alpha implements only `LOCAL_HTML`", skill)
             self.assertIn("optional `delivery_options` object", skill)
             self.assertIn("`LOCAL_HTML` defaults to `true`", skill)
@@ -146,9 +172,31 @@ class BPG2AlphaHostTests(unittest.TestCase):
                     / "references"
                     / "templates"
                     / "general"
-                    / "PRD_OUTPUT_CONTRACT_v2.0-alpha.json"
+                    / "PRD_OUTPUT_CONTRACT_v2.0-alpha.3.json"
                 ).is_file()
             )
+
+    def test_codex_and_claude_hosts_share_the_status_drift_author_contract(self) -> None:
+        required = (
+            "semantic `STATUS_DRIFT_TEST`",
+            "existing `document_experience.diagnoses` and `document_experience.actions`",
+            "durable product contract and durable product Unknowns",
+            "product reasoning, decisions, and durable Finding disposition history",
+            "sole live authority for current Candidate, Review, Ready, Handoff, Product Evals, and engineering status",
+            "Never implement this as a keyword scan",
+        )
+        for host in ("codex", "claude"):
+            with self.subTest(host=host):
+                skill = (
+                    REPO_ROOT
+                    / "host-adapters"
+                    / host
+                    / "public-skill"
+                    / "better-product-graph"
+                    / "SKILL.md"
+                ).read_text(encoding="utf-8")
+                for phrase in required:
+                    self.assertIn(phrase, skill)
 
     def test_installed_runner_accepts_one_alpha_json_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -467,14 +515,6 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 kind="PRD",
                 author_attempt_id="host-prd-author",
                 source_dir=str(draft.relative_to(project)),
-                evals={
-                    "applicability": "NOT_NEEDED",
-                    "reason": "确定性验收足够",
-                    "generator_capability": "NOT_IMPLEMENTED",
-                    "generator_invocation_status": "NOT_RUN",
-                    "execution_status": "NOT_RUN",
-                    "attachment_paths": [],
-                },
                 document_experience={
                     "schema_version": "bpg2-alpha-document-experience.v1",
                     "author_attempt_id": "host-prd-author",

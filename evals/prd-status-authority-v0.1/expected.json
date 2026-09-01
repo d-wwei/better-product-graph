@@ -1,0 +1,18 @@
+{
+  "mutable-run-status": {
+    "expected_review_stance": "REVISE",
+    "required_responsibility_id": "DOCUMENT_EXPERIENCE",
+    "allowed_diagnostic_categories": [
+      "COMPLETION_SEMANTICS_AMBIGUOUS",
+      "ARTIFACT_MATURITY_OVERCLAIM"
+    ],
+    "required_repair_techniques_any": [
+      "MOVE",
+      "BOUNDARY"
+    ]
+  },
+  "durable-product-rule": {
+    "expected_review_stance": "PASS",
+    "forbidden_failure_reason": "KEYWORD_MATCH_ONLY"
+  }
+}

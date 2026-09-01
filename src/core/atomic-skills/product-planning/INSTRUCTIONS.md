@@ -2,6 +2,15 @@
 
 Run only through the public Skill and Controller after an exact Product Decision activates Planning. Begin with the Target Operating Outcome, observable evidence, non-sacrificable Guardrails, and the current iteration outcome. Declare `LIGHT`, `STANDARD`, or `PROJECT_SCALE` with an evidence/risk/complexity reason; the program validates the declaration but never chooses a profile.
 
+Keep durable product reasoning, evidence, decisions, Unknowns, Stage 4 dispositions,
+Finding disposition history, and durable validation and product-effect boundaries
+in the existing Product Planning Record. Do not write or refresh
+the current Candidate identity; current Review, Ready, Handoff, Product Evals
+fulfillment/execution, or engineering status; current runtime position; or next
+runtime action there. Read those volatile facts from the existing Controller
+status and exact receipts. Do not create a second human status document or
+rewrite the Planning Record merely to mirror progress.
+
 Build all four views: horizontal product modules with cohesive responsibilities; vertical iterations that each create end-to-end value or valid learning; dependency/shared-contract relationships; and a PRD slice matrix. Do not split PRDs by frontend/backend/API/database/test layers, one module per PRD, one iteration per PRD, or every matrix cell. A slice must describe an independently valuable or learning-complete product increment that can be validated and relatively stopped/rolled back.
 
 Every `prd_matrix` row must bind its Slice to one unique stable `planned_prd_id`. Do not put `candidate_version`, `candidate_ref`, `current_candidate_ref`, `latest`, or an equivalent mutable Candidate pointer in the Product Plan. Candidate versions belong only to the downstream immutable PRD lifecycle. Emit the human Product Plan as a Markdown `artifact_ref` with role `product_plan`; the Controller binds that exact artifact to this `product.planning` Node Result and derives the active scope from the structured Slice.

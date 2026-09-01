@@ -483,7 +483,7 @@ class ReaderReviewV3Tests(unittest.TestCase):
         with self.assertRaisesRegex(WritingReviewError, "output_contract_ref"):
             validate_reader(value)
 
-    def test_v05_ordinary_review_reuses_v3_result_schema_with_v32_resource(self) -> None:
+    def test_v05_ordinary_review_reuses_v3_result_schema_with_v321_resource(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             candidate = project / "candidate.md"
@@ -504,9 +504,9 @@ class ReaderReviewV3Tests(unittest.TestCase):
                 "version": "0.5.0",
             }
             review_contract_ref = {
-                "path": "references/reviewer-profiles/prd-writing-reader-review-v3.2.json",
-                "hash": "sha256:reader-review-v3.2",
-                "version": "v3.2",
+                "path": "references/reviewer-profiles/prd-writing-reader-review-v3.2.1.json",
+                "hash": "sha256:reader-review-v3.2.1",
+                "version": "v3.2.1",
             }
             value = reader_review()
             value.update(
@@ -799,7 +799,7 @@ class LifecycleExpressionReconciliationTests(unittest.TestCase):
 
 
 class WritingReviewDispatchTests(unittest.TestCase):
-    def test_explicit_v05_candidate_dispatches_exact_v32_ordinary_resource(self) -> None:
+    def test_explicit_v05_candidate_dispatches_exact_v321_ordinary_resource(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             runtime = HostRuntime(project, GRAPH, SKILL_ROOT)
@@ -889,9 +889,9 @@ class WritingReviewDispatchTests(unittest.TestCase):
             self.assertEqual(context["profile_ref"]["version"], "0.5.0")
             self.assertEqual(
                 context["review_contract_ref"]["path"],
-                "references/reviewer-profiles/prd-writing-reader-review-v3.2.json",
+                "references/reviewer-profiles/prd-writing-reader-review-v3.2.1.json",
             )
-            self.assertEqual(context["review_contract_ref"]["version"], "v3.2")
+            self.assertEqual(context["review_contract_ref"]["version"], "v3.2.1")
             self.assertEqual(
                 context["visual_source_scan"]["status"],
                 "REVIEWABLE_UNSAFE_NOT_RENDERED",
@@ -912,7 +912,7 @@ class WritingReviewDispatchTests(unittest.TestCase):
             self.assertEqual(len(context["isolated_input_refs"]), 5)
             self.assertTrue(
                 {
-                    "prd-writing-reader-review-v3.2",
+                    "prd-writing-reader-review-v3.2.1",
                     "prd-writing-profile-v0.5",
                     "prd-writing-guide-v0.5",
                 }.issubset(dispatched_resource_ids)

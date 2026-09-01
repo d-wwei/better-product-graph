@@ -2,11 +2,23 @@ from __future__ import annotations
 
 import base64
 import unittest
+from unittest.mock import patch
 
-from src.bpg.alpha_html import render_self_contained_prd_html
+from src.bpg.alpha_html import (
+    MermaidRenderError,
+    render_mermaid_svgs,
+    render_self_contained_prd_html,
+)
 
 
 class BPG2AlphaHTMLTests(unittest.TestCase):
+    @patch("src.bpg.alpha_html.shutil.which", return_value=None)
+    def test_mermaid_rendering_fails_explicitly_when_mmdc_is_unavailable(
+        self, _which: object
+    ) -> None:
+        with self.assertRaisesRegex(MermaidRenderError, "mmdc.*NOT_IMPLEMENTED"):
+            render_mermaid_svgs("```mermaid\nflowchart LR\nA --> B\n```\n")
+
     def test_renderer_is_self_contained_and_embeds_assets(self) -> None:
         html = render_self_contained_prd_html(
             "# 标题\n\n## 核心流程\n\n![流程](assets/flow.png)\n\n"

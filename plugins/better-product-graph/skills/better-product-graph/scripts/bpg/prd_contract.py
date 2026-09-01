@@ -505,8 +505,6 @@ def _validate_output_shape(
 def assemble_prd(
     submission: dict[str, Any],
     template: TemplateSelection,
-    *,
-    allow_controller_reviewed_evals: bool = False,
 ) -> AssembledPRD:
     node_id = submission.get("node_id")
     if node_id not in {"prd.generate", "prd.optimize"}:
@@ -624,23 +622,6 @@ def assemble_prd(
         ],
         issues,
     )
-    evals = metadata.get("evals")
-    if not isinstance(evals, dict) or evals.get("applicability") not in {
-        "NOT_NEEDED",
-        "RECOMMENDED",
-        "REQUIRED",
-    }:
-        issues.append("Eval Applicability contract is required")
-    elif (
-        node_id == "prd.generate"
-        and evals.get("fulfillment") == "REVIEWED"
-        and not allow_controller_reviewed_evals
-    ):
-        issues.append(
-            "prd.generate cannot self-claim REVIEWED Evals; verifiable fulfillment authority "
-            "is unavailable in the current release, so REQUIRED Evals must remain "
-            "REVIEW_PENDING/NOT_RUN"
-        )
     if metadata.get("delivery_intent") == "EXPERIMENT":
         issues.extend(validate_experiment_contract(metadata.get("experiment_contract")))
     try:

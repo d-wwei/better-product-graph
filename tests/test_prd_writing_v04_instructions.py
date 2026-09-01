@@ -229,20 +229,19 @@ class PRDWritingV04InstructionTests(unittest.TestCase):
         ):
             self.assertIn(repair, source)
 
-    def test_v3_public_instruction_exposes_exact_visual_observation_contract(self) -> None:
+    def test_v3_public_instruction_exposes_mermaid_source_review_contract(self) -> None:
         source = (
             CORE / "atomic-skills" / "prd-review" / "INSTRUCTIONS.md"
         ).read_text(encoding="utf-8")
 
-        self.assertIn('"observation_status": "OBSERVED"', source)
-        self.assertIn('"visual_pair_refs"', source)
-        self.assertIn("reader_visible_visual_pairs", source)
-        self.assertIn("does not prove semantic usefulness", source)
-        self.assertIn("coordinate space, not pixels", source)
-        self.assertIn("short side\nof at least 320 px", source)
-        self.assertIn("long side of at least 640 px", source)
-        self.assertIn("aspect\nratio within 5%", source)
-        self.assertIn("raw inline `<svg>` is forbidden", source)
+        self.assertIn("Candidate visual review is source-only and semantic", source)
+        self.assertIn("Mermaid source in the exact Markdown", source)
+        self.assertIn("observation_status=SOURCE_REVIEWED", source)
+        self.assertIn("empty `visual_pair_refs`", source)
+        self.assertIn("Handoff alone materializes", source)
+        self.assertNotIn("reader_visible_visual_pairs", source)
+        self.assertNotIn("coordinate space, not pixels", source)
+        self.assertNotIn("short side\nof at least 320 px", source)
 
     def test_v3_examples_are_complete_validator_ready_contracts(self) -> None:
         instruction = (

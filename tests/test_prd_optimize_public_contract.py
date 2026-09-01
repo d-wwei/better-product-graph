@@ -95,7 +95,7 @@ class PRDOptimizePublicContractTests(unittest.TestCase):
             registry["nodes"]["prd.optimize"]["compatible_instruction_hashes"],
         )
 
-    def test_installed_generate_and_optimize_expose_exact_asset_change_contract(self) -> None:
+    def test_installed_generate_keeps_legacy_asset_contract_outside_bpg_2_0(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             plugin = Path(directory) / "plugin"
             build_plugin(REPO_ROOT, plugin)
@@ -112,14 +112,19 @@ class PRDOptimizePublicContractTests(unittest.TestCase):
         contract = json.loads(match.group(1))
         self.assertEqual(contract["schema_version"], "prd-asset-change-set.v1")
         self.assertEqual(set(contract), {"schema_version", "upsert", "remove"})
-        self.assertIn("exact regular non-symlink source refs", review)
+        self.assertIn(
+            "legacy asset input contract is not used by the BPG 2.0 single-PRD runtime",
+            generate,
+        )
+        self.assertIn("Candidate visual review is source-only and semantic", review)
 
-    def test_installed_review_exposes_source_only_raw_svg_finding_rule(self) -> None:
+    def test_installed_review_exposes_mermaid_source_only_semantic_rule(self) -> None:
         instruction = self._installed_instruction()
-        self.assertIn("writing_review_context.visual_source_scan", instruction)
-        self.assertIn("REVIEWABLE_UNSAFE_NOT_RENDERED", instruction)
-        self.assertIn("observation_status=NOT_RENDERED", instruction)
-        self.assertIn("`PASS` and `NOT_NEEDED` are", instruction)
+        self.assertIn("Mermaid source in the exact Markdown", instruction)
+        self.assertIn("observation_status=SOURCE_REVIEWED", instruction)
+        self.assertIn("Handoff alone materializes", instruction)
+        self.assertNotIn("writing_review_context.visual_source_scan", instruction)
+        self.assertNotIn("observation_status=NOT_RENDERED", instruction)
 
 
 if __name__ == "__main__":

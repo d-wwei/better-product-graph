@@ -304,8 +304,18 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(result["configuration_action"], "PROJECT_TEMPLATE_CONFIGURE")
         self.assertEqual(result["graph_run_created"], False)
-        self.assertEqual(result["bpg_version"], "2.0.0")
+        self.assertEqual(result["bpg_version"], "2.0.1")
         self.assertFalse((self.project / ".better-product-graph/runs").exists())
+
+    def test_public_plugin_build_excludes_private_moomoo_pack(self) -> None:
+        built = self.root / "public-plugin"
+        manifest = build_plugin(REPO_ROOT, built)
+
+        inventory_paths = {item["path"] for item in manifest["inventory"]}
+        self.assertFalse(any("internal/template-packs" in path for path in inventory_paths))
+        for path in built.rglob("*"):
+            if path.is_file():
+                self.assertNotIn(b"template_id: moomoo.ai.prd", path.read_bytes())
 
     def test_legacy_install_operation_is_not_a_user_facing_entry(self) -> None:
         pack = self._write_pack()

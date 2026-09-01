@@ -67,18 +67,26 @@ class InternalReferenceCatalogTests(unittest.TestCase):
             {"id": "prd-plain-language-zh-CN", "version": "0.5.0"},
         )
 
-    def test_review_resources_stage_v05_with_distinct_v31_ordinary_contract(self) -> None:
+    def test_review_resources_preserve_v31_and_stage_v311_and_v321(self) -> None:
         catalog = ReferenceCatalog(REPO_ROOT / "src" / "core")
         resources = {item["resource_id"]: item for item in catalog.review_resources()}
 
         self.assertIn("prd-writing-profile-v0.5", resources)
         self.assertIn("prd-writing-guide-v0.5", resources)
         self.assertIn("prd-writing-reader-review-v3.1", resources)
+        self.assertIn("prd-writing-reader-review-v3.1.1", resources)
+        self.assertIn("prd-writing-reader-review-v3.2.1", resources)
         self.assertEqual(resources["prd-writing-profile-v0.5"]["version"], "0.5.0")
         self.assertEqual(resources["prd-writing-guide-v0.5"]["version"], "0.5.0")
         self.assertEqual(resources["prd-writing-reader-review-v3.1"]["version"], "v3.1")
+        self.assertEqual(
+            resources["prd-writing-reader-review-v3.1"]["hash"],
+            "sha256:5659ea767a7270e82343e273ad71c50a49f03b9e3d60b040ab60b608f0a881ef",
+        )
+        self.assertEqual(resources["prd-writing-reader-review-v3.1.1"]["version"], "v3.1.1")
+        self.assertEqual(resources["prd-writing-reader-review-v3.2.1"]["version"], "v3.2.1")
         contract = read_json(
-            catalog.resolve(resources["prd-writing-reader-review-v3.1"]["path"])
+            catalog.resolve(resources["prd-writing-reader-review-v3.1.1"]["path"])
         )
         self.assertEqual(contract["review_schema"], "document-experience-reader-review.v3")
         self.assertEqual(contract["authority"], "ADVISORY_ONLY")
@@ -176,7 +184,9 @@ class InternalReferenceCatalogTests(unittest.TestCase):
                 "prd-writing-profile-v0.4",
                 "prd-writing-guide-v0.4",
                 "prd-writing-reader-review-v3.1",
+                "prd-writing-reader-review-v3.1.1",
                 "prd-writing-reader-review-v3.2",
+                "prd-writing-reader-review-v3.2.1",
                 "prd-writing-profile-v0.5",
                 "prd-writing-guide-v0.5",
             },

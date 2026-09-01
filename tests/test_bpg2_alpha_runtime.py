@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
+from src.bpg.alpha_html import MermaidRenderError
 from src.bpg.alpha_runtime import AlphaContractError, BPG2AlphaController
+from src.bpg.storage import atomic_write_json as storage_atomic_write_json
 
 
 PRD_MARKDOWN = """# 单 PRD Alpha
@@ -57,7 +61,7 @@ REVIEW_RESPONSIBILITY_IDS = (
     "USER_EXPERIENCE_AND_CONTENT",
     "PRODUCT_SYSTEM_COHERENCE",
     "ENGINEERING_FEASIBILITY",
-    "ACCEPTANCE_AND_PRODUCT_EVALS",
+    "ACCEPTANCE_AND_VALIDATION_BOUNDARY",
     "DOCUMENT_EXPERIENCE",
 )
 
@@ -166,6 +170,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         *,
         suffix: str,
         review_overrides: dict | None = None,
+        visual_source_reviewed: bool = False,
     ) -> dict:
         values = {
             "candidate_ref": candidate,
@@ -178,7 +183,13 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             "findings": [],
         }
         if candidate["kind"] == "PRD":
-            values.update(self.prd_review_evidence(state, suffix=suffix))
+            values.update(
+                self.prd_review_evidence(
+                    state,
+                    suffix=suffix,
+                    visual_source_reviewed=visual_source_reviewed,
+                )
+            )
         if review_overrides:
             values.update(review_overrides)
         return self.controller.submit_review(
@@ -229,7 +240,8 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         wait_condition: dict | None = None,
         cognition_change: dict | None = None,
         agent_assessment: dict | None = None,
-        authorize: bool = True,
+        include_source_message_ref: bool = True,
+        source_message_ref: object | None = None,
     ) -> dict:
         exact_candidate = {
             key: deepcopy(candidate[key])
@@ -247,25 +259,26 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             )
             if key in candidate
         }
-        decision_authorization = (
-            {
-                "source_message_ref": {
+        decision_authorization = {
+            "run_id": state["run_id"],
+            "candidate_ref": exact_candidate,
+            "allowed_outcome": outcome,
+            "permission_scope": (
+                "LOCAL_PLANNING_ONLY"
+                if actor_kind == "AGENT"
+                else "RUN_DECISION_ONLY"
+            ),
+            "issued_at": "2026-08-31T00:00:00+00:00",
+        }
+        if include_source_message_ref:
+            decision_authorization["source_message_ref"] = (
+                source_message_ref
+                if source_message_ref is not None
+                else {
                     "kind": "HOST_MESSAGE",
                     "id": f"decision-message-{suffix}",
-                },
-                "run_id": state["run_id"],
-                "candidate_ref": exact_candidate,
-                "allowed_outcome": outcome,
-                "permission_scope": (
-                    "LOCAL_PLANNING_ONLY"
-                    if actor_kind == "AGENT"
-                    else "RUN_DECISION_ONLY"
-                ),
-                "issued_at": "2026-08-31T00:00:00+00:00",
-            }
-            if authorize
-            else None
-        )
+                }
+            )
         return self.controller.submit_decision_route(
             state["run_id"],
             expected_state_version=state["state_version"],
@@ -369,7 +382,13 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             document_experience=self.document_experience(state, draft, suffix=suffix),
         )
 
-    def write_writing_review(self, state: dict, *, suffix: str) -> tuple[dict, str]:
+    def write_writing_review(
+        self,
+        state: dict,
+        *,
+        suffix: str,
+        visual_source_reviewed: bool = False,
+    ) -> tuple[dict, str]:
         context = state["current_review_requirements"]["writing_review_context"]
         writer_id = f"writing-reviewer-{suffix}"
         review = {
@@ -434,15 +453,36 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             "finding_refs": [],
             "claim_boundary": "AGENT_REVIEW_RECORDED_HUMAN_READER_OBSERVATION_NOT_RUN",
         }
+        if visual_source_reviewed:
+            review["visual_assessment"] = {
+                "verdict": "PASS",
+                "observation_status": "SOURCE_REVIEWED",
+                "visual_pair_refs": [],
+                "issue_types": [],
+                "repair_techniques": [],
+                "basis_refs": [],
+                "finding_refs": [],
+                "reason": "已直接审查 Mermaid source 的关系、标签、方向与阅读顺序。",
+            }
         review_dir = self.controller.run_path(state["run_id"]) / "work" / "review"
         review_dir.mkdir(parents=True, exist_ok=True)
         path = review_dir / f"writing-review-{suffix}.json"
         path.write_text(json.dumps(review, ensure_ascii=False, sort_keys=True), encoding="utf-8")
         return {**self.controller.file_ref(path), "version": 1}, writer_id
 
-    def prd_review_evidence(self, state: dict, *, suffix: str) -> dict:
+    def prd_review_evidence(
+        self,
+        state: dict,
+        *,
+        suffix: str,
+        visual_source_reviewed: bool = False,
+    ) -> dict:
         requirements = state["current_review_requirements"]
-        writing_ref, writer_id = self.write_writing_review(state, suffix=suffix)
+        writing_ref, writer_id = self.write_writing_review(
+            state,
+            suffix=suffix,
+            visual_source_reviewed=visual_source_reviewed,
+        )
         content_id = f"reviewer-{suffix}"
         responsibilities = []
         for responsibility_id in REVIEW_RESPONSIBILITY_IDS:
@@ -596,6 +636,193 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             len(advanced["stage4_dispositions"]["items"]), len(STAGE4_ARTIFACT_IDS)
         )
 
+    def test_prd_authoring_does_not_auto_rebind_stage4_after_record_change(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="stage4-stale")
+        bound_ref = deepcopy(state["stage4_dispositions"]["record_ref"])
+
+        changed = self.update_record(
+            state,
+            position="PRD_AUTHORING",
+            suffix="stage4-stale-prd",
+        )
+
+        self.assertEqual(changed["stage4_dispositions"]["record_ref"], bound_ref)
+        self.assertNotEqual(
+            changed["stage4_dispositions"]["record_ref"],
+            changed["planning_record_ref"],
+        )
+
+        changed = self.freeze_prd(changed, suffix="stage4-stale")
+        changed = self.pass_review(
+            changed,
+            changed["current_candidate"],
+            suffix="stage4-stale-prd",
+        )
+        self.assertEqual(changed["ready"]["status"], "NOT_READY")
+        self.assertIn("STAGE4_RECORD_REF_STALE", changed["ready"]["unmet"])
+        self.assertNotIn("STAGE4_DISPOSITIONS", changed["ready"]["unmet"])
+        stale = next(
+            item
+            for item in changed["ready"]["unmet_details"]
+            if item["reason"] == "STAGE4_RECORD_REF_STALE"
+        )
+        self.assertEqual(
+            stale["expected_current_hash"],
+            changed["current_candidate"]["planning_record_ref"]["hash"],
+        )
+        self.assertEqual(stale["actual_bound_hash"], bound_ref["hash"])
+        self.assertIn("replace-record", stale["recovery"])
+        self.assertIn("PRD_AUTHORING", stale["recovery"])
+        self.assertIn("nine Stage 4 dispositions", stale["recovery"])
+
+    def test_stage4_stale_ready_recovers_through_new_record_candidate_and_review(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="stage4-recovery")
+        state = self.update_record(
+            state,
+            position="PRD_AUTHORING",
+            suffix="stage4-recovery-change",
+        )
+        state = self.freeze_prd(state, suffix="stage4-recovery-old")
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="stage4-recovery-old-prd",
+        )
+
+        old_candidate = deepcopy(state["current_candidate"])
+        old_review = deepcopy(state["current_review"])
+        old_review_count = len(state["reviews"])
+        self.assertEqual(state["ready"]["status"], "NOT_READY")
+        self.assertIn("STAGE4_RECORD_REF_STALE", state["ready"]["unmet"])
+        self.assertEqual(state["status"], "ACTIVE")
+        self.assertEqual(state["position"], "PRD_AUTHORING")
+        self.assertTrue(state["candidate_required"])
+        self.assertEqual(state["current_candidate"]["status"], "STALE")
+        self.assertEqual(state["current_review"]["verdict"], "PASS")
+
+        state = self.update_record(
+            state,
+            position="PRD_AUTHORING",
+            suffix="stage4-recovery-reconfirm",
+            stage4_dispositions=self.complete_stage4_dispositions(),
+        )
+        self.assertEqual(state["current_candidate"], old_candidate)
+        self.assertEqual(state["current_review"], old_review)
+        self.assertEqual(
+            state["stage4_dispositions"]["record_ref"],
+            state["planning_record_ref"],
+        )
+
+        state = self.freeze_prd(state, suffix="stage4-recovery-new")
+        new_candidate = state["current_candidate"]
+        self.assertNotEqual(new_candidate["hash"], old_candidate["hash"])
+        self.assertEqual(new_candidate["version"], old_candidate["version"] + 1)
+        self.assertTrue(new_candidate["supersedes"])
+        state = self.pass_review(
+            state,
+            new_candidate,
+            suffix="stage4-recovery-new-prd",
+            review_overrides={
+                "review_mode": "DIFF_AND_REGRESSION",
+                "diff_base_candidate_ref": new_candidate["supersedes"],
+                "global_regression": "PASS",
+            },
+        )
+
+        self.assertEqual(state["status"], "READY")
+        self.assertEqual(state["position"], "READY")
+        self.assertEqual(state["ready"]["status"], "READY")
+        self.assertFalse(state["candidate_required"])
+        self.assertNotIn("STAGE4_RECORD_REF_STALE", state["ready"]["unmet"])
+        self.assertEqual(len(state["reviews"]), old_review_count + 1)
+        self.assertIn(old_review, state["reviews"])
+
+    def test_prd_authoring_explicit_stage4_reconfirmation_rebinds_current_record(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="stage4-reconfirm")
+        stale_ref = deepcopy(state["stage4_dispositions"]["record_ref"])
+        state = self.update_record(
+            state,
+            position="PRD_AUTHORING",
+            suffix="stage4-reconfirm-change",
+        )
+
+        reconfirmed = self.update_record(
+            state,
+            position="PRD_AUTHORING",
+            suffix="stage4-reconfirm-final",
+            stage4_dispositions=self.complete_stage4_dispositions(),
+        )
+
+        self.assertNotEqual(reconfirmed["stage4_dispositions"]["record_ref"], stale_ref)
+        self.assertEqual(
+            reconfirmed["stage4_dispositions"]["record_ref"],
+            reconfirmed["planning_record_ref"],
+        )
+        reconfirmed = self.freeze_prd(reconfirmed, suffix="stage4-reconfirm")
+        reconfirmed = self.pass_review(
+            reconfirmed,
+            reconfirmed["current_candidate"],
+            suffix="stage4-reconfirm-prd",
+        )
+        self.assertEqual(reconfirmed["ready"]["status"], "READY")
+        self.assertNotIn("STAGE4_RECORD_REF_STALE", reconfirmed["ready"]["unmet"])
+
+    def test_candidate_and_review_status_do_not_rewrite_the_planning_record(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="status-projection")
+        planning_ref = deepcopy(state["planning_record_ref"])
+        stage4_ref = deepcopy(state["stage4_dispositions"]["record_ref"])
+
+        state = self.freeze_prd(state, suffix="status-projection")
+        self.assertEqual(state["planning_record_ref"], planning_ref)
+        self.assertEqual(state["stage4_dispositions"]["record_ref"], stage4_ref)
+
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="status-projection-prd",
+        )
+        self.assertEqual(state["status"], "READY")
+        self.assertEqual(state["planning_record_ref"], planning_ref)
+        self.assertEqual(state["stage4_dispositions"]["record_ref"], stage4_ref)
+
+    def test_prd_authoring_stage4_reconfirmation_rejects_incomplete_or_blocked_items(self) -> None:
+        state = self.reach_prd_authoring(
+            intent="COMMIT_NOW", suffix="stage4-reconfirm-invalid"
+        )
+        original_ref = deepcopy(state["planning_record_ref"])
+
+        with self.assertRaisesRegex(AlphaContractError, "Stage 4"):
+            self.update_record(
+                state,
+                position="PRD_AUTHORING",
+                suffix="stage4-reconfirm-missing",
+                stage4_dispositions=self.complete_stage4_dispositions()[:-1],
+            )
+
+        blocked = self.complete_stage4_dispositions()
+        blocked[-1] = {
+            "artifact_id": "DATA_COLLECTION_APPLICABILITY",
+            "status": "BLOCKED",
+            "rationale": "缺少项目数据采集政策。",
+            "missing_input": "项目数据采集政策",
+            "owner": "PRODUCT_OWNER",
+            "recovery": "补充政策后重新提交完整 Planning Record。",
+        }
+        with self.assertRaisesRegex(AlphaContractError, "BLOCKED"):
+            self.update_record(
+                state,
+                position="PRD_AUTHORING",
+                suffix="stage4-reconfirm-blocked",
+                stage4_dispositions=blocked,
+            )
+
+        current = self.controller.load_run(state["run_id"])
+        self.assertEqual(current["planning_record_ref"], original_ref)
+        self.assertEqual(
+            current["stage4_dispositions"]["record_ref"],
+            state["stage4_dispositions"]["record_ref"],
+        )
+
     def test_prd_freeze_requires_document_experience_and_returns_exact_review_requirements(self) -> None:
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="freeze-review-basis")
         draft = self.write_prd_draft(state["run_id"])
@@ -639,15 +866,36 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         review_contract = json.loads(
             (self.project / review_contract_ref["path"]).read_text(encoding="utf-8")
         )
-        self.assertEqual(profile["review_contract_id"], review_contract["resource_id"])
+        self.assertEqual(
+            profile["review_contract_id"],
+            "prd-writing-reader-review-v3.1",
+        )
+        self.assertEqual(
+            review_contract["resource_id"],
+            "prd-writing-reader-review-v3.1.1",
+        )
         self.assertEqual(
             requirements["writing_review_context"]["review_contract_ref"],
             requirements["review_basis_refs"]["writing_review_contract"],
         )
         self.assertEqual(
             requirements["review_basis_refs"]["writing_review_contract"]["version"],
-            "v3.1",
+            "v3.1.1",
         )
+        exact_contract_ref = requirements["writing_review_context"][
+            "review_contract_ref"
+        ]
+        self.assertEqual(
+            self.controller.file_ref(self.project / exact_contract_ref["path"]),
+            {
+                "path": exact_contract_ref["path"],
+                "hash": exact_contract_ref["hash"],
+            },
+        )
+        exact_contract = json.loads(
+            (self.project / exact_contract_ref["path"]).read_bytes()
+        )
+        self.assertIn("status_authority_boundary", exact_contract)
         manifest = json.loads(
             (self.project / frozen["current_candidate"]["path"]).read_text(encoding="utf-8")
         )
@@ -675,6 +923,368 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         self.assertNotIn("html", requirements["review_basis_refs"])
         self.assertNotIn("html_review_check_ids", requirements)
         self.assertEqual(manifest["delivery_rendering"], "DEFERRED_TO_HANDOFF")
+
+    def test_mermaid_only_candidate_review_needs_no_rendered_visual(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="mermaid-source")
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n## 核心关系图\n\n"
+            + "```mermaid\nflowchart LR\n  提交 --> 状态\n  状态 --> 恢复\n```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+
+        frozen = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-mermaid-source",
+            kind="PRD",
+            author_attempt_id="prd-author-mermaid-source",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="mermaid-source"
+            ),
+        )
+        context = frozen["current_review_requirements"]["writing_review_context"]
+        self.assertNotIn("reader_visible_visual_pairs", context)
+        self.assertNotIn("visual_source_scan", context)
+        self.assertNotIn("visual_asset_refs", context)
+
+        manifest = json.loads(
+            (self.project / frozen["current_candidate"]["path"]).read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual({item["path"] for item in manifest["files"]}, {"PRD.md"})
+        self.assertEqual(manifest["editing_truth"], "PRD.md")
+        prd_object_ref = manifest["files"][0]["object_ref"]
+        self.assertEqual(manifest["review_requirements"]["review_basis_refs"]["prd"], prd_object_ref)
+        self.assertEqual(context["isolated_input_refs"][0], prd_object_ref)
+        self.assertTrue(manifest["candidate_tree_hash"].startswith("sha256:"))
+        serialized = json.dumps(manifest, ensure_ascii=False)
+        self.assertNotIn("component_hash", serialized)
+        self.assertNotIn("responsibility_hash", serialized)
+
+        reviewed = self.pass_review(
+            frozen,
+            frozen["current_candidate"],
+            suffix="mermaid-source",
+            visual_source_reviewed=True,
+        )
+        self.assertEqual(reviewed["ready"]["status"], "READY")
+
+    @patch(
+        "src.bpg.alpha_runtime.render_mermaid_svgs",
+        return_value=[
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><text x="1" y="5">flow</text></svg>'
+        ],
+    )
+    def test_handoff_materializes_ready_mermaid_as_svg_and_html(
+        self, render_mermaid: object
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="mermaid-handoff")
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n## 核心关系图\n\n"
+            + "```mermaid\nflowchart LR\n  A --> B\n```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-mermaid-handoff",
+            kind="PRD",
+            author_attempt_id="prd-author-mermaid-handoff",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="mermaid-handoff"
+            ),
+        )
+        manifest = json.loads(
+            (self.project / state["current_candidate"]["path"]).read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertFalse(any(item["path"].endswith(".svg") for item in manifest["files"]))
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="mermaid-handoff",
+            visual_source_reviewed=True,
+        )
+
+        handoff = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-mermaid",
+        )
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        generated_svg = handoff_dir / "assets" / "generated" / "mermaid-001.svg"
+        self.assertTrue(generated_svg.is_file())
+        html = (handoff_dir / "PRD.html").read_text(encoding="utf-8")
+        self.assertIn("data:image/svg+xml;base64,", html)
+        self.assertNotIn('<code class="language-mermaid">', html)
+        render_mermaid.assert_called_once_with(markdown)
+
+    def test_handoff_materializes_indented_uppercase_mermaid_when_html_is_off(
+        self,
+    ) -> None:
+        state = self.reach_prd_authoring(
+            intent="COMMIT_NOW", suffix="mermaid-indented-uppercase"
+        )
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n## 核心关系图\n\n"
+            + "   ```Mermaid\nflowchart LR\n  A --> B\n   ```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-mermaid-indented-uppercase",
+            kind="PRD",
+            author_attempt_id="prd-author-mermaid-indented-uppercase",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="mermaid-indented-uppercase"
+            ),
+        )
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="mermaid-indented-uppercase",
+            visual_source_reviewed=True,
+        )
+
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><text>flow</text></svg>'
+
+        def fake_mmdc(
+            command: list[str], **_kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            output_path = Path(command[command.index("--output") + 1])
+            output_path.write_bytes(svg)
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with patch("src.bpg.alpha_html.shutil.which", return_value="/fake/mmdc"), patch(
+            "src.bpg.alpha_html.subprocess.run", side_effect=fake_mmdc
+        ):
+            handoff = self.controller.prepare_local_handoff(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="handoff-mermaid-indented-uppercase",
+                delivery_options={"LOCAL_HTML": False},
+            )
+
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        self.assertEqual(handoff["status"], "LOCAL_HANDOFF_COMPLETE")
+        self.assertFalse((handoff_dir / "PRD.html").exists())
+        self.assertEqual(
+            (handoff_dir / "assets/generated/mermaid-001.svg").read_bytes(), svg
+        )
+
+    @patch("src.bpg.alpha_runtime.render_mermaid_svgs", return_value=[])
+    def test_handoff_rejects_mermaid_source_svg_count_mismatch_without_partial_output(
+        self, _render_mermaid: object
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="mermaid-count")
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n```Mermaid\nflowchart LR\n  A --> B\n```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-mermaid-count",
+            kind="PRD",
+            author_attempt_id="prd-author-mermaid-count",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="mermaid-count"
+            ),
+        )
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="mermaid-count",
+            visual_source_reviewed=True,
+        )
+
+        with self.assertRaisesRegex(
+            AlphaContractError, "source count 1 differs from generated SVG count 0"
+        ):
+            self.controller.prepare_local_handoff(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="handoff-mermaid-count",
+                delivery_options={"LOCAL_HTML": False},
+            )
+        self.assertFalse(
+            (self.controller.run_path(state["run_id"]) / "handoff" / "local").exists()
+        )
+
+    @patch(
+        "src.bpg.alpha_runtime.render_mermaid_svgs",
+        side_effect=MermaidRenderError("mmdc is NOT_IMPLEMENTED"),
+    )
+    def test_handoff_fails_explicitly_without_mermaid_renderer(
+        self, _render_mermaid: object
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="mermaid-missing")
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n```mermaid\nflowchart LR\n  A --> B\n```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-mermaid-missing",
+            kind="PRD",
+            author_attempt_id="prd-author-mermaid-missing",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="mermaid-missing"
+            ),
+        )
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="mermaid-missing",
+            visual_source_reviewed=True,
+        )
+
+        with self.assertRaisesRegex(
+            AlphaContractError, "Mermaid rendering failed.*NOT_IMPLEMENTED"
+        ):
+            self.controller.prepare_local_handoff(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="handoff-mermaid-missing",
+            )
+        self.assertFalse(
+            (self.controller.run_path(state["run_id"]) / "handoff" / "local").exists()
+        )
+
+    def test_handoff_html_failure_leaves_no_final_target_and_can_retry(self) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="handoff-atomic")
+        state = self.freeze_prd(state, suffix="handoff-atomic")
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="handoff-atomic-prd",
+        )
+        run_path = self.controller.run_path(state["run_id"])
+        target = run_path / "handoff" / "local"
+        handoff_before = deepcopy(state.get("handoff"))
+
+        with patch(
+            "src.bpg.alpha_runtime.render_self_contained_prd_html",
+            side_effect=ValueError("simulated HTML renderer failure"),
+        ):
+            with self.assertRaisesRegex(ValueError, "simulated HTML renderer failure"):
+                self.controller.prepare_local_handoff(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id="handoff-atomic-fails",
+                )
+
+        unchanged = self.controller.load_run(state["run_id"])
+        self.assertEqual(unchanged["state_version"], state["state_version"])
+        self.assertEqual(unchanged["status"], "READY")
+        self.assertEqual(unchanged.get("handoff"), handoff_before)
+        self.assertFalse(target.exists())
+        self.assertFalse(
+            any(
+                path.name.startswith(".local-staging-")
+                for path in (run_path / "handoff").iterdir()
+            )
+        )
+
+        target.mkdir()
+        sentinel = target / "user-owned.txt"
+        sentinel.write_text("preserve", encoding="utf-8")
+        with self.assertRaisesRegex(AlphaContractError, "target already exists"):
+            self.controller.prepare_local_handoff(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="handoff-atomic-preexisting",
+            )
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "preserve")
+        sentinel.unlink()
+        target.rmdir()
+
+        completed = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-atomic-retry",
+        )
+        self.assertEqual(completed["status"], "LOCAL_HANDOFF_COMPLETE")
+        self.assertTrue(target.is_dir())
+
+    def test_handoff_state_commit_failure_recovers_exact_published_target(self) -> None:
+        state = self.reach_prd_authoring(
+            intent="COMMIT_NOW", suffix="handoff-state-atomic"
+        )
+        state = self.freeze_prd(state, suffix="handoff-state-atomic")
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="handoff-state-atomic-prd",
+        )
+        run_path = self.controller.run_path(state["run_id"])
+        state_path = run_path / "run.json"
+        target = run_path / "handoff" / "local"
+        handoff_before = deepcopy(state.get("handoff"))
+
+        def fail_run_state_write(path: Path, value: object) -> None:
+            if path == state_path:
+                raise OSError("simulated run.json commit failure")
+            storage_atomic_write_json(path, value)
+
+        with patch(
+            "src.bpg.alpha_runtime.atomic_write_json",
+            side_effect=fail_run_state_write,
+        ):
+            with self.assertRaisesRegex(OSError, "run.json commit failure"):
+                self.controller.prepare_local_handoff(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id="handoff-state-atomic-fails",
+                )
+
+        unchanged = self.controller.load_run(state["run_id"])
+        self.assertEqual(unchanged["state_version"], state["state_version"])
+        self.assertEqual(unchanged["status"], "READY")
+        self.assertEqual(unchanged.get("handoff"), handoff_before)
+        self.assertTrue((target / "HANDOFF_MANIFEST.json").is_file())
+        self.assertFalse(
+            any(
+                path.name.startswith(".local-staging-")
+                for path in (run_path / "handoff").iterdir()
+            )
+        )
+
+        completed = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-state-atomic-retry",
+        )
+        self.assertEqual(completed["status"], "LOCAL_HANDOFF_COMPLETE")
+        self.assertEqual(completed["handoff"]["status"], "LOCAL_HANDOFF_COMPLETE")
+        self.assertEqual(
+            completed["handoff"]["manifest_ref"],
+            self.controller.file_ref(target / "HANDOFF_MANIFEST.json"),
+        )
 
     def test_prd_review_v3_fails_closed_without_complete_independent_evidence(self) -> None:
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="review-v3-negative")
@@ -880,7 +1490,8 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         output_contract = json.loads(
             (self.project / output_contract_ref["path"]).read_text(encoding="utf-8")
         )
-        self.assertEqual(output_contract_ref["version"], "2.0-alpha.2")
+        self.assertEqual(output_contract_ref["version"], "2.0-alpha.3")
+        self.assertEqual(output_contract["editing_truth"], "PRD.md")
         self.assertEqual(
             output_contract["default_reading_view"],
             {
@@ -1196,17 +1807,35 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 observed.add((state["status"], state["position"], outcome))
         self.assertEqual(len(observed), 6)
 
-    def test_agent_commit_requires_message_bound_authorization_and_assessment(self) -> None:
-        state, candidate = self.reach_decision_route(suffix="no-auth")
-        with self.assertRaisesRegex(AlphaContractError, "source message|authorization"):
-            self.choose(
-                state,
-                candidate,
-                outcome="COMMIT_NOW",
-                actor_kind="AGENT",
-                suffix="no-auth",
-                authorize=False,
-            )
+    def test_agent_commit_uses_exact_bindings_and_assessment_not_message_trace(self) -> None:
+        state, candidate = self.reach_decision_route(suffix="no-message-ref")
+        state = self.choose(
+            state,
+            candidate,
+            outcome="COMMIT_NOW",
+            actor_kind="AGENT",
+            agent_assessment=self.agent_assessment(state),
+            suffix="no-message-ref",
+            include_source_message_ref=False,
+        )
+        self.assertEqual(state["position"], "PLAN_PRODUCT_SYSTEM")
+        self.assertNotIn("source_message_ref", state["decision"]["authorization"])
+
+        state, candidate = self.reach_decision_route(suffix="opaque-message-ref")
+        opaque_trace = ["host-owned", {"unverified": True}]
+        state = self.choose(
+            state,
+            candidate,
+            outcome="COMMIT_NOW",
+            actor_kind="AGENT",
+            agent_assessment=self.agent_assessment(state),
+            suffix="opaque-message-ref",
+            source_message_ref=opaque_trace,
+        )
+        self.assertEqual(state["position"], "PLAN_PRODUCT_SYSTEM")
+        self.assertEqual(
+            state["decision"]["authorization"]["source_message_ref"], opaque_trace
+        )
 
         state, candidate = self.reach_decision_route(suffix="missing-assessment")
         state = self.choose(
@@ -1246,6 +1875,32 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                     "return_target": "UNDERSTAND",
                 },
             )
+
+    def test_owner_choice_does_not_require_or_validate_message_trace(self) -> None:
+        state, candidate = self.reach_decision_route(suffix="owner-no-message-ref")
+        state = self.choose(
+            state,
+            candidate,
+            outcome="STOP",
+            suffix="owner-no-message-ref",
+            include_source_message_ref=False,
+        )
+        self.assertEqual(state["status"], "COMPLETED_STOP")
+        self.assertNotIn("source_message_ref", state["decision"]["authorization"])
+
+        state, candidate = self.reach_decision_route(suffix="owner-opaque-message-ref")
+        opaque_trace = {"host_metadata": ["not", "controller", "validated"]}
+        state = self.choose(
+            state,
+            candidate,
+            outcome="FUTURE_ROADMAP",
+            suffix="owner-opaque-message-ref",
+            source_message_ref=opaque_trace,
+        )
+        self.assertEqual(state["status"], "COMPLETED_FUTURE_ROADMAP")
+        self.assertEqual(
+            state["decision"]["authorization"]["source_message_ref"], opaque_trace
+        )
 
     def test_wait_requires_matching_trigger_while_pause_resumes_from_safe_point(self) -> None:
         state, candidate = self.reach_decision_route(suffix="wait")
@@ -1348,14 +2003,69 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 self.assertEqual(state["external_delivery"], "NOT_RUN")
                 self.assertNotIn("RELEASED", json.dumps(state))
 
-    def test_required_evals_block_ready_recommended_preserves_truth_without_blocking(self) -> None:
-        required = self.reach_prd_authoring(intent="EXPERIMENT", suffix="required")
-        required = self.freeze_prd(required, applicability="REQUIRED", suffix="required")
-        required = self.pass_review(
-            required, required["current_candidate"], suffix="required-prd"
+    def test_2_0_skips_future_product_evals_gate_but_preserves_not_run_truth(self) -> None:
+        no_assessment = self.reach_prd_authoring(
+            intent="EXPERIMENT", suffix="no-evals-assessment"
         )
-        self.assertEqual(required["ready"]["status"], "NOT_READY")
-        self.assertIn("REQUIRED_PRODUCT_EVALS", required["ready"]["unmet"])
+        draft = self.write_prd_draft(no_assessment["run_id"])
+        no_assessment = self.controller.freeze_candidate(
+            no_assessment["run_id"],
+            expected_state_version=no_assessment["state_version"],
+            operation_id="freeze-prd-no-evals-assessment",
+            kind="PRD",
+            author_attempt_id="prd-author-no-evals-assessment",
+            source_dir=draft,
+            document_experience=self.document_experience(
+                no_assessment, draft, suffix="no-evals-assessment"
+            ),
+        )
+        self.assertNotIn(
+            "product_eval_attachments",
+            no_assessment["current_review_requirements"]["review_basis_refs"],
+        )
+        no_assessment = self.pass_review(
+            no_assessment,
+            no_assessment["current_candidate"],
+            suffix="no-evals-assessment-prd",
+        )
+        self.assertEqual(no_assessment["status"], "READY")
+        self.assertEqual(
+            no_assessment["ready"]["evidence_summary"]["product_eval_execution"],
+            "NOT_RUN",
+        )
+        self.assertEqual(
+            no_assessment["ready"]["evidence_summary"]["product_effect_validation"],
+            "NOT_RUN",
+        )
+        no_assessment = self.controller.prepare_local_handoff(
+            no_assessment["run_id"],
+            expected_state_version=no_assessment["state_version"],
+            operation_id="handoff-no-evals-assessment",
+            delivery_options={"LOCAL_HTML": False},
+        )
+        self.assertEqual(no_assessment["status"], "LOCAL_HANDOFF_COMPLETE")
+        handoff_note = (
+            self.project / no_assessment["handoff"]["path"] / "HANDOFF.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Product Eval Execution：NOT_RUN", handoff_note)
+        self.assertIn("产品效果验证：NOT_RUN", handoff_note)
+
+        legacy_required = self.reach_prd_authoring(
+            intent="EXPERIMENT", suffix="legacy-required"
+        )
+        legacy_required = self.freeze_prd(
+            legacy_required,
+            applicability="REQUIRED",
+            suffix="legacy-required",
+        )
+        legacy_required = self.pass_review(
+            legacy_required,
+            legacy_required["current_candidate"],
+            suffix="legacy-required-prd",
+        )
+        self.assertEqual(legacy_required["ready"]["status"], "READY")
+        self.assertNotIn("REQUIRED_PRODUCT_EVALS", legacy_required["ready"]["unmet"])
+        self.assertNotIn("applicability", legacy_required["product_evals"])
 
         fulfilled = self.reach_prd_authoring(intent="EXPERIMENT", suffix="fulfilled")
         with self.assertRaisesRegex(AlphaContractError, "NOT_IMPLEMENTED|cannot generate"):
@@ -1391,7 +2101,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             / "core"
             / "templates"
             / "general"
-            / "PRD_TEMPLATE_v2.0-alpha.md"
+            / "PRD_TEMPLATE_v2.0-alpha.3.md"
         )
         content = template.read_text(encoding="utf-8")
         for heading in (
@@ -1551,14 +2261,18 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             (self.controller.run_path(state["run_id"]) / "planning-record.md").read_bytes(),
         )
 
-    def test_prd_candidate_rejects_pre_generated_png(self) -> None:
+    def test_prd_candidate_rejects_any_extra_asset_before_candidate_write(self) -> None:
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="repair-png")
         draft = self.write_prd_draft(state["run_id"])
         assets = draft / "assets"
         assets.mkdir()
         (assets / "main-flow@2x.png").write_bytes(b"not-a-candidate-format")
+        history_before = deepcopy(state["candidate_history"])
+        current_before = deepcopy(state["current_candidate"])
+        object_root = self.controller.run_path(state["run_id"]) / "objects" / "sha256"
+        objects_before = {path.name for path in object_root.iterdir()}
 
-        with self.assertRaisesRegex(AlphaContractError, "Handoff-only"):
+        with self.assertRaisesRegex(AlphaContractError, "exactly PRD.md"):
             self.controller.freeze_candidate(
                 state["run_id"],
                 expected_state_version=state["state_version"],
@@ -1571,6 +2285,12 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                     state, draft, suffix="repair-png"
                 ),
             )
+
+        unchanged = self.controller.load_run(state["run_id"])
+        self.assertEqual(unchanged["state_version"], state["state_version"])
+        self.assertEqual(unchanged["candidate_history"], history_before)
+        self.assertEqual(unchanged["current_candidate"], current_before)
+        self.assertEqual({path.name for path in object_root.iterdir()}, objects_before)
 
     def test_decision_authorization_rejects_wrong_run_binding(self) -> None:
         state, candidate = self.reach_decision_route(suffix="repair-auth")

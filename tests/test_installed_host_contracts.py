@@ -159,7 +159,15 @@ class InstalledHostContractTests(unittest.TestCase):
 
         assembled = assemble_prd(submission, selection)
         self.assertEqual(assembled.metadata["status"], "CANDIDATE")
-        self.assertEqual(assembled.metadata["evals"]["applicability"], "RECOMMENDED")
+        self.assertNotIn("evals", output["metadata"])
+        self.assertNotIn("evals", assembled.metadata)
+        installed_instruction = (
+            self.references / "prd-generate" / "INSTRUCTIONS.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "Product Evals execution and product-effect validation remain `NOT_RUN`",
+            installed_instruction,
+        )
         self.assertEqual(assembled.metadata["delivery_intent"], "EXPERIMENT")
         experiment = assembled.metadata["experiment_contract"]
         self.assertEqual(experiment["schema_version"], "experiment-contract.v1")

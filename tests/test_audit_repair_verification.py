@@ -156,8 +156,8 @@ class AuditRepairVerificationTests(unittest.TestCase):
         self.assertEqual(
             set(FINDINGS["EVAL-C2"]["test_ids"]),
             {
-                "tests.test_installed_reaudit_bypasses.InstalledPublicReauditTests.test_installed_same_host_cannot_self_attest_required_evals_and_release",
-                "tests.test_prd_contract.PRDContractTests.test_prd_generate_cannot_self_claim_required_evals_are_reviewed",
+                "tests.test_installed_reaudit_bypasses.InstalledPublicReauditTests.test_installed_bpg2_rejects_unbound_future_evals_metadata_before_ready",
+                "tests.test_prd_contract.PRDContractTests.test_prd_generate_does_not_require_or_emit_evals_applicability",
                 "tests.test_evals_authority.ReviewedEvalsAuthorityTests.test_required_reviewed_is_not_ready_without_verifiable_fulfillment_authority",
                 "tests.test_reviews_ready.ReviewsReadyTests.test_required_evals_cannot_reach_full_release_without_verifiable_fulfillment_authority",
                 "tests.test_installed_reaudit_bypasses.InstalledPublicReauditTests.test_installed_recommended_evals_can_complete_without_fulfillment_authority",

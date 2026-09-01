@@ -1,5 +1,12 @@
 # Document Experience Policy / Profile Changelog
 
+## Writing Reviewer Contract v3.1.1 / v3.2.1 Candidate — 2026-09-01
+
+- 状态：`CANDIDATE / NOT_YET_RELEASED`；新建 `prd-writing-reader-review-v3.1.1`（SHA-256 `sha256:9ce674879424a8948951f6946089fe88e134f351459695a8da1003e3d4ffce74`）与 `prd-writing-reader-review-v3.2.1`（SHA-256 `sha256:1c270ad0b582b47e2f73f806aa65cfdb6776118f5936b0e9fa4843d6739d1027`）。
+- v3.1.1 supersedes v3.1 用于 BPG 2.0 Alpha：增加可变状态权威边界，并把视觉责任收敛为 `PRD.md` 中 Mermaid source 的语义与可读性；v3.2.1 supersedes v3.2 用于通用 v0.5 dispatch：增加同一状态权威边界，同时保留 source-visible visual scan 兼容语义。
+- 旧 `prd-writing-reader-review-v3.1` 与 `v3.2` 继续保留，SHA-256 分别为 `sha256:5659ea767a7270e82343e273ad71c50a49f03b9e3d60b040ab60b608f0a881ef` 与 `sha256:ae17022d652d9486abdce8b253749185bd841271f6591021a13618260cbc65fe`；既有 Profile v0.5 内嵌的 v3.1 绑定不原位改写，历史 Run 不迁移。
+- Catalog 同时登记旧版和新版；新 Alpha selector 使用 v3.1.1，新通用 selector 使用 v3.2.1。Agent Product Eval、真实 PRD ordinary Review 和观察式真人阅读均为 `NOT_RUN`。
+
 ## PRD Writing Profile v0.5.0 Default Promotion — 2026-08-27
 
 - 当前默认：`prd-plain-language-zh-CN@0.5.0 / RELEASED_DEFAULT`；v0.2 调整为 `RELEASED_PREVIOUS`，继续作为可回滚版本，v0.4 保持失败候选历史。
