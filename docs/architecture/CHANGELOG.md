@@ -1,11 +1,18 @@
 # PRD Graph 架构文档版本台账
 
+## BPG Product Planning Method v0.4 — 2026-09-02
+
+- 状态：`RELEASED_IN_V2.0.2 / IMMUTABLE`；文件 `BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md`，SHA-256 `3b8523899be8c9133c14c9be23b31f6fb4c396500c4fd87fcac7ef546d1bc525`。
+- Supersedes：`BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md`；v0.3 保持不可变，SHA-256 `e82ec004ca7dcf7b022e8d7915f4416d332529defb2a11a138fdb4221c2b6570`。
+- 版本理由：与双 Host 当前合同同步最小 Handoff 默认、可选 Retrospective 和 Agent-owned 修订复审语义。`LOCAL_HTML` 与 `LOCAL_RENDERED_VISUALS` 默认均关闭，默认只交付 Markdown；SVG 只在显式视觉开关且存在 Mermaid source 时物化；复审工作单绑定 source/current Candidate、prior Review/Finding、Planning Record 修复依据、范围与回归 Checklist，由 Reviewer 自行作语义比较，不引入 exact diff artifact 或程序化分类器。
+- 新 Run、公开 Host Skill 和安装包构建选择 v0.4；历史 Run、旧安装和旧精确引用不迁移。
+
 ## BPG Product Planning Method v0.3 Candidate — 2026-09-01
 
-- 状态：`CANDIDATE / NOT_YET_RELEASED`；文件 `BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md`，SHA-256 `e82ec004ca7dcf7b022e8d7915f4416d332529defb2a11a138fdb4221c2b6570`。
+- 状态：`SUPERSEDED / IMMUTABLE`；文件 `BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md`，SHA-256 `e82ec004ca7dcf7b022e8d7915f4416d332529defb2a11a138fdb4221c2b6570`。
 - Supersedes：`BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.2.md`；v0.2 保持不可变，SHA-256 `00059adeef0b95ca09c4c0398cd1b35a1a8259aad8a6dddde18e54be63d3db49`。
 - 版本理由：新增 Solution Intelligence 适用性、Host 语义授权边界、Stage 4 disposition 重绑定、Clean Reviewer Context、Finding 闭环与 Product Evals 2.2 边界，并把 Alpha Candidate/Handoff 真源收敛为 `PRD.md` + Mermaid source；属于方法过程和责任边界的向前兼容新增，按 Minor 升级为 v0.3，而非覆盖已交付 v0.2。
-- 新 Run 与公开 Host Skill 选择 v0.3；历史 Run、旧安装和旧精确引用不迁移。
+- v0.3 创建时由新 Run 与公开 Host Skill 选择；现已由 v0.4 取代。历史 Run、旧安装和旧精确引用不迁移。
 
 ## 当前版本
 

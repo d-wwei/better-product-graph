@@ -12,7 +12,7 @@ from scripts.package_plugin import package_plugin
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CANDIDATE_VERSION = "2.0.1"
+CANDIDATE_VERSION = "2.0.2"
 
 
 class PackagingTests(unittest.TestCase):

@@ -285,6 +285,7 @@ def _render_body(
     index = 0
     mermaid_index = 0
     generated_mermaid = mermaid_svgs or []
+    materialize_mermaid = mermaid_svgs is not None
 
     def flush_paragraph() -> None:
         if paragraph:
@@ -305,17 +306,26 @@ def _render_body(
             if not closed:
                 raise ValueError("unclosed Markdown code fence")
             if language.casefold() == "mermaid":
-                if mermaid_index >= len(generated_mermaid):
-                    raise ValueError("Mermaid source was not materialized for Handoff")
-                encoded = base64.b64encode(generated_mermaid[mermaid_index]).decode(
-                    "ascii"
-                )
-                mermaid_index += 1
-                output.append(
-                    '<figure><img src="data:image/svg+xml;base64,'
-                    + encoded
-                    + f'" alt="Mermaid diagram {mermaid_index}" loading="eager"></figure>'
-                )
+                if materialize_mermaid:
+                    if mermaid_index >= len(generated_mermaid):
+                        raise ValueError(
+                            "Mermaid source was not materialized for Handoff"
+                        )
+                    encoded = base64.b64encode(
+                        generated_mermaid[mermaid_index]
+                    ).decode("ascii")
+                    mermaid_index += 1
+                    output.append(
+                        '<figure><img src="data:image/svg+xml;base64,'
+                        + encoded
+                        + f'" alt="Mermaid diagram {mermaid_index}" loading="eager"></figure>'
+                    )
+                else:
+                    output.append(
+                        '<pre><code class="language-mermaid">'
+                        + html.escape(chr(10).join(code_lines))
+                        + "</code></pre>"
+                    )
             else:
                 class_name = (
                     f' class="language-{html.escape(language, quote=True)}"'
@@ -368,7 +378,7 @@ def _render_body(
         paragraph.append(stripped)
         index += 1
     flush_paragraph()
-    if mermaid_index != len(generated_mermaid):
+    if materialize_mermaid and mermaid_index != len(generated_mermaid):
         raise ValueError("Handoff Mermaid output count differs from source count")
     return "\n".join(output)
 

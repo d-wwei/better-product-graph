@@ -17,7 +17,7 @@ class BPG2ProductEvalsVersionBoundaryTests(unittest.TestCase):
 
     def test_method_keeps_evals_generator_out_of_2_0_ready(self) -> None:
         method = self.read(
-            "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+            "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
         )
         self.assertIn("2.0 不运行 Product Evals 适用性判断", method)
         self.assertIn("Ready 与 Local Handoff", method)

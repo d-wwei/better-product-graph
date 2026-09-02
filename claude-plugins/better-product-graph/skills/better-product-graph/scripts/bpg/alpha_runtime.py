@@ -102,17 +102,29 @@ REVIEW_RESPONSIBILITY_IDS = frozenset(
         "DOCUMENT_EXPERIENCE",
     }
 )
+REREVIEW_GLOBAL_REGRESSION_CHECKLIST = (
+    "SCOPE",
+    "AUTHORITY",
+    "ACCEPTANCE",
+    "STATUS_DRIFT",
+    "CROSS_SECTION_CONTRADICTION",
+    "DOCUMENT_NAVIGATION",
+)
 HANDOFF_DELIVERY_MODES = frozenset(
     {
         "LOCAL_HTML",
+        "LOCAL_RENDERED_VISUALS",
         "LOCAL_DOCUMENT",
         "FEISHU_DOCUMENT",
         "PROJECT_MANAGEMENT_MCP",
     }
 )
-IMPLEMENTED_HANDOFF_DELIVERY_MODES = frozenset({"LOCAL_HTML"})
+IMPLEMENTED_HANDOFF_DELIVERY_MODES = frozenset(
+    {"LOCAL_HTML", "LOCAL_RENDERED_VISUALS"}
+)
 DEFAULT_HANDOFF_DELIVERY_OPTIONS = {
-    "LOCAL_HTML": True,
+    "LOCAL_HTML": False,
+    "LOCAL_RENDERED_VISUALS": False,
     "LOCAL_DOCUMENT": False,
     "FEISHU_DOCUMENT": False,
     "PROJECT_MANAGEMENT_MCP": False,
@@ -723,15 +735,170 @@ class BPG2AlphaController:
             if key in candidate
         }
 
+    @staticmethod
+    def _candidate_identity_ref(candidate: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: deepcopy(candidate[key])
+            for key in ("candidate_id", "kind", "path", "hash", "version")
+        }
+
+    def _verify_rereview_exact_basis(
+        self,
+        state: dict[str, Any],
+        source_candidate: dict[str, Any],
+    ) -> tuple[
+        dict[str, Any],
+        dict[str, Any],
+        dict[str, Any] | None,
+        dict[str, Any],
+    ]:
+        failure = "re-review exact basis is missing or changed"
+        try:
+            source_ref = self._candidate_identity_ref(source_candidate)
+            self._verify_candidate(source_ref)
+            prior_review = next(
+                (
+                    review
+                    for review in reversed(state.get("reviews", []))
+                    if isinstance(review, dict)
+                    and _same_ref(review.get("candidate_ref"), source_ref)
+                ),
+                None,
+            )
+            if not isinstance(prior_review, dict):
+                raise AlphaContractError(failure)
+            prior_review_ref = prior_review.get("review_ref")
+            review_route = next(
+                (
+                    route
+                    for route in reversed(state.get("review_routes", []))
+                    if isinstance(route, dict)
+                    and _same_ref(route.get("candidate_ref"), source_ref)
+                ),
+                None,
+            )
+            review_ref = (
+                review_route.get("review_ref")
+                if isinstance(review_route, dict)
+                else prior_review_ref
+            )
+            if not isinstance(review_ref, dict) or review_ref != prior_review_ref:
+                raise AlphaContractError(failure)
+            persisted_review = read_json(self._verify_file_ref(review_ref))
+            expected_review = deepcopy(prior_review)
+            expected_review.pop("review_ref", None)
+            if (
+                persisted_review != expected_review
+                or not _same_ref(persisted_review.get("candidate_ref"), source_ref)
+            ):
+                raise AlphaContractError(failure)
+            return (
+                source_ref,
+                prior_review,
+                review_route,
+                deepcopy(review_ref),
+            )
+        except Exception as error:
+            raise AlphaContractError(failure) from error
+
+    def _verify_current_rereview_work_order(
+        self,
+        state: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> None:
+        failure = "re-review exact basis is missing or changed"
+        work_order = state.get("current_rereview_work_order")
+        source_candidate = candidate.get("supersedes")
+        if not isinstance(work_order, dict) or not isinstance(source_candidate, dict):
+            raise AlphaContractError(failure)
+        source_ref, _, _, review_ref = self._verify_rereview_exact_basis(
+            state, source_candidate
+        )
+        planning_record_ref = work_order.get("planning_record_ref")
+        expected_planning_path = (
+            self.run_path(state["run_id"]) / "planning-record.md"
+        ).relative_to(self.project_root).as_posix()
+        if (
+            work_order.get("source_candidate_ref") != source_ref
+            or work_order.get("current_candidate_ref")
+            != self._candidate_identity_ref(candidate)
+            or work_order.get("review_ref") != review_ref
+            or planning_record_ref != candidate.get("planning_record_ref")
+            or planning_record_ref != state.get("planning_record_ref")
+            or not isinstance(planning_record_ref, dict)
+            or planning_record_ref.get("path") != expected_planning_path
+        ):
+            raise AlphaContractError(failure)
+        try:
+            self._verify_file_ref(planning_record_ref)
+        except Exception as error:
+            raise AlphaContractError(failure) from error
+
+    def _build_rereview_work_order(
+        self,
+        state: dict[str, Any],
+        *,
+        source_candidate: dict[str, Any],
+        current_candidate: dict[str, Any],
+        planning_record_ref: dict[str, Any],
+    ) -> dict[str, Any]:
+        source_ref, prior_review, review_route, review_ref = (
+            self._verify_rereview_exact_basis(state, source_candidate)
+        )
+        if isinstance(review_route, dict):
+            finding_refs = list(review_route.get("finding_refs", []))
+            lead_agent_attempt_id = review_route.get("lead_agent_attempt_id")
+            return_reason = review_route.get("return_reason")
+            rereview_scope = list(review_route.get("affected_scope", []))
+            scope_basis = "REVIEW_ROUTE"
+        else:
+            finding_refs = [
+                finding["finding_id"]
+                for finding in prior_review.get("findings", [])
+                if isinstance(finding, dict)
+                and isinstance(finding.get("finding_id"), str)
+            ]
+            lead_agent_attempt_id = (
+                state.get("last_author_attempt_id")
+                or current_candidate.get("author_attempt_id")
+            )
+            return_reason = (
+                "No Review route is available; re-review the full exact Candidate "
+                "after the Planning Record or Stage 4 basis changed."
+            )
+            rereview_scope = ["FULL_CANDIDATE"]
+            scope_basis = "BROAD_FALLBACK_NO_REVIEW_ROUTE"
+        return {
+            "schema_version": "bpg2-alpha-rereview-work-order.v1",
+            "review_mode": "DIFF_AND_REGRESSION",
+            "source_candidate_ref": source_ref,
+            "current_candidate_ref": self._candidate_identity_ref(current_candidate),
+            "review_ref": review_ref,
+            "finding_refs": finding_refs,
+            "lead_agent_attempt_id": lead_agent_attempt_id,
+            "return_reason": return_reason,
+            "planning_record_ref": deepcopy(planning_record_ref),
+            "rereview_scope": rereview_scope,
+            "scope_basis": scope_basis,
+            "difference_review": (
+                "REVIEWER_SEMANTIC_COMPARISON_OF_EXACT_SOURCE_AND_CURRENT_CANDIDATES"
+            ),
+            "global_regression_checklist": list(
+                REREVIEW_GLOBAL_REGRESSION_CHECKLIST
+            ),
+        }
+
     def _write_record_candidate(
         self,
         run_id: str,
         kind: str,
         version: int,
+        *,
+        planning_record_ref: dict[str, Any],
+        planning_record_bytes: bytes,
     ) -> tuple[Path, dict[str, Any]]:
-        source = self.run_path(run_id) / "planning-record.md"
-        stored = self._store_object(run_id, source.read_bytes())
-        return self.project_root / stored["path"], self.file_ref(source)
+        stored = self._store_object(run_id, planning_record_bytes)
+        return self.project_root / stored["path"], deepcopy(planning_record_ref)
 
     def _normalize_2_0_evals_status(self, evals: Any) -> dict[str, Any]:
         """Preserve the truthful 2.0 non-execution boundary.
@@ -854,6 +1021,7 @@ class BPG2AlphaController:
         evals: dict[str, Any],
         document_experience: dict[str, Any],
         planning_record_ref: dict[str, Any],
+        planning_record_bytes: bytes,
         decision_candidate_ref: dict[str, Any],
         accepted_decision: dict[str, Any],
         decision_review_ref: dict[str, Any],
@@ -895,7 +1063,7 @@ class BPG2AlphaController:
         prd_ref = deepcopy(prd_file["object_ref"])
         planning_snapshot_ref = self._store_versioned_object(
             run_id,
-            (self.run_path(run_id) / "planning-record.md").read_bytes(),
+            planning_record_bytes,
             version,
         )
         template_exact_ref = self._store_versioned_object(
@@ -1046,7 +1214,23 @@ class BPG2AlphaController:
                 if isinstance(previous, dict) and previous.get("revision_round", 0) >= 2:
                     raise AlphaContractError("two automatic revision rounds are the maximum")
                 raise AlphaContractError("Candidate freeze does not match the current position")
-            planning_ref = self.file_ref(self.run_path(run_id) / "planning-record.md")
+            if supersedes is not None:
+                self._verify_rereview_exact_basis(state, supersedes)
+            planning_ref = deepcopy(state.get("planning_record_ref"))
+            planning_failure = (
+                "re-review Planning Record exact basis is missing or changed"
+                if supersedes is not None
+                else "Candidate Planning Record exact basis is missing or changed"
+            )
+            try:
+                planning_path = self._verify_file_ref(planning_ref)
+                if planning_path != self.run_path(run_id) / "planning-record.md":
+                    raise AlphaContractError(planning_failure)
+                planning_record_bytes = planning_path.read_bytes()
+                if sha256_bytes(planning_record_bytes) != planning_ref.get("hash"):
+                    raise AlphaContractError(planning_failure)
+            except Exception as error:
+                raise AlphaContractError(planning_failure) from error
             normalized_evals = None
             review_requirements = None
             if kind == "PRD":
@@ -1095,6 +1279,7 @@ class BPG2AlphaController:
                     normalized_evals,
                     normalized_document_experience,
                     planning_ref,
+                    planning_record_bytes,
                     decision_ref,
                     accepted_decision,
                     decision_review_ref,
@@ -1102,7 +1287,13 @@ class BPG2AlphaController:
                 )
                 artifact_path = target.relative_to(self.project_root).as_posix()
             else:
-                target, planning_ref = self._write_record_candidate(run_id, kind, version)
+                target, planning_ref = self._write_record_candidate(
+                    run_id,
+                    kind,
+                    version,
+                    planning_record_ref=planning_ref,
+                    planning_record_bytes=planning_record_bytes,
+                )
                 artifact_path = target.relative_to(self.project_root).as_posix()
             candidate = {
                 "candidate_id": f"{kind.lower()}-candidate-v{version}",
@@ -1119,12 +1310,30 @@ class BPG2AlphaController:
             }
             state["current_candidate"] = candidate
             state.setdefault("candidate_history", []).append(deepcopy(candidate))
+            if supersedes is not None:
+                rereview_work_order = self._build_rereview_work_order(
+                    state,
+                    source_candidate=supersedes,
+                    current_candidate=candidate,
+                    planning_record_ref=planning_ref,
+                )
+                state["current_rereview_work_order"] = deepcopy(
+                    rereview_work_order
+                )
+            else:
+                rereview_work_order = None
+                state.pop("current_rereview_work_order", None)
             state["position"] = review_position
             state["candidate_required"] = False
             state["automatic_revision_exhausted"] = False
             if normalized_evals is not None:
                 state["product_evals"] = normalized_evals
                 state["ready"] = {"status": "NOT_EVALUATED", "unmet": []}
+                if rereview_work_order is not None:
+                    review_requirements = {
+                        **review_requirements,
+                        "rereview_work_order": deepcopy(rereview_work_order),
+                    }
                 state["current_review_requirements"] = review_requirements
             else:
                 state.pop("current_review_requirements", None)
@@ -1633,7 +1842,9 @@ class BPG2AlphaController:
                 if not isinstance(requirements, dict):
                     raise AlphaContractError("PRD Review requirements are unavailable")
                 manifest = read_json(self.project_root / candidate["path"])
-                if manifest.get("review_requirements") != requirements:
+                manifest_requirements = deepcopy(requirements)
+                manifest_requirements.pop("rereview_work_order", None)
+                if manifest.get("review_requirements") != manifest_requirements:
                     raise AlphaContractError("PRD Review requirements are stale")
                 if rendered_html_review is not None:
                     raise AlphaContractError(
@@ -1697,6 +1908,7 @@ class BPG2AlphaController:
             ):
                 raise AlphaContractError("PRD Review evidence is forbidden for non-PRD Candidates")
             if candidate.get("revision_round", 0) > 0:
+                self._verify_current_rereview_work_order(state, candidate)
                 if (
                     review_mode != "DIFF_AND_REGRESSION"
                     or not _same_ref(diff_base_candidate_ref, candidate.get("supersedes"))
@@ -2148,7 +2360,7 @@ class BPG2AlphaController:
             manifest_path = assert_managed_path(target, Path("HANDOFF_MANIFEST.json"))
             manifest = read_json(manifest_path)
             if (
-                manifest.get("schema_version") != "bpg2-alpha-local-handoff.v3"
+                manifest.get("schema_version") != "bpg2-alpha-local-handoff.v4"
                 or manifest.get("run_id") != run_id
                 or manifest.get("candidate_ref") != self._candidate_ref(candidate)
                 or manifest.get("ready_ref") != ready
@@ -2209,6 +2421,12 @@ class BPG2AlphaController:
             outputs = delivery.get("outputs")
             if not isinstance(outputs, dict) or set(outputs) != set(delivery_options):
                 raise AlphaContractError(failure)
+            mermaid_source_count = 0
+            if delivery_options["LOCAL_RENDERED_VISUALS"]:
+                source_markdown = self._verify_file_ref(source_truth_ref).read_text(
+                    encoding="utf-8"
+                )
+                mermaid_source_count = len(extract_mermaid_sources(source_markdown))
             for mode, enabled in delivery_options.items():
                 output = outputs[mode]
                 expected_implementation = (
@@ -2216,28 +2434,54 @@ class BPG2AlphaController:
                     if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
                     else "NOT_IMPLEMENTED"
                 )
-                expected_status = (
-                    "GENERATED"
-                    if enabled
-                    else (
-                        "SKIPPED_BY_USER"
+                if not enabled:
+                    expected_status = (
+                        "SKIPPED_NOT_SELECTED"
                         if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
                         else "DISABLED"
                     )
+                    expected_output_refs: list[dict[str, Any]] = []
+                elif mode == "LOCAL_RENDERED_VISUALS":
+                    expected_status = (
+                        "GENERATED" if mermaid_source_count else "NOT_APPLICABLE"
+                    )
+                    expected_output_refs = [
+                        self.file_ref(
+                            target
+                            / f"assets/generated/mermaid-{index:03d}.svg"
+                        )
+                        for index in range(1, mermaid_source_count + 1)
+                    ]
+                else:
+                    expected_status = "GENERATED"
+                    expected_output_refs = [
+                        self.versioned_file_ref(
+                            target / "PRD.html", candidate["version"]
+                        )
+                    ]
+                output_refs = (
+                    output.get("output_refs") if isinstance(output, dict) else None
                 )
                 if (
                     not isinstance(output, dict)
                     or set(output)
-                    != {"enabled", "implementation_status", "status", "output_ref"}
+                    != {
+                        "enabled",
+                        "implementation_status",
+                        "status",
+                        "output_ref",
+                        "output_refs",
+                    }
                     or output.get("enabled") is not enabled
                     or output.get("implementation_status") != expected_implementation
                     or output.get("status") != expected_status
-                    or (enabled and output.get("output_ref") is None)
-                    or (not enabled and output.get("output_ref") is not None)
+                    or not isinstance(output_refs, list)
+                    or output_refs != expected_output_refs
+                    or output.get("output_ref")
+                    != (expected_output_refs[0] if expected_output_refs else None)
                 ):
                     raise AlphaContractError(failure)
-                if output.get("output_ref") is not None:
-                    refs.append(output["output_ref"])
+                refs.extend(output_refs)
 
             expected_prd_ref = self.versioned_file_ref(
                 target / "PRD.md", candidate["version"]
@@ -2250,7 +2494,9 @@ class BPG2AlphaController:
                 else expected_prd_ref
             )
             expected_evidence = deepcopy(ready["evidence_summary"])
-            expected_evidence["handoff_rendering"] = outputs["LOCAL_HTML"]["status"]
+            expected_evidence["handoff_rendering"] = self._handoff_rendering_status(
+                outputs
+            )
             if (
                 delivery.get("primary_reading_ref") != expected_primary
                 or manifest.get("evidence_summary") != expected_evidence
@@ -2265,6 +2511,17 @@ class BPG2AlphaController:
             raise
         except Exception as error:
             raise AlphaContractError(failure) from error
+
+    @staticmethod
+    def _handoff_rendering_status(outputs: dict[str, dict[str, Any]]) -> str:
+        rendered_statuses = {
+            outputs[mode]["status"] for mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
+        }
+        if "GENERATED" in rendered_statuses:
+            return "GENERATED"
+        if "NOT_APPLICABLE" in rendered_statuses:
+            return "NOT_APPLICABLE"
+        return "SKIPPED_NOT_SELECTED"
 
     def prepare_local_handoff(
         self,
@@ -2347,19 +2604,23 @@ class BPG2AlphaController:
                 return
 
             source_markdown = source_truth_path.read_text(encoding="utf-8")
-            try:
-                mermaid_sources = extract_mermaid_sources(source_markdown)
-                rendered_mermaid = render_mermaid_svgs(source_markdown)
-            except MermaidRenderError as error:
-                raise AlphaContractError(
-                    f"Local Handoff Mermaid rendering failed: {error}"
-                ) from error
-            if len(rendered_mermaid) != len(mermaid_sources):
-                raise AlphaContractError(
-                    "Local Handoff Mermaid source count "
-                    f"{len(mermaid_sources)} differs from generated SVG count "
-                    f"{len(rendered_mermaid)}"
-                )
+            mermaid_sources: list[str] = []
+            rendered_mermaid: list[bytes] = []
+            if normalized_delivery_options["LOCAL_RENDERED_VISUALS"]:
+                try:
+                    mermaid_sources = extract_mermaid_sources(source_markdown)
+                    if mermaid_sources:
+                        rendered_mermaid = render_mermaid_svgs(source_markdown)
+                except MermaidRenderError as error:
+                    raise AlphaContractError(
+                        f"Local Handoff Mermaid rendering failed: {error}"
+                    ) from error
+                if len(rendered_mermaid) != len(mermaid_sources):
+                    raise AlphaContractError(
+                        "Local Handoff Mermaid source count "
+                        f"{len(mermaid_sources)} differs from generated SVG count "
+                        f"{len(rendered_mermaid)}"
+                    )
             final_target.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.TemporaryDirectory(
                 prefix=".local-staging-", dir=final_target.parent
@@ -2384,12 +2645,14 @@ class BPG2AlphaController:
                     object_path = self._verify_file_ref(item.get("object_ref"))
                     destination = assert_managed_path(target, Path(item["path"]))
                     atomic_write_bytes(destination, object_path.read_bytes())
+                rendered_visual_refs = []
                 for index, svg_bytes in enumerate(rendered_mermaid, start=1):
                     destination = assert_managed_path(
                         target,
                         Path(f"assets/generated/mermaid-{index:03d}.svg"),
                     )
                     atomic_write_bytes(destination, svg_bytes)
+                    rendered_visual_refs.append(published_ref(destination))
                 if candidate_manifest.get("delivery_rendering") != "DEFERRED_TO_HANDOFF":
                     raise AlphaContractError("PRD delivery rendering contract is invalid")
                 local_prd_ref = published_ref(
@@ -2407,15 +2670,27 @@ class BPG2AlphaController:
                             "PENDING"
                             if enabled
                             else (
-                                "SKIPPED_BY_USER"
+                                "SKIPPED_NOT_SELECTED"
                                 if mode in IMPLEMENTED_HANDOFF_DELIVERY_MODES
                                 else "DISABLED"
                             )
                         ),
                         "output_ref": None,
+                        "output_refs": [],
                     }
                     for mode, enabled in normalized_delivery_options.items()
                 }
+                if normalized_delivery_options["LOCAL_RENDERED_VISUALS"]:
+                    outputs["LOCAL_RENDERED_VISUALS"] = {
+                        **outputs["LOCAL_RENDERED_VISUALS"],
+                        "status": (
+                            "GENERATED" if rendered_visual_refs else "NOT_APPLICABLE"
+                        ),
+                        "output_ref": (
+                            rendered_visual_refs[0] if rendered_visual_refs else None
+                        ),
+                        "output_refs": rendered_visual_refs,
+                    }
                 if normalized_delivery_options["LOCAL_HTML"]:
                     assets = (
                         {
@@ -2429,18 +2704,28 @@ class BPG2AlphaController:
                     html_bytes = render_self_contained_prd_html(
                         source_markdown,
                         assets,
-                        mermaid_svgs=rendered_mermaid,
+                        mermaid_svgs=(
+                            rendered_mermaid
+                            if normalized_delivery_options[
+                                "LOCAL_RENDERED_VISUALS"
+                            ]
+                            else None
+                        ),
                     ).encode("utf-8")
                     atomic_write_bytes(target / "PRD.html", html_bytes)
+                    html_ref = published_ref(
+                        target / "PRD.html", version=candidate["version"]
+                    )
                     outputs["LOCAL_HTML"] = {
                         **outputs["LOCAL_HTML"],
                         "status": "GENERATED",
-                        "output_ref": published_ref(
-                            target / "PRD.html", version=candidate["version"]
-                        ),
+                        "output_ref": html_ref,
+                        "output_refs": [html_ref],
                     }
                 evidence_summary = deepcopy(state["ready"]["evidence_summary"])
-                evidence_summary["handoff_rendering"] = outputs["LOCAL_HTML"]["status"]
+                evidence_summary["handoff_rendering"] = self._handoff_rendering_status(
+                    outputs
+                )
                 primary_reading_ref = (
                     outputs["LOCAL_HTML"]["output_ref"]
                     if outputs["LOCAL_HTML"]["status"] == "GENERATED"
@@ -2486,7 +2771,7 @@ class BPG2AlphaController:
                             }
                         )
                 manifest = {
-                    "schema_version": "bpg2-alpha-local-handoff.v3",
+                    "schema_version": "bpg2-alpha-local-handoff.v4",
                     "run_id": run_id,
                     "candidate_ref": self._candidate_ref(candidate),
                     "ready_ref": deepcopy(state["ready"]),

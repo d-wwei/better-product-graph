@@ -28,7 +28,7 @@ class BPG2R5R6LightweightReviewContractTests(unittest.TestCase):
     def test_method_defers_svg_to_handoff_without_review_inheritance(self) -> None:
         method = (
             REPO_ROOT
-            / "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+            / "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
         ).read_text(encoding="utf-8")
         self.assertIn("Candidate 阶段只保留 Mermaid source", method)
         self.assertIn("Handoff", method)

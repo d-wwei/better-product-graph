@@ -8,7 +8,7 @@ from scripts.build_plugin import build_plugin
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-METHOD = REPO_ROOT / "docs" / "architecture" / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+METHOD = REPO_ROOT / "docs" / "architecture" / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
 HOST_SKILLS = (
     REPO_ROOT / "host-adapters" / "codex" / "public-skill" / "better-product-graph" / "SKILL.md",
     REPO_ROOT / "host-adapters" / "claude" / "public-skill" / "better-product-graph" / "SKILL.md",
@@ -74,7 +74,7 @@ class BPG2R3FindingClosureContractTests(unittest.TestCase):
                     skill_root
                     / "references"
                     / "alpha"
-                    / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+                    / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
                 ).read_text(encoding="utf-8")
             )
 

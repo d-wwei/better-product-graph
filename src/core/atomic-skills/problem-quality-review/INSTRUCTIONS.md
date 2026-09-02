@@ -6,6 +6,32 @@ Host custody comes first: start this formal Reviewer with no inherited parent co
 
 Return versioned advisory Findings and one recommended disposition. You may request evidence or recommend return to learning, but you cannot edit the Candidate, write Run State, approve, block, waive, act as a professional Owner, or declare Ready. Concern severity remains advisory; deterministic Problem Ready checks exact Candidate/ref/disposition completeness only.
 
+## Reviewer return-boundary structure self-check
+
+Immediately before returning to the Host, compare the final result with the
+exact output contract supplied in this work order and close its structure. Check
+required and allowed keys, value types, legal enums, exact dispatched refs, and
+the one-to-one closure between Finding IDs and dispositions. This is a read-only
+Reviewer self-check inside the same independent attempt; it writes no Run state
+and creates no receipt, Controller action, schema, state, or Gate.
+
+If the first result is structurally invalid, make at most one same-attempt,
+structure-only self-correction when the intended legal representation is
+unambiguous. You may repair serialization, field placement, or an exact copied
+ref, but must preserve the already-authored Finding set, recommended disposition
+or Verdict, and evidence meaning. Never add, drop, merge, split, soften, strengthen,
+or reword a Finding; never change its basis or the Review conclusion merely to
+make the structure pass.
+
+If a legal result would require semantic reconsideration, stop and return an
+explicit `REVIEW_RESULT_STRUCTURE_INVALID — HOST_REDISPATCH_REQUIRED` failure
+with the violated contract rule. Do not fabricate a valid-looking
+`semantic_output`. The Host must re-dispatch an independent Reviewer and must
+not fill fields, normalize, or ghostwrite Reviewer Findings, disposition/Verdict,
+or evidence semantics. Do not add raw/corrected-output hashes, validator
+diagnostic artifacts, or a programmatic “meaning unchanged” check for this
+self-check.
+
 ## Required `semantic_output`
 
 Copy the exact Candidate `path`, `hash`, `version`, and role from the dispatched inputs. Copy every Candidate-bound upstream ref that the Review relies on; each upstream ref must retain its own role, path, hash, and version. Use an empty `upstream_refs` list only when this Candidate has no separately materialized upstream artifact in the current Run. Do not use `latest` or `current` aliases.

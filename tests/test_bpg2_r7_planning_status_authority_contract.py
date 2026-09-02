@@ -55,7 +55,7 @@ class BPG2R7PlanningStatusAuthorityContractTests(unittest.TestCase):
             ROOT
             / "docs"
             / "architecture"
-            / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+            / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
         ).read_text(encoding="utf-8")
         self.assertIn("易变运行状态由 Controller status 动态投影", method)
         self.assertIn("不由主 Agent 手写进《产品规划主记录》", method)

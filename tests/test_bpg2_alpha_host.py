@@ -120,7 +120,7 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 / "better-product-graph"
                 / "references"
                 / "alpha"
-                / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+                / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
             )
 
             self.assertIn("Default BPG 2.0 single-PRD runtime", skill)
@@ -160,9 +160,39 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 skill,
             )
             self.assertIn("Never implement this as a keyword scan", skill)
-            self.assertIn("This Alpha implements only `LOCAL_HTML`", skill)
+            self.assertIn("returned `current_rereview_work_order`", skill)
+            self.assertIn("exact source/current Candidate refs", skill)
+            self.assertIn("Planning Record repair basis", skill)
+            self.assertIn("bounded whole-product regression checklist", skill)
+            self.assertIn("derives the semantic difference", skill)
+            self.assertIn("Do not create a separate diff artifact", skill)
+            self.assertIn("For a revised PRD it also projects the exact `rereview_work_order`", skill)
+            self.assertIn(
+                "This Alpha implements `LOCAL_HTML` and `LOCAL_RENDERED_VISUALS`",
+                skill,
+            )
             self.assertIn("optional `delivery_options` object", skill)
-            self.assertIn("`LOCAL_HTML` defaults to `true`", skill)
+            self.assertIn("`LOCAL_HTML` defaults to `false`", skill)
+            self.assertIn("`LOCAL_RENDERED_VISUALS` defaults to `false`", skill)
+            self.assertIn(
+                "No explicit delivery option means Markdown-only local delivery",
+                skill,
+            )
+            self.assertIn("does not call the Mermaid renderer", skill)
+            self.assertIn("HTML may preserve the Mermaid source", skill)
+            self.assertIn(
+                "SVG files are generated only when `LOCAL_RENDERED_VISUALS` is explicitly enabled",
+                skill,
+            )
+            self.assertIn("Retrospective is optional and non-blocking", skill)
+            self.assertIn(
+                "only when the user or project policy explicitly requires it",
+                skill,
+            )
+            self.assertIn(
+                "does not block Local Handoff completion or task end",
+                skill,
+            )
             self.assertTrue(baseline.is_file())
             self.assertTrue(
                 (
@@ -197,6 +227,106 @@ class BPG2AlphaHostTests(unittest.TestCase):
                 ).read_text(encoding="utf-8")
                 for phrase in required:
                     self.assertIn(phrase, skill)
+
+    def test_codex_and_claude_hosts_share_minimal_handoff_defaults(self) -> None:
+        required = (
+            "`LOCAL_HTML` defaults to `false`",
+            "`LOCAL_RENDERED_VISUALS` defaults to `false`",
+            "only `PRD.md` plus the minimum Handoff evidence",
+            "does not call the Mermaid renderer",
+            "HTML may preserve the Mermaid source",
+            "SVG files are generated only when `LOCAL_RENDERED_VISUALS` is explicitly enabled",
+            "Retrospective is optional and non-blocking",
+            "only when the user or project policy explicitly requires it",
+            "does not block Local Handoff completion or task end",
+        )
+        for host in ("codex", "claude"):
+            with self.subTest(host=host):
+                skill = (
+                    REPO_ROOT
+                    / "host-adapters"
+                    / host
+                    / "public-skill"
+                    / "better-product-graph"
+                    / "SKILL.md"
+                ).read_text(encoding="utf-8")
+                for phrase in required:
+                    self.assertIn(phrase, skill)
+
+    def test_current_method_contract_matches_both_installed_host_copies(self) -> None:
+        source = (
+            REPO_ROOT
+            / "docs"
+            / "architecture"
+            / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
+        ).read_text(encoding="utf-8")
+        required = (
+            "`LOCAL_HTML` 与 `LOCAL_RENDERED_VISUALS` 默认均为 `false`",
+            "未显式选择任何方式时只交付 `PRD.md` 和最小 Handoff 证据",
+            "不调用 Mermaid Renderer",
+            "`LOCAL_RENDERED_VISUALS=true` 且 `PRD.md` 中实际存在 Mermaid source",
+            "`LOCAL_HTML=true` 可以独立生成 `PRD.html`",
+            "HTML 可以保留 Mermaid source",
+            "规划复盘是可选且非阻塞",
+            "否则保持 `NOT_RUN`",
+            "`source_candidate_ref` 与 `current_candidate_ref`",
+            "Reviewer 必须自行读取两个 Candidate 并作语义比较",
+            "不要求 Host 或 Runtime 预先生成独立 exact diff artifact",
+        )
+        forbidden = (
+            "`LOCAL_HTML` 默认开启",
+            "自包含单文件 HTML 是迭代一默认开启的 Handoff 阅读视图",
+            "规划复盘必须执行但不阻塞交接",
+            "每次产品规划完成后，主 Agent 必须进行规划复盘",
+            "上一轮 Findings、精确 diff 与修复说明列为不可变 basis refs",
+            "Handoff 才把已经 Ready 的 Mermaid source 物化为最终 SVG",
+        )
+
+        for phrase in required:
+            self.assertIn(phrase, source)
+        for phrase in forbidden:
+            self.assertNotIn(phrase, source)
+
+        with tempfile.TemporaryDirectory() as directory:
+            for host in ("codex", "claude"):
+                with self.subTest(host=host):
+                    host_skill = (
+                        REPO_ROOT
+                        / "host-adapters"
+                        / host
+                        / "public-skill"
+                        / "better-product-graph"
+                        / "SKILL.md"
+                    ).read_text(encoding="utf-8")
+                    self.assertIn(
+                        "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md",
+                        host_skill,
+                    )
+                    self.assertNotIn(
+                        "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md",
+                        host_skill,
+                    )
+                    plugin = Path(directory) / host
+                    build_plugin(REPO_ROOT, plugin, host=host)
+                    installed_path = (
+                        plugin
+                        / "skills"
+                        / "better-product-graph"
+                        / "references"
+                        / "alpha"
+                        / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
+                    )
+                    installed = installed_path.read_text(encoding="utf-8")
+                    self.assertEqual(installed, source)
+                    self.assertFalse(
+                        installed_path.with_name(
+                            "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+                        ).exists()
+                    )
+                    for phrase in required:
+                        self.assertIn(phrase, installed)
+                    for phrase in forbidden:
+                        self.assertNotIn(phrase, installed)
 
     def test_installed_runner_accepts_one_alpha_json_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -7,7 +7,7 @@ METHOD_PATH = (
     REPO_ROOT
     / "docs"
     / "architecture"
-    / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+    / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
 )
 
 

@@ -17,6 +17,33 @@ distinct Host attempts only, not cryptographic model or human identity.
 
 Return construction-ready advisory Findings with role/profile, concern, concern level, exact basis and upstream commitment refs, affected scope, possible impact, professional recommendation, repair target, confidence basis, and stance. Preserve disagreement; do not vote, increase evidence confidence because several Agents agree, edit the Candidate, write state, approve, block, waive, or impersonate Security/Privacy/Compliance authority.
 
+## Reviewer return-boundary structure self-check
+
+Every formal PRD Content Reviewer and Writing Reviewer must, immediately before
+returning to the root Host, compare its final result with the exact output
+contract in its own work order and close the structure. Check required and
+allowed keys, value types, legal enums, exact dispatched refs, and the required
+closure among Finding IDs, coverage entries, and the aggregate result. This is
+a read-only Reviewer self-check within the same independent attempt; it writes
+no Run state and creates no receipt, Controller action, schema, state, or Gate.
+
+If the first result is structurally invalid, make at most one same-attempt,
+structure-only self-correction when the intended legal representation is
+unambiguous. You may repair serialization, field placement, or an exact copied
+ref, but must preserve the already-authored Finding set, Verdict/stance, and
+evidence meaning. Never add, drop, merge, split, soften, strengthen, or reword a
+Finding; never alter its basis, coverage judgment, or aggregate conclusion to
+make the structure pass.
+
+If a legal result would require semantic reconsideration, stop and return an
+explicit `REVIEW_RESULT_STRUCTURE_INVALID — HOST_REDISPATCH_REQUIRED` failure
+with the violated contract rule. Do not fabricate a valid-looking output. The
+root Host must re-dispatch the affected independent Reviewer and must not fill
+fields, normalize, combine, or ghostwrite Reviewer Findings, Verdict/stance,
+coverage, or evidence semantics. Do not add raw/corrected-output hashes,
+validator diagnostic artifacts, or a programmatic “meaning unchanged” check for
+this self-check.
+
 Bind `goal_fidelity_refs.profile_ref`, `rubric_ref`, and `packet_contract_ref` to the exact matching dispatch resources. Bind a non-empty `commitment_refs` list and the exact Candidate in both the review payload and Goal Fidelity packet; every Candidate and commitment must be one of the dispatch inputs. An Agent cannot confirm a provisional commitment or substitute a similarly named profile.
 
 Do not add a new confirmation or consent checkpoint when exact commitments already authorize an automatic operation and no exact higher-order policy in the bound inputs requires another checkpoint. Separate authorization for the operation from undisclosed extra side effects: review the Candidate for hidden file changes, unsafe failure leftovers, or scope drift, but do not convert an already authorized automatic action into a new mandatory human approval.

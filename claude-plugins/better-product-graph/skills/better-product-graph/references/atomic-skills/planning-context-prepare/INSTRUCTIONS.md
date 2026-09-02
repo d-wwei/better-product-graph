@@ -22,6 +22,14 @@
 
 本节点只建立项目背景，不研究当前 Signal 的本质问题。针对当前需求收集证据、访谈和挑战假设，仍由后续 Evidence / Problem Learning 节点完成。
 
+## 作为后续阶段摘要
+
+- `context_summary` 是当前 Run 的紧凑、可追溯阶段事实摘要。它只保留已确认的项目目的、当前方向、约束和未知；事实仍由 `materials` 与 `artifact_refs` 中的 canonical exact refs 支撑，不得把完整来源正文或长段源码摘录复制进摘要。
+- 后续 Agent 以这份摘要为项目背景起点，并把新接受的产品事实、推断、未知、决策和 Finding 处置持续写入持续维护的 `planning-record.md`。两者都不是第二事实源；需要细节时回到 canonical exact refs。
+- 后续阶段只重带当前摘要、当前 Candidate（如已存在）、相对上一版的必要变化、未闭合 Findings，以及当前阶段必要的规则/合同 refs；不反复重带完整聊天历史、全部旧 Candidate、已关闭 Findings、全文源码摘录或无关规则。
+- 当合理上下文容纳不下仍有用的材料时，Agent 必须说明裁剪了什么以及为什么，先保留结论、事实/推断/未知边界、分歧和未解决风险，再按需回到 canonical exact refs；不得静默丢弃会改变判断的事实。
+- 本节点只复用现有字段和主记录，不新增 Evidence Digest、私有字段、Artifact、预算、Controller Gate、状态或操作。usage 也只能按 Host/平台实际可观察值报告，未观测就明确标为不可用，不得预先宣称 token 降幅。
+
 ## 必须提交的 Node Result
 
 `semantic_output` 必须是下面的 closed-world 结构；不得增加私有字段：
@@ -76,4 +84,3 @@
 - `SKIPPED` → `SKIPPED`：用户明确跳过；不得伪造已完成资料审核。
 
 `artifact_refs` 必须与 `materials` 中所有 `decision=INCLUDE` 的 `ref` 完全一致；被排除材料不得进入 `artifact_refs`。下一节点固定为 `evidence.collect`。
-

@@ -12,7 +12,7 @@ METHOD = (
     REPO_ROOT
     / "docs"
     / "architecture"
-    / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+    / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
 )
 HOST_SKILLS = (
     REPO_ROOT
@@ -94,7 +94,7 @@ class BPG2R8SolutionIntelligenceContractTests(unittest.TestCase):
                 skill_root
                 / "references"
                 / "alpha"
-                / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+                / "BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
             ).read_text(encoding="utf-8")
             self.assertIn("平台或环境事实只能证明可行性与约束", installed_method)
             self.assertIn("高复用、高维护成本或新型系统", installed_method)

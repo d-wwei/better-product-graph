@@ -64,6 +64,34 @@ validated” is a product contract, not current Run status. Record in
 `diagnoses` what was checked and in `actions` what was removed, moved, or kept
 with its durable reason.
 
+### BOUNDED_AUTHOR_SEMANTIC_PREFLIGHT
+
+Before PRD freeze, extend that same existing Document Experience self-check over
+the exact draft; do not create another checklist, payload field, artifact, or
+workflow step. Add concise `diagnoses` and matching `actions` for these
+PRD-profile semantic risks:
+
+- enums or labels with different product meanings remain distinct instead of
+  sharing one ambiguous value space;
+- each absent or Unknown optional input has one unambiguous user-visible
+  behavior, including recovery or escalation where relevant;
+- every acceptance threshold or rule has one canonical truth location, while
+  summaries, examples, and visuals point back rather than redefine it;
+- `STATUS_DRIFT_TEST` removes mutable Run/Review/Ready/Handoff status from the
+  durable PRD; and
+- unexecuted engineering checks, Product Evals, and product-effect validation
+  remain explicitly `NOT_RUN` or Unknown and never become evidence of success.
+
+Repair the exact draft or keep a concrete no-change reason in `actions`; do not
+freeze while a material semantic ambiguity remains. This evidence is
+`AUTHOR_SELF_CHECK_NOT_INDEPENDENT_APPROVAL`: it does not create or replace a
+Candidate, Review, revision round, approval, Ready claim, Controller schema,
+state, action, Gate, or Owner round. Independent PRD Content and Writing Reviews
+remain required over the frozen Candidate.
+
+These are Agent judgments. Do not infer them with keyword scans, image analysis,
+hash comparison, or a programmatic claim that product meaning stayed unchanged.
+
 The Host Agent must author the full PRD product content. Begin with the independently deliverable user outcome and product decision boundary; preserve evidence, assumptions, durable product Unknowns, authority and scope boundaries. Bind exact version/hash refs; never use `latest/current`, raw `TBD`, unfilled `{{...}}`, empty tables, or make up facts to fill a template. Apply the frozen PRD writing Profile's ELI5 rules: concrete event before abstraction, conclusion before explanation, one main point per paragraph, plain Chinese before the first technical term, and a meaningful Mermaid source block when a non-trivial flow, branch, sequence, state, data path, module relationship, or responsibility boundary is otherwise hard to understand. In the BPG 2.0 single-PRD runtime, the Candidate source file set is exactly `PRD.md`; keep visuals as Mermaid source in that Markdown only. Do not add asset files, generate or attach SVG preview, PNG or HTML before Ready, or perform picture safety or pixel preflight. If a conditional body section is truly not applicable and the Output Contract allows omission, omit its heading, empty table, and placeholder; keep the corresponding Checklist item as `不适用｜理由：具体原因`. A durable product Unknown, not-yet-designed product behavior, and mandatory product semantic are not “not applicable” and must remain visible; mutable execution status follows `STATUS_DRIFT_TEST` instead. Include observable acceptance, dependencies, abnormal/recovery paths, risk/rollback, durable document change visibility, and the truthful boundary that unexecuted validation cannot support a product-effect claim. Do not put mutable workflow claims such as current Review status, Eval fulfillment/execution result, or remote Handoff sent/received/approved status into the immutable PRD body; keep them in Controller-owned metadata, receipts, or status views so they cannot become a second stale authority. For the default general template, keep a visible Markdown heading named `## 附录 C：文档变更日志` and a concrete version row; a human-readable heading is the contract, so do not insert an internal filename merely to satisfy validation.
 
 BPG 2.0 does not perform Product Evals applicability assessment, Eval Pack generation, or Eval Spec Review. The Author submits no Eval assessment or attachment for PRD freeze and must not manufacture one. Product Evals execution and product-effect validation remain `NOT_RUN`; this truthful boundary does not block 2.0 Ready or Local Handoff. Applicability, Pack, specification Review, and their Ready Gate begin only with the versioned 2.2 method and runtime.

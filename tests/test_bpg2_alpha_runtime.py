@@ -163,6 +163,53 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         )
         return state, state["current_candidate"]
 
+    def reach_problem_rereview_authoring(
+        self, *, suffix: str
+    ) -> tuple[dict, dict, dict]:
+        state, candidate = self.reach_problem_review(suffix=suffix)
+        state = self.controller.submit_review(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id=f"review-revise-{suffix}",
+            candidate_ref=candidate,
+            reviewer_attempt_id=f"reviewer-{suffix}",
+            reviewer_execution_ref={
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": f"reviewer-{suffix}",
+            },
+            verdict="REVISE",
+            findings=[
+                {
+                    "finding_id": f"F-{suffix}",
+                    "claim": "问题定义与成功标准需要修正。",
+                    "evidence_refs": [candidate],
+                    "severity": "MAJOR",
+                    "affected_scope": ["问题定义", "成功标准"],
+                    "invalidated_assumptions_or_artifacts": ["Problem Candidate"],
+                    "local_revision_sufficiency": "SUFFICIENT",
+                    "status": "OPEN",
+                }
+            ],
+        )
+        review = deepcopy(state["current_review"])
+        state = self.controller.submit_review_route(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id=f"route-revise-{suffix}",
+            review_ref=review["review_ref"],
+            lead_agent_attempt_id=f"lead-{suffix}",
+            finding_refs=[f"F-{suffix}"],
+            return_target="DIAGNOSE_VALUE",
+            return_reason="修正问题定义与成功标准。",
+            affected_scope=["问题定义", "成功标准"],
+        )
+        state = self.update_record(
+            state,
+            position="DIAGNOSE_VALUE",
+            suffix=f"{suffix}-revision",
+        )
+        return state, deepcopy(candidate), review
+
     def pass_review(
         self,
         state: dict,
@@ -718,6 +765,30 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         self.assertNotEqual(new_candidate["hash"], old_candidate["hash"])
         self.assertEqual(new_candidate["version"], old_candidate["version"] + 1)
         self.assertTrue(new_candidate["supersedes"])
+        work_order = state["current_rereview_work_order"]
+        self.assertEqual(work_order["source_candidate_ref"], new_candidate["supersedes"])
+        self.assertEqual(
+            work_order["current_candidate_ref"],
+            {
+                key: new_candidate[key]
+                for key in ("candidate_id", "kind", "path", "hash", "version")
+            },
+        )
+        self.assertEqual(work_order["review_ref"], old_review["review_ref"])
+        self.assertEqual(work_order["finding_refs"], [])
+        self.assertEqual(work_order["planning_record_ref"], state["planning_record_ref"])
+        self.assertEqual(work_order["rereview_scope"], ["FULL_CANDIDATE"])
+        self.assertEqual(
+            work_order["scope_basis"], "BROAD_FALLBACK_NO_REVIEW_ROUTE"
+        )
+        self.assertEqual(
+            state["current_review_requirements"]["rereview_work_order"],
+            work_order,
+        )
+        self.assertEqual(
+            self.controller.load_run(state["run_id"])["current_rereview_work_order"],
+            work_order,
+        )
         state = self.pass_review(
             state,
             new_candidate,
@@ -910,6 +981,8 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         frozen = self.freeze_prd(state, suffix="deferred-html")
 
         requirements = frozen["current_review_requirements"]
+        self.assertNotIn("current_rereview_work_order", frozen)
+        self.assertNotIn("rereview_work_order", requirements)
         manifest = json.loads(
             (self.project / frozen["current_candidate"]["path"]).read_text(
                 encoding="utf-8"
@@ -1020,6 +1093,10 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             state["run_id"],
             expected_state_version=state["state_version"],
             operation_id="handoff-mermaid",
+            delivery_options={
+                "LOCAL_HTML": True,
+                "LOCAL_RENDERED_VISUALS": True,
+            },
         )
         handoff_dir = self.project / handoff["handoff"]["path"]
         generated_svg = handoff_dir / "assets" / "generated" / "mermaid-001.svg"
@@ -1028,6 +1105,135 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         self.assertIn("data:image/svg+xml;base64,", html)
         self.assertNotIn('<code class="language-mermaid">', html)
         render_mermaid.assert_called_once_with(markdown)
+        manifest = json.loads(
+            (handoff_dir / "HANDOFF_MANIFEST.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            manifest["delivery"]["selected_modes"],
+            ["LOCAL_HTML", "LOCAL_RENDERED_VISUALS"],
+        )
+        rendered_output = manifest["delivery"]["outputs"][
+            "LOCAL_RENDERED_VISUALS"
+        ]
+        self.assertEqual(rendered_output["status"], "GENERATED")
+        self.assertEqual(len(rendered_output["output_refs"]), 1)
+        self.assertEqual(rendered_output["output_ref"], rendered_output["output_refs"][0])
+
+    @patch(
+        "src.bpg.alpha_runtime.render_self_contained_prd_html",
+        side_effect=AssertionError("default Handoff must not render HTML"),
+    )
+    @patch(
+        "src.bpg.alpha_runtime.render_mermaid_svgs",
+        side_effect=MermaidRenderError("mmdc is NOT_IMPLEMENTED"),
+    )
+    def test_default_mermaid_handoff_needs_no_renderer_or_derived_output(
+        self,
+        render_mermaid: object,
+        render_html: object,
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="minimal-mermaid")
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n```mermaid\nflowchart LR\n  A --> B\n```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-minimal-mermaid",
+            kind="PRD",
+            author_attempt_id="prd-author-minimal-mermaid",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="minimal-mermaid"
+            ),
+        )
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="minimal-mermaid",
+            visual_source_reviewed=True,
+        )
+
+        handoff = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-minimal-mermaid",
+        )
+        replayed = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-minimal-mermaid",
+        )
+
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        self.assertEqual(replayed, handoff)
+        self.assertEqual(handoff["status"], "LOCAL_HANDOFF_COMPLETE")
+        self.assertEqual((handoff_dir / "PRD.md").read_text(encoding="utf-8"), markdown)
+        self.assertFalse((handoff_dir / "PRD.html").exists())
+        self.assertFalse((handoff_dir / "assets").exists())
+        render_mermaid.assert_not_called()
+        render_html.assert_not_called()
+
+    @patch(
+        "src.bpg.alpha_runtime.render_mermaid_svgs",
+        side_effect=MermaidRenderError("mmdc is NOT_IMPLEMENTED"),
+    )
+    def test_legacy_local_html_option_remains_valid_without_rendered_visuals(
+        self, render_mermaid: object
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="legacy-html")
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n```mermaid\nflowchart LR\n  A --> B\n```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-legacy-html",
+            kind="PRD",
+            author_attempt_id="prd-author-legacy-html",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="legacy-html"
+            ),
+        )
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="legacy-html",
+            visual_source_reviewed=True,
+        )
+
+        handoff = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-legacy-html",
+            delivery_options={"LOCAL_HTML": True},
+        )
+
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        html = (handoff_dir / "PRD.html").read_text(encoding="utf-8")
+        manifest = json.loads(
+            (handoff_dir / "HANDOFF_MANIFEST.json").read_text(encoding="utf-8")
+        )
+        self.assertIn('<code class="language-mermaid">', html)
+        self.assertFalse((handoff_dir / "assets").exists())
+        self.assertEqual(manifest["delivery"]["selected_modes"], ["LOCAL_HTML"])
+        self.assertEqual(
+            manifest["delivery"]["outputs"]["LOCAL_HTML"]["status"], "GENERATED"
+        )
+        self.assertEqual(
+            manifest["delivery"]["outputs"]["LOCAL_RENDERED_VISUALS"]["status"],
+            "SKIPPED_NOT_SELECTED",
+        )
+        render_mermaid.assert_not_called()
 
     def test_handoff_materializes_indented_uppercase_mermaid_when_html_is_off(
         self,
@@ -1077,7 +1283,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 state["run_id"],
                 expected_state_version=state["state_version"],
                 operation_id="handoff-mermaid-indented-uppercase",
-                delivery_options={"LOCAL_HTML": False},
+                delivery_options={"LOCAL_RENDERED_VISUALS": True},
             )
 
         handoff_dir = self.project / handoff["handoff"]["path"]
@@ -1086,6 +1292,49 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         self.assertEqual(
             (handoff_dir / "assets/generated/mermaid-001.svg").read_bytes(), svg
         )
+        manifest = json.loads(
+            (handoff_dir / "HANDOFF_MANIFEST.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            manifest["delivery"]["selected_modes"], ["LOCAL_RENDERED_VISUALS"]
+        )
+        self.assertEqual(
+            manifest["delivery"]["outputs"]["LOCAL_RENDERED_VISUALS"]["status"],
+            "GENERATED",
+        )
+
+    @patch(
+        "src.bpg.alpha_runtime.render_mermaid_svgs",
+        side_effect=MermaidRenderError("mmdc is NOT_IMPLEMENTED"),
+    )
+    def test_rendered_visuals_are_not_applicable_without_mermaid_source(
+        self, render_mermaid: object
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="no-mermaid")
+        state = self.freeze_prd(state, suffix="no-mermaid")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="no-mermaid"
+        )
+
+        handoff = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-no-mermaid",
+            delivery_options={"LOCAL_RENDERED_VISUALS": True},
+        )
+
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        manifest = json.loads(
+            (handoff_dir / "HANDOFF_MANIFEST.json").read_text(encoding="utf-8")
+        )
+        rendered_output = manifest["delivery"]["outputs"][
+            "LOCAL_RENDERED_VISUALS"
+        ]
+        self.assertEqual(rendered_output["status"], "NOT_APPLICABLE")
+        self.assertIsNone(rendered_output["output_ref"])
+        self.assertEqual(rendered_output["output_refs"], [])
+        self.assertFalse((handoff_dir / "assets").exists())
+        render_mermaid.assert_not_called()
 
     @patch("src.bpg.alpha_runtime.render_mermaid_svgs", return_value=[])
     def test_handoff_rejects_mermaid_source_svg_count_mismatch_without_partial_output(
@@ -1124,7 +1373,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 state["run_id"],
                 expected_state_version=state["state_version"],
                 operation_id="handoff-mermaid-count",
-                delivery_options={"LOCAL_HTML": False},
+                delivery_options={"LOCAL_RENDERED_VISUALS": True},
             )
         self.assertFalse(
             (self.controller.run_path(state["run_id"]) / "handoff" / "local").exists()
@@ -1170,6 +1419,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 state["run_id"],
                 expected_state_version=state["state_version"],
                 operation_id="handoff-mermaid-missing",
+                delivery_options={"LOCAL_RENDERED_VISUALS": True},
             )
         self.assertFalse(
             (self.controller.run_path(state["run_id"]) / "handoff" / "local").exists()
@@ -1196,6 +1446,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                     state["run_id"],
                     expected_state_version=state["state_version"],
                     operation_id="handoff-atomic-fails",
+                    delivery_options={"LOCAL_HTML": True},
                 )
 
         unchanged = self.controller.load_run(state["run_id"])
@@ -1227,6 +1478,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             state["run_id"],
             expected_state_version=state["state_version"],
             operation_id="handoff-atomic-retry",
+            delivery_options={"LOCAL_HTML": True},
         )
         self.assertEqual(completed["status"], "LOCAL_HANDOFF_COMPLETE")
         self.assertTrue(target.is_dir())
@@ -1285,6 +1537,199 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             completed["handoff"]["manifest_ref"],
             self.controller.file_ref(target / "HANDOFF_MANIFEST.json"),
         )
+
+    @patch(
+        "src.bpg.alpha_runtime.render_mermaid_svgs",
+        return_value=[
+            b'<svg xmlns="http://www.w3.org/2000/svg"><text>one</text></svg>',
+            b'<svg xmlns="http://www.w3.org/2000/svg"><text>two</text></svg>',
+        ],
+    )
+    def test_optional_handoff_recovers_exact_html_and_ordered_visual_refs(
+        self, render_mermaid: object
+    ) -> None:
+        state = self.reach_prd_authoring(
+            intent="COMMIT_NOW", suffix="handoff-optional-recovery"
+        )
+        draft = self.write_prd_draft(state["run_id"])
+        markdown = (
+            (draft / "PRD.md").read_text(encoding="utf-8")
+            + "\n```mermaid\nflowchart LR\n  A --> B\n```\n"
+            + "\n```mermaid\nsequenceDiagram\n  A->>B: done\n```\n"
+        )
+        (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-handoff-optional-recovery",
+            kind="PRD",
+            author_attempt_id="prd-author-handoff-optional-recovery",
+            source_dir=draft,
+            evals=self.evals("NOT_NEEDED"),
+            document_experience=self.document_experience(
+                state, draft, suffix="handoff-optional-recovery"
+            ),
+        )
+        state = self.pass_review(
+            state,
+            state["current_candidate"],
+            suffix="handoff-optional-recovery-prd",
+            visual_source_reviewed=True,
+        )
+        run_path = self.controller.run_path(state["run_id"])
+        state_path = run_path / "run.json"
+        target = run_path / "handoff" / "local"
+        options = {"LOCAL_HTML": True, "LOCAL_RENDERED_VISUALS": True}
+
+        def fail_run_state_write(path: Path, value: object) -> None:
+            if path == state_path:
+                raise OSError("simulated optional run.json commit failure")
+            storage_atomic_write_json(path, value)
+
+        with patch(
+            "src.bpg.alpha_runtime.atomic_write_json",
+            side_effect=fail_run_state_write,
+        ):
+            with self.assertRaisesRegex(OSError, "optional run.json commit failure"):
+                self.controller.prepare_local_handoff(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id="handoff-optional-recovery",
+                    delivery_options=options,
+                )
+
+        unchanged = self.controller.load_run(state["run_id"])
+        self.assertEqual(unchanged["state_version"], state["state_version"])
+        self.assertEqual(unchanged["status"], "READY")
+        self.assertTrue(target.is_dir())
+
+        completed = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-optional-recovery",
+            delivery_options=options,
+        )
+        outputs = completed["handoff"]["delivery"]["outputs"]
+        self.assertEqual(completed["status"], "LOCAL_HANDOFF_COMPLETE")
+        self.assertEqual(
+            outputs["LOCAL_HTML"]["output_refs"],
+            [
+                self.controller.versioned_file_ref(
+                    target / "PRD.html", state["current_candidate"]["version"]
+                )
+            ],
+        )
+        self.assertEqual(
+            outputs["LOCAL_RENDERED_VISUALS"]["output_refs"],
+            [
+                self.controller.file_ref(target / "assets/generated/mermaid-001.svg"),
+                self.controller.file_ref(target / "assets/generated/mermaid-002.svg"),
+            ],
+        )
+        render_mermaid.assert_called_once_with(markdown)
+
+    @patch(
+        "src.bpg.alpha_runtime.render_mermaid_svgs",
+        return_value=[b'<svg xmlns="http://www.w3.org/2000/svg"><text>flow</text></svg>'],
+    )
+    def test_optional_handoff_recovery_rejects_swapped_or_wrong_output_paths(
+        self, render_mermaid: object
+    ) -> None:
+        for mutation in ("swapped", "wrong-source-files"):
+            with self.subTest(mutation=mutation):
+                suffix = f"handoff-ref-{mutation}"
+                state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix=suffix)
+                draft = self.write_prd_draft(state["run_id"])
+                markdown = (
+                    (draft / "PRD.md").read_text(encoding="utf-8")
+                    + "\n```mermaid\nflowchart LR\n  A --> B\n```\n"
+                )
+                (draft / "PRD.md").write_text(markdown, encoding="utf-8")
+                state = self.controller.freeze_candidate(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id=f"freeze-{suffix}",
+                    kind="PRD",
+                    author_attempt_id=f"prd-author-{suffix}",
+                    source_dir=draft,
+                    evals=self.evals("NOT_NEEDED"),
+                    document_experience=self.document_experience(
+                        state, draft, suffix=suffix
+                    ),
+                )
+                state = self.pass_review(
+                    state,
+                    state["current_candidate"],
+                    suffix=f"{suffix}-prd",
+                    visual_source_reviewed=True,
+                )
+                run_path = self.controller.run_path(state["run_id"])
+                state_path = run_path / "run.json"
+                target = run_path / "handoff" / "local"
+                options = {"LOCAL_HTML": True, "LOCAL_RENDERED_VISUALS": True}
+
+                def fail_run_state_write(path: Path, value: object) -> None:
+                    if path == state_path:
+                        raise OSError("simulated ref run.json commit failure")
+                    storage_atomic_write_json(path, value)
+
+                with patch(
+                    "src.bpg.alpha_runtime.atomic_write_json",
+                    side_effect=fail_run_state_write,
+                ):
+                    with self.assertRaisesRegex(OSError, "ref run.json commit failure"):
+                        self.controller.prepare_local_handoff(
+                            state["run_id"],
+                            expected_state_version=state["state_version"],
+                            operation_id=f"handoff-{suffix}",
+                            delivery_options=options,
+                        )
+
+                manifest_path = target / "HANDOFF_MANIFEST.json"
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                outputs = manifest["delivery"]["outputs"]
+                if mutation == "swapped":
+                    html_ref = deepcopy(outputs["LOCAL_HTML"]["output_ref"])
+                    visual_ref = deepcopy(
+                        outputs["LOCAL_RENDERED_VISUALS"]["output_ref"]
+                    )
+                    outputs["LOCAL_HTML"]["output_ref"] = visual_ref
+                    outputs["LOCAL_HTML"]["output_refs"] = [visual_ref]
+                    outputs["LOCAL_RENDERED_VISUALS"]["output_ref"] = html_ref
+                    outputs["LOCAL_RENDERED_VISUALS"]["output_refs"] = [html_ref]
+                else:
+                    false_html_ref = self.controller.versioned_file_ref(
+                        target / "PRD.md", state["current_candidate"]["version"]
+                    )
+                    false_visual_ref = self.controller.file_ref(target / "HANDOFF.md")
+                    outputs["LOCAL_HTML"]["output_ref"] = false_html_ref
+                    outputs["LOCAL_HTML"]["output_refs"] = [false_html_ref]
+                    outputs["LOCAL_RENDERED_VISUALS"][
+                        "output_ref"
+                    ] = false_visual_ref
+                    outputs["LOCAL_RENDERED_VISUALS"]["output_refs"] = [
+                        false_visual_ref
+                    ]
+                manifest["delivery"]["primary_reading_ref"] = outputs["LOCAL_HTML"][
+                    "output_ref"
+                ]
+                manifest_path.write_text(
+                    json.dumps(manifest, ensure_ascii=False, sort_keys=True),
+                    encoding="utf-8",
+                )
+
+                state_before = state_path.read_bytes()
+                with self.assertRaisesRegex(AlphaContractError, "target already exists"):
+                    self.controller.prepare_local_handoff(
+                        state["run_id"],
+                        expected_state_version=state["state_version"],
+                        operation_id=f"handoff-{suffix}",
+                        delivery_options=options,
+                    )
+                self.assertEqual(state_path.read_bytes(), state_before)
+                self.assertEqual(
+                    self.controller.load_run(state["run_id"])["status"], "READY"
+                )
 
     def test_prd_review_v3_fails_closed_without_complete_independent_evidence(self) -> None:
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="review-v3-negative")
@@ -1411,7 +1856,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 **stale_writing,
             )
 
-    def test_prd_review_v3_ready_summary_separates_review_and_handoff_rendering(self) -> None:
+    def test_default_handoff_is_minimal_and_preserves_not_run_boundaries(self) -> None:
         state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="review-v3-ready")
         state = self.freeze_prd(state, suffix="review-v3-ready")
         state = self.pass_review(
@@ -1440,26 +1885,46 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        self.assertEqual(manifest["evidence_summary"]["handoff_rendering"], "GENERATED")
-        self.assertEqual(manifest["delivery"]["selected_modes"], ["LOCAL_HTML"])
         self.assertEqual(
-            manifest["delivery"]["outputs"]["LOCAL_HTML"]["status"], "GENERATED"
+            manifest["evidence_summary"]["handoff_rendering"],
+            "SKIPPED_NOT_SELECTED",
         )
-        self.assertEqual(manifest["delivery_options"]["LOCAL_HTML"], True)
+        self.assertEqual(manifest["delivery"]["selected_modes"], [])
+        self.assertEqual(
+            manifest["delivery"]["outputs"]["LOCAL_HTML"]["status"],
+            "SKIPPED_NOT_SELECTED",
+        )
+        self.assertEqual(
+            manifest["delivery"]["outputs"]["LOCAL_RENDERED_VISUALS"]["status"],
+            "SKIPPED_NOT_SELECTED",
+        )
+        self.assertEqual(manifest["delivery_options"]["LOCAL_HTML"], False)
+        self.assertEqual(
+            manifest["delivery_options"]["LOCAL_RENDERED_VISUALS"], False
+        )
+        self.assertEqual(
+            manifest["delivery_capabilities"]["implemented"],
+            ["LOCAL_HTML", "LOCAL_RENDERED_VISUALS"],
+        )
         self.assertEqual(
             manifest["delivery_capabilities"]["not_implemented"],
             ["LOCAL_DOCUMENT", "FEISHU_DOCUMENT", "PROJECT_MANAGEMENT_MCP"],
         )
-        self.assertTrue(
-            (self.project / handoff["handoff"]["path"] / "PRD.html").is_file()
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        self.assertEqual(
+            sorted(
+                path.relative_to(handoff_dir).as_posix()
+                for path in handoff_dir.rglob("*")
+                if path.is_file()
+            ),
+            ["HANDOFF.md", "HANDOFF_MANIFEST.json", "PRD.md"],
         )
-        note = (self.project / handoff["handoff"]["path"] / "HANDOFF.md").read_text(
-            encoding="utf-8"
-        )
+        note = (handoff_dir / "HANDOFF.md").read_text(encoding="utf-8")
         self.assertIn("Writing Review：PASS", note)
-        self.assertIn("Handoff Rendering：GENERATED", note)
+        self.assertIn("Handoff Rendering：SKIPPED_NOT_SELECTED", note)
         self.assertIn("Human Reader Validation：NOT_RUN", note)
         self.assertIn("Product Eval Execution：NOT_RUN", note)
+        self.assertEqual(handoff["retrospective_status"], "NOT_RUN")
         self.assertEqual(
             set(handoff["retrospective_requirements"]["check_ids"]),
             set(RETROSPECTIVE_CONFORMANCE_IDS),
@@ -1522,8 +1987,11 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         self.assertTrue((handoff_dir / "PRD.md").is_file())
         self.assertEqual(manifest["delivery_options"]["LOCAL_HTML"], False)
         self.assertEqual(
+            manifest["delivery_options"]["LOCAL_RENDERED_VISUALS"], False
+        )
+        self.assertEqual(
             manifest["delivery"]["outputs"]["LOCAL_HTML"]["status"],
-            "SKIPPED_BY_USER",
+            "SKIPPED_NOT_SELECTED",
         )
         self.assertEqual(
             manifest["delivery"]["primary_reading_ref"]["path"],
@@ -1531,7 +1999,7 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(
             manifest["evidence_summary"]["handoff_rendering"],
-            "SKIPPED_BY_USER",
+            "SKIPPED_NOT_SELECTED",
         )
 
     def test_local_handoff_rejects_enabled_unimplemented_delivery_mode(self) -> None:
@@ -1564,7 +2032,12 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         )
 
         for index, options in enumerate(
-            ({"LOCAL_HTML": "false"}, {"UNKNOWN_DELIVERY": False}), start=1
+            (
+                {"LOCAL_HTML": "false"},
+                {"LOCAL_RENDERED_VISUALS": "true"},
+                {"UNKNOWN_DELIVERY": False},
+            ),
+            start=1,
         ):
             with self.subTest(options=options), self.assertRaisesRegex(
                 AlphaContractError, "delivery options"
@@ -1626,8 +2099,178 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(AlphaContractError, "Candidate.*changed"):
             self.pass_review(state, candidate, suffix="tampered")
 
+    def test_rereview_work_order_build_rejects_missing_or_changed_exact_basis_without_writes(
+        self,
+    ) -> None:
+        cases = (
+            ("candidate", "missing"),
+            ("candidate", "changed"),
+            ("review", "missing"),
+            ("review", "changed"),
+            ("planning", "missing"),
+            ("planning", "changed"),
+        )
+        for target_name, damage in cases:
+            suffix = f"build-{target_name}-{damage}"
+            with self.subTest(target=target_name, damage=damage):
+                state, candidate, review = self.reach_problem_rereview_authoring(
+                    suffix=suffix
+                )
+                target_ref = {
+                    "candidate": candidate,
+                    "review": review["review_ref"],
+                    "planning": state["planning_record_ref"],
+                }[target_name]
+                target = self.project / target_ref["path"]
+                original = target.read_bytes()
+                original_mode = target.stat().st_mode & 0o777
+                if damage == "missing":
+                    target.unlink()
+                else:
+                    target.chmod(0o600)
+                    target.write_bytes(original + b"\ntampered\n")
+
+                run_path = self.controller.run_path(state["run_id"])
+                state_path = run_path / "run.json"
+                state_before = state_path.read_bytes()
+                objects_before = sorted(
+                    path.relative_to(run_path).as_posix()
+                    for path in (run_path / "objects").rglob("*")
+                    if path.is_file()
+                )
+                operation_id = f"freeze-revision-{suffix}"
+                with self.assertRaisesRegex(
+                    AlphaContractError, "re-review.*missing or changed"
+                ):
+                    self.controller.freeze_candidate(
+                        state["run_id"],
+                        expected_state_version=state["state_version"],
+                        operation_id=operation_id,
+                        kind="PROBLEM",
+                        author_attempt_id=f"problem-author-revision-{suffix}",
+                    )
+
+                self.assertEqual(state_path.read_bytes(), state_before)
+                self.assertEqual(
+                    sorted(
+                        path.relative_to(run_path).as_posix()
+                        for path in (run_path / "objects").rglob("*")
+                        if path.is_file()
+                    ),
+                    objects_before,
+                )
+                self.assertNotIn(
+                    "current_rereview_work_order",
+                    self.controller.load_run(state["run_id"]),
+                )
+
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(original)
+                target.chmod(original_mode)
+                retried = self.controller.freeze_candidate(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id=operation_id,
+                    kind="PROBLEM",
+                    author_attempt_id=f"problem-author-revision-{suffix}",
+                )
+                self.assertIn("current_rereview_work_order", retried)
+
+    def test_rereview_submission_revalidates_exact_basis_without_partial_review(
+        self,
+    ) -> None:
+        cases = (
+            ("candidate", "missing"),
+            ("candidate", "changed"),
+            ("review", "missing"),
+            ("review", "changed"),
+            ("planning", "missing"),
+            ("planning", "changed"),
+        )
+        for target_name, damage in cases:
+            suffix = f"submit-{target_name}-{damage}"
+            with self.subTest(target=target_name, damage=damage):
+                state, candidate, review = self.reach_problem_rereview_authoring(
+                    suffix=suffix
+                )
+                state = self.controller.freeze_candidate(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id=f"freeze-revision-{suffix}",
+                    kind="PROBLEM",
+                    author_attempt_id=f"problem-author-revision-{suffix}",
+                )
+                revised = deepcopy(state["current_candidate"])
+                target_ref = {
+                    "candidate": candidate,
+                    "review": review["review_ref"],
+                    "planning": state["planning_record_ref"],
+                }[target_name]
+                target = self.project / target_ref["path"]
+                original = target.read_bytes()
+                original_mode = target.stat().st_mode & 0o777
+                if damage == "missing":
+                    target.unlink()
+                else:
+                    target.chmod(0o600)
+                    target.write_bytes(original + b"\ntampered\n")
+
+                run_path = self.controller.run_path(state["run_id"])
+                state_path = run_path / "run.json"
+                state_before = state_path.read_bytes()
+                reviews_before = sorted(
+                    path.relative_to(run_path).as_posix()
+                    for path in (run_path / "reviews").rglob("*")
+                    if path.is_file()
+                )
+                operation_id = f"review-revision-{suffix}"
+                review_args = {
+                    "candidate_ref": revised,
+                    "reviewer_attempt_id": f"reviewer-revision-{suffix}",
+                    "reviewer_execution_ref": {
+                        "kind": "HOST_SUBAGENT_ATTEMPT",
+                        "id": f"reviewer-revision-{suffix}",
+                    },
+                    "verdict": "PASS",
+                    "findings": [],
+                    "review_mode": "DIFF_AND_REGRESSION",
+                    "diff_base_candidate_ref": candidate,
+                    "global_regression": "PASS",
+                }
+                with self.assertRaisesRegex(
+                    AlphaContractError, "re-review.*missing or changed"
+                ):
+                    self.controller.submit_review(
+                        state["run_id"],
+                        expected_state_version=state["state_version"],
+                        operation_id=operation_id,
+                        **review_args,
+                    )
+
+                self.assertEqual(state_path.read_bytes(), state_before)
+                self.assertEqual(
+                    sorted(
+                        path.relative_to(run_path).as_posix()
+                        for path in (run_path / "reviews").rglob("*")
+                        if path.is_file()
+                    ),
+                    reviews_before,
+                )
+
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(original)
+                target.chmod(original_mode)
+                retried = self.controller.submit_review(
+                    state["run_id"],
+                    expected_state_version=state["state_version"],
+                    operation_id=operation_id,
+                    **review_args,
+                )
+                self.assertEqual(retried["current_review"]["verdict"], "PASS")
+
     def test_revision_requires_diff_review_and_stops_after_two_rounds_by_reason(self) -> None:
         state, candidate = self.reach_problem_review()
+        self.assertNotIn("current_rereview_work_order", state)
         state = self.controller.submit_review(
             state["run_id"],
             expected_state_version=state["state_version"],
@@ -1675,6 +2318,38 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
         revised = state["current_candidate"]
         self.assertEqual(revised["revision_round"], 1)
         self.assertEqual((self.project / candidate["path"]).read_bytes(), original)
+        work_order = state["current_rereview_work_order"]
+        self.assertEqual(work_order["source_candidate_ref"], revised["supersedes"])
+        self.assertEqual(
+            work_order["current_candidate_ref"],
+            {
+                key: revised[key]
+                for key in ("candidate_id", "kind", "path", "hash", "version")
+            },
+        )
+        self.assertEqual(work_order["review_ref"], state["review_routes"][-1]["review_ref"])
+        self.assertEqual(work_order["finding_refs"], ["F-1"])
+        self.assertEqual(work_order["lead_agent_attempt_id"], "lead-r0")
+        self.assertEqual(work_order["return_reason"], "问题诊断需要修正")
+        self.assertEqual(work_order["planning_record_ref"], state["planning_record_ref"])
+        self.assertEqual(work_order["rereview_scope"], ["问题定义", "成功标准"])
+        self.assertEqual(work_order["scope_basis"], "REVIEW_ROUTE")
+        self.assertEqual(
+            work_order["global_regression_checklist"],
+            [
+                "SCOPE",
+                "AUTHORITY",
+                "ACCEPTANCE",
+                "STATUS_DRIFT",
+                "CROSS_SECTION_CONTRADICTION",
+                "DOCUMENT_NAVIGATION",
+            ],
+        )
+        self.assertNotIn("diff_ref", work_order)
+        self.assertEqual(
+            self.controller.load_run(state["run_id"])["current_rereview_work_order"],
+            work_order,
+        )
 
         with self.assertRaisesRegex(AlphaContractError, "difference.*regression"):
             self.pass_review(state, revised, suffix="missing-diff")
@@ -1776,6 +2451,80 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
                 kind="PROBLEM",
                 author_attempt_id="problem-author-r3",
             )
+
+    def test_decision_revision_exposes_route_based_rereview_work_order(self) -> None:
+        state, candidate = self.reach_problem_review(suffix="decision-rereview")
+        state = self.pass_review(
+            state, candidate, suffix="decision-rereview-problem"
+        )
+        state = self.update_record(
+            state,
+            position="DISCOVER_SOLUTIONS_DECIDE",
+            suffix="decision-rereview-initial",
+        )
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-decision-rereview-initial",
+            kind="DECISION",
+            author_attempt_id="decision-author-rereview-initial",
+        )
+        initial = deepcopy(state["current_candidate"])
+        self.assertNotIn("current_rereview_work_order", state)
+        state = self.controller.submit_review(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="review-decision-rereview-initial",
+            candidate_ref=initial,
+            reviewer_attempt_id="decision-reviewer-rereview-initial",
+            reviewer_execution_ref={
+                "kind": "HOST_SUBAGENT_ATTEMPT",
+                "id": "decision-reviewer-rereview-initial",
+            },
+            verdict="REVISE",
+            findings=[
+                {
+                    "finding_id": "F-DECISION-REREVIEW",
+                    "claim": "方案边界与验收关系需要修正。",
+                    "evidence_refs": [initial],
+                    "severity": "MAJOR",
+                    "affected_scope": ["方案边界", "验收关系"],
+                    "invalidated_assumptions_or_artifacts": ["Decision Candidate"],
+                    "local_revision_sufficiency": "SUFFICIENT",
+                    "status": "OPEN",
+                }
+            ],
+        )
+        state = self.controller.submit_review_route(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="route-decision-rereview-initial",
+            review_ref=state["current_review"]["review_ref"],
+            lead_agent_attempt_id="decision-lead-rereview",
+            finding_refs=["F-DECISION-REREVIEW"],
+            return_target="DISCOVER_SOLUTIONS_DECIDE",
+            return_reason="修正方案边界与验收关系。",
+            affected_scope=["方案边界", "验收关系"],
+        )
+        state = self.update_record(
+            state,
+            position="DISCOVER_SOLUTIONS_DECIDE",
+            suffix="decision-rereview-revision",
+        )
+        state = self.controller.freeze_candidate(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="freeze-decision-rereview-revision",
+            kind="DECISION",
+            author_attempt_id="decision-author-rereview-revision",
+        )
+
+        work_order = state["current_rereview_work_order"]
+        self.assertEqual(work_order["source_candidate_ref"], state["current_candidate"]["supersedes"])
+        self.assertEqual(work_order["review_ref"], state["review_routes"][-1]["review_ref"])
+        self.assertEqual(work_order["finding_refs"], ["F-DECISION-REREVIEW"])
+        self.assertEqual(work_order["rereview_scope"], ["方案边界", "验收关系"])
+        self.assertEqual(work_order["planning_record_ref"], state["planning_record_ref"])
 
     def test_six_decision_outcomes_form_distinct_states(self) -> None:
         cases = {

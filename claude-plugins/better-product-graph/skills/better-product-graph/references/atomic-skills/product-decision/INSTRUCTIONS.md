@@ -15,6 +15,34 @@ Lead with one clear Chinese recommendation, two or three key reasons, the larges
 
 The Owner may answer in ordinary language. Translate that answer into the exact Owner command only after the Agent proposal has been accepted. Do not put `owner_choice`, `owner_authorized`, or `commit_timing` in the Agent draft. If the Owner disagrees, make at most one substantive challenge and then preserve both positions without endless debate.
 
+## Bounded author semantic preflight before Decision freeze
+
+Before the Host freezes the exact Decision draft, perform one bounded semantic
+author preflight over that draft. Reuse the current Solution Intelligence
+self-check and the existing author self-check `diagnoses` and `actions` notes in
+the mutable working record; do not add fields to the closed `semantic_output`
+below or create another artifact. Check only whether the draft:
+
+- compares the recommendation with at least one real nearest alternative and
+  states the material trade-off and flip condition;
+- makes any sensitive-data, privacy, permission, or other material policy
+  boundary visible when it applies;
+- states reversibility, rollback or stop behavior, and what can be observed to
+  decide whether the recommendation worked; and
+- grounds any quantitative baseline in bound evidence, or marks it as an
+  Assumption or Unknown instead of fabricating precision.
+
+Use `diagnoses` for the observed Decision risks and `actions` for the smallest
+repair, explicit Unknown, upstream return, or concrete no-change reason. A
+material unresolved gap is repaired or returned upstream before freeze. This is
+`AUTHOR_SELF_CHECK_NOT_INDEPENDENT_APPROVAL`: it creates no Candidate, Review
+attempt, revision-round consumption, approval, route authorization, Controller
+schema, state, action, Gate, or Owner round. The independent Decision Reviewer
+still reviews the frozen Candidate and the Owner boundary remains unchanged.
+
+This is Agent semantic judgment. Do not replace it with keyword, image, or hash
+rules, and do not ask a program to decide whether meaning is adequate.
+
 ## Exact Agent submission contract
 
 Submit the following object as `semantic_output`. Keep every key and value type shown below. Replace the example content with conclusions derived from the exact bound inputs; do not copy its product claim as fact.

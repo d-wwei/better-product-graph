@@ -1,14 +1,26 @@
 # Changelog
 
+## 2.0.2 — 2026-09-02 — Agent-first quality, review, and delivery-cost repairs
+
+- Close Issue #1 with a bounded Agent-authored semantic preflight before Problem, Decision, and PRD Candidate freeze. It reuses existing diagnoses/actions, never becomes independent approval, and adds no schema, state, Gate, or Owner round.
+- Close Issue #2 by reusing `planning_context.context_summary` and the maintained Planning Record as the compact stage context. Material facts remain traceable to canonical exact refs; no Evidence Digest artifact, hash budget, or token-savings claim is introduced.
+- Close Issue #3 with an exact `current_rereview_work_order` for revised Candidates. It binds source/current Candidate refs, prior Review/Finding refs, Planning Record repair basis, focused scope, and a bounded whole-product regression checklist while leaving semantic comparison to the Reviewer.
+- Resolve Issue #4 by consuming the complete state and next-work material returned by successful operations instead of immediately calling `status`. The repair deliberately does not merge semantic steps, durable events, Owner decisions, Reviewer work, or external side effects into a compound Controller API.
+- Close Issue #5 by making Local Handoff Markdown-only by default. `LOCAL_HTML` and `LOCAL_RENDERED_VISUALS` default off; requested derived outputs are produced only after Ready, and Retrospective remains optional.
+- Close Issue #6 with a Reviewer return-boundary check against the exact output contract. A Reviewer may make at most one same-attempt structure-only correction without changing Findings, Verdict, basis, coverage, or evidence meaning; semantic reconsideration requires a fresh independent dispatch with no inherited parent conversation.
+- Track Issue #7 honestly: the implementation removes redundant round trips and accumulated context practices, but a comparable real Golden Run measuring elapsed time, context, Token cost, and PRD quality remains `NOT_RUN`. No efficiency or quality gain is claimed from `894/894 PASS` alone.
+- Keep the implementation Agent-first and the Controller thin: Agents own meaning, comparison, judgment, and review; deterministic code remains limited to exact identity, refs, legal transitions, persistence, recovery, and requested output materialization.
+- Freeze the formal `v2.0.2` Tag and GitHub Release from the exact clean development source recorded in `RELEASE_SOURCE.json`, with deterministic Codex/Claude Marketplace ZIPs and `SHA256SUMS`.
+
 ## 2.0.1 — 2026-09-01 — Review, Ready, and Handoff integrity hotfix
 
 - Repair the R1–R4 integrity gaps without adding a new capability: explicitly rebind the nine Stage 4 dispositions after Planning Record changes in PRD Authoring; keep live Candidate, Review, Ready, Handoff, and execution status out of durable product truth; preserve historical Reviews while recording Agent-owned Finding dispositions in the Planning Record; and keep `COMMIT_NOW` authorization judgment with the Host Agent instead of inventing a Controller receipt or Gate.
 - Resolve R5–R8 within the BPG 2.0 method boundary: retain a new whole-Candidate Review with difference review plus whole-product regression after Candidate changes; keep Candidate visuals as Mermaid source and defer rendering to Handoff; separate durable Planning Record reasoning from Controller-owned runtime status; and require an Agent-owned Solution Intelligence check or a concrete `NOT_APPLICABLE` rationale before Decision freeze.
 - Align R10 with the implemented BPG 2.0 scope. Product Evals applicability, Pack generation, and Eval Spec Review remain future 2.2 capabilities and do not block 2.0 Ready or Local Handoff. Product Evals execution and product-effect validation remain `NOT_RUN` unless separately observed.
-- Correct the conflicting v2.0.0 release-note claim that a `REQUIRED` Product Evals assessment blocks Ready. BPG 2.0 does not perform that applicability assessment at all; it neither generates an Eval Pack nor runs Eval Spec Review, and none of those future 2.2 responsibilities is a 2.0 Gate.
 - Require every formal semantic Reviewer to start with clean inherited context and only the exact dispatched immutable basis; this remains a Host execution rule and does not add a Runtime isolation receipt.
 - Make Local Handoff materialization and state completion atomic and recoverable: Mermaid SVG and optional HTML are generated only after Ready, rendering failures leave no partial final target, pre-existing user content is preserved, and an exact published Handoff can be recovered after a state-write failure.
-- Bind final development, public-snapshot, dual-Host package, checksum, and installed-identity evidence in `RELEASE_SOURCE.json`. Mechanical evidence does not claim Product Evals execution, human-reader validation, engineering implementation/tests, external delivery, or product effect.
+- Verify the completed hotfix source line at `868/868 PASS`. This mechanical evidence does not claim Product Evals execution, human-reader validation, engineering implementation/tests, external delivery, or product effect.
+- Freeze the formal `v2.0.1` Tag and GitHub Release from development source commit `58e4fafaf7f3d9696a2d0060b7d12c299be6c8ab` and public snapshot commit `6faf77b994f679b718956905af9d211058bb8dfd`, with exact Codex/Claude Marketplace ZIPs and `SHA256SUMS`.
 
 ## 2.0.0 — 2026-09-01 — BPG 2.0 default single-PRD architecture
 

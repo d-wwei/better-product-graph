@@ -79,6 +79,18 @@ class BPG2AlphaHTMLTests(unittest.TestCase):
             body,
         )
 
+    def test_html_preserves_mermaid_source_when_rendered_visuals_are_not_selected(
+        self,
+    ) -> None:
+        rendered = render_self_contained_prd_html(
+            "```mermaid\nflowchart LR\nA --> B\n```\n",
+            {},
+        )
+
+        self.assertIn('<code class="language-mermaid">', rendered)
+        self.assertIn("flowchart LR", rendered)
+        self.assertNotIn("data:image/svg+xml;base64,", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

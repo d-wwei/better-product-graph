@@ -8,7 +8,7 @@ from scripts.build_plugin import build_plugin
 
 
 ROOT = Path(__file__).resolve().parents[1]
-METHOD = ROOT / "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+METHOD = ROOT / "docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
 CODEX_SKILL = ROOT / "host-adapters/codex/public-skill/better-product-graph/SKILL.md"
 CLAUDE_SKILL = ROOT / "host-adapters/claude/public-skill/better-product-graph/SKILL.md"
 PROBLEM_REVIEW = ROOT / "src/core/atomic-skills/problem-quality-review/INSTRUCTIONS.md"
@@ -89,7 +89,7 @@ class ReviewerCleanContextContractTests(unittest.TestCase):
                     self.assertIn('undispatched workspace material', skill)
                     method = read(
                         skill_root
-                        / "references/alpha/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md"
+                        / "references/alpha/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"
                     )
                     self.assertIn("Clean Reviewer Context", method)
                     self.assertIn('fork_turns="none"', method)
