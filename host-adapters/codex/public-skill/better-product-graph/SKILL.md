@@ -106,6 +106,22 @@ For PRD delivery, BPG 2.0 does not run Product Evals applicability, Pack generat
 
 Translate the user's natural-language Handoff preference into the optional `delivery_options` object. Each delivery mode owns an independent boolean switch. `LOCAL_HTML` defaults to `false`; `LOCAL_RENDERED_VISUALS` defaults to `false`. No explicit delivery option means Markdown-only local delivery: produce only `PRD.md` plus the minimum Handoff evidence. This default does not call the Mermaid renderer. Generate `PRD.html` only when `LOCAL_HTML` is explicitly enabled; HTML may preserve the Mermaid source when rendered visuals are not selected. SVG files are generated only when `LOCAL_RENDERED_VISUALS` is explicitly enabled. This Alpha implements `LOCAL_HTML` and `LOCAL_RENDERED_VISUALS`; `LOCAL_DOCUMENT`, `FEISHU_DOCUMENT`, and `PROJECT_MANAGEMENT_MCP` remain reserved and `NOT_IMPLEMENTED`. Enabling an unimplemented mode must fail explicitly, with no simulated external side effect. Do not make the user write JSON or ask about switches when their false defaults already match the request.
 
+When `LOCAL_HTML` is requested, do not use raw Markdown-to-HTML conversion as
+the normal path. Read the exact Ready `PRD.md` and
+`references/policies/prd-reader-html-guide-v1.md`, then author a separate
+zero-context reading view. Write it inside the current Run's `work/` directory,
+create an exact `html_source_ref` with `path`, `hash`, and the current Candidate
+`version`, and submit that ref with the `handoff` action. The resulting
+`html_generation.mode` must be `AGENT_AUTHORED_ZERO_CONTEXT_VIEW`.
+
+The HTML is a non-authoritative reading projection. It may reorder, explain,
+group and visually compare material, but it must not change product meaning,
+invent evidence, or turn a proposed/not-run state into implementation or
+validation. `PRD.md` remains the editing truth. Before reporting completion,
+check the generated page in a real browser at 1440px and 390px as specified by
+the guide; if browser access is unavailable, report that validation as
+`NOT_RUN`.
+
 Retrospective is optional and non-blocking. Continue to `retrospective` only when the user or project policy explicitly requires it; otherwise leave its status truthful as `NOT_RUN` and finish the task. It does not block Local Handoff completion or task end. Later audits are ordinary append-only documents; they do not add a Controller action or rewrite a historical Review. Report Human Reader validation, Product Eval execution, external delivery, engineering receipt/tests, and product-effect validation as `NOT_RUN` unless separately observed. Never call this path multi-PRD, production-ready, externally delivered, or backward compatible with pre-2.0 Runs.
 
 For `resume`, the runtime fingerprint must exactly match the Run. If it differs, stop recovery and explain the mismatch; this Alpha does not implement predecessor compatibility or version migration.

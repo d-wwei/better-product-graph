@@ -5,12 +5,13 @@ import subprocess
 import tempfile
 import unittest
 from copy import deepcopy
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from unittest.mock import patch
 
 from src.bpg.alpha_html import MermaidRenderError
 from src.bpg.alpha_runtime import AlphaContractError, BPG2AlphaController
 from src.bpg.storage import atomic_write_json as storage_atomic_write_json
+from tests.test_bpg2_alpha_html import ZERO_CONTEXT_HTML
 
 
 PRD_MARKDOWN = """# 单 PRD Alpha
@@ -1234,6 +1235,142 @@ class BPG2AlphaRuntimeTests(unittest.TestCase):
             "SKIPPED_NOT_SELECTED",
         )
         render_mermaid.assert_not_called()
+
+    @patch(
+        "src.bpg.alpha_runtime.render_self_contained_prd_html",
+        side_effect=AssertionError("agent-authored HTML must not use Markdown fallback"),
+    )
+    def test_handoff_publishes_exact_agent_authored_zero_context_html(
+        self, render_html: object
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="reader-html")
+        state = self.freeze_prd(state, suffix="reader-html")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="reader-html"
+        )
+        source = (
+            self.controller.run_path(state["run_id"])
+            / "work"
+            / "handoff"
+            / "PRD.zero-context.html"
+        )
+        source.parent.mkdir(parents=True)
+        source.write_text(ZERO_CONTEXT_HTML, encoding="utf-8")
+        source_ref = self.controller.versioned_file_ref(
+            source, state["current_candidate"]["version"]
+        )
+
+        handoff = self.controller.prepare_local_handoff(
+            state["run_id"],
+            expected_state_version=state["state_version"],
+            operation_id="handoff-reader-html",
+            delivery_options={"LOCAL_HTML": True},
+            html_source_ref=source_ref,
+        )
+
+        handoff_dir = self.project / handoff["handoff"]["path"]
+        self.assertEqual(
+            (handoff_dir / "PRD.html").read_text(encoding="utf-8"),
+            ZERO_CONTEXT_HTML,
+        )
+        manifest = json.loads(
+            (handoff_dir / "HANDOFF_MANIFEST.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            manifest["delivery"]["html_generation"],
+            {
+                "schema_version": "bpg2-html-generation.v1",
+                "mode": "AGENT_AUTHORED_ZERO_CONTEXT_VIEW",
+                "input_ref": source_ref,
+            },
+        )
+        self.assertEqual(
+            manifest["delivery"]["source_truth_ref"]["hash"],
+            self.controller.file_ref(handoff_dir / "PRD.md")["hash"],
+        )
+        render_html.assert_not_called()
+
+    def test_handoff_rejects_invalid_agent_authored_html_without_partial_output(
+        self,
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="bad-reader-html")
+        state = self.freeze_prd(state, suffix="bad-reader-html")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="bad-reader-html"
+        )
+        source = (
+            self.controller.run_path(state["run_id"])
+            / "work"
+            / "handoff"
+            / "PRD.zero-context.html"
+        )
+        source.parent.mkdir(parents=True)
+        source.write_text(
+            ZERO_CONTEXT_HTML.replace(
+                "</body>", "<script>console.log('x')</script></body>"
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(AlphaContractError, "zero-context HTML"):
+            self.controller.prepare_local_handoff(
+                state["run_id"],
+                expected_state_version=state["state_version"],
+                operation_id="handoff-bad-reader-html",
+                delivery_options={"LOCAL_HTML": True},
+                html_source_ref=self.controller.versioned_file_ref(
+                    source, state["current_candidate"]["version"]
+                ),
+            )
+
+        self.assertFalse(
+            (self.controller.run_path(state["run_id"]) / "handoff" / "local").exists()
+        )
+
+    def test_handoff_rejects_reader_html_outside_run_work_or_wrong_version(
+        self,
+    ) -> None:
+        state = self.reach_prd_authoring(intent="COMMIT_NOW", suffix="reader-ref")
+        state = self.freeze_prd(state, suffix="reader-ref")
+        state = self.pass_review(
+            state, state["current_candidate"], suffix="reader-ref"
+        )
+        source = self.project / "outside-reader.html"
+        source.write_text(ZERO_CONTEXT_HTML, encoding="utf-8")
+        escaped_source = self.controller.run_path(state["run_id"]) / "outside-reader.html"
+        escaped_source.write_text(ZERO_CONTEXT_HTML, encoding="utf-8")
+        run_source = self.controller.run_path(state["run_id"]) / "work" / "reader.html"
+        run_source.write_text(ZERO_CONTEXT_HTML, encoding="utf-8")
+        escaped_ref = self.controller.file_ref(escaped_source)
+        escaped_path = PurePosixPath(escaped_ref["path"])
+
+        invalid_refs = {
+            "outside work": self.controller.versioned_file_ref(
+                source, state["current_candidate"]["version"]
+            ),
+            "lexical work escape": {
+                "path": (
+                    escaped_path.parent / "work" / ".." / escaped_path.name
+                ).as_posix(),
+                "hash": escaped_ref["hash"],
+                "version": state["current_candidate"]["version"],
+            },
+            "wrong version": {
+                **self.controller.file_ref(run_source),
+                "version": state["current_candidate"]["version"] + 1,
+            },
+        }
+
+        for label, source_ref in invalid_refs.items():
+            with self.subTest(label=label):
+                with self.assertRaises(AlphaContractError):
+                    self.controller.prepare_local_handoff(
+                        state["run_id"],
+                        expected_state_version=state["state_version"],
+                        operation_id=f"handoff-reader-ref-{label}",
+                        delivery_options={"LOCAL_HTML": True},
+                        html_source_ref=source_ref,
+                    )
 
     def test_handoff_materializes_indented_uppercase_mermaid_when_html_is_off(
         self,

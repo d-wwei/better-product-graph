@@ -21,6 +21,7 @@ from .alpha_html import (
     extract_mermaid_sources,
     render_mermaid_svgs,
     render_self_contained_prd_html,
+    validate_zero_context_prd_html,
 )
 from .locking import exclusive_file_lock
 from .storage import (
@@ -2347,6 +2348,7 @@ class BPG2AlphaController:
         ready: dict[str, Any],
         delivery_options: dict[str, bool],
         source_truth_ref: dict[str, Any],
+        html_generation: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Validate one fully published Handoff after an interrupted state commit."""
 
@@ -2360,7 +2362,7 @@ class BPG2AlphaController:
             manifest_path = assert_managed_path(target, Path("HANDOFF_MANIFEST.json"))
             manifest = read_json(manifest_path)
             if (
-                manifest.get("schema_version") != "bpg2-alpha-local-handoff.v4"
+                manifest.get("schema_version") != "bpg2-alpha-local-handoff.v5"
                 or manifest.get("run_id") != run_id
                 or manifest.get("candidate_ref") != self._candidate_ref(candidate)
                 or manifest.get("ready_ref") != ready
@@ -2371,6 +2373,7 @@ class BPG2AlphaController:
             if (
                 not isinstance(delivery, dict)
                 or delivery.get("source_truth_ref") != source_truth_ref
+                or delivery.get("html_generation") != html_generation
                 or delivery.get("selected_modes")
                 != sorted(mode for mode, enabled in delivery_options.items() if enabled)
             ):
@@ -2463,6 +2466,15 @@ class BPG2AlphaController:
                     output.get("output_refs") if isinstance(output, dict) else None
                 )
                 if (
+                    mode == "LOCAL_HTML"
+                    and expected_status == "GENERATED"
+                    and html_generation["mode"]
+                    == "AGENT_AUTHORED_ZERO_CONTEXT_VIEW"
+                    and expected_output_refs[0].get("hash")
+                    != html_generation["input_ref"].get("hash")
+                ):
+                    raise AlphaContractError(failure)
+                if (
                     not isinstance(output, dict)
                     or set(output)
                     != {
@@ -2530,6 +2542,7 @@ class BPG2AlphaController:
         expected_state_version: int,
         operation_id: str,
         delivery_options: dict[str, bool] | None = None,
+        html_source_ref: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         normalized_delivery_options = deepcopy(DEFAULT_HANDOFF_DELIVERY_OPTIONS)
         if delivery_options is not None:
@@ -2550,9 +2563,14 @@ class BPG2AlphaController:
             raise AlphaContractError(
                 f"Handoff delivery mode {', '.join(unavailable)} is NOT_IMPLEMENTED"
             )
+        if html_source_ref is not None and not normalized_delivery_options["LOCAL_HTML"]:
+            raise AlphaContractError(
+                "html_source_ref requires LOCAL_HTML to be enabled"
+            )
         payload = self._operation_payload(
             "prepare_local_handoff",
             delivery_options=normalized_delivery_options,
+            html_source_ref=deepcopy(html_source_ref),
         )
 
         def apply(state: dict[str, Any]) -> None:
@@ -2570,6 +2588,62 @@ class BPG2AlphaController:
                 "review_basis_refs"
             ]["prd"]
             source_truth_path = self._verify_file_ref(source_truth_ref)
+            html_source_bytes: bytes | None = None
+            if normalized_delivery_options["LOCAL_HTML"] and html_source_ref is not None:
+                if not isinstance(html_source_ref, dict) or set(html_source_ref) != {
+                    "path",
+                    "hash",
+                    "version",
+                }:
+                    raise AlphaContractError(
+                        "html_source_ref requires exact path/hash/version"
+                    )
+                if (
+                    type(html_source_ref.get("version")) is not int
+                    or html_source_ref.get("version") != candidate["version"]
+                ):
+                    raise AlphaContractError(
+                        "html_source_ref version must match the current Candidate"
+                    )
+                html_source_path = self._verify_file_ref(html_source_ref)
+                try:
+                    html_source_path.resolve().relative_to(
+                        (self.run_path(run_id) / "work").resolve()
+                    )
+                except ValueError as error:
+                    raise AlphaContractError(
+                        "html_source_ref must stay inside the current Run work directory"
+                    ) from error
+                if html_source_path.suffix.casefold() != ".html":
+                    raise AlphaContractError("html_source_ref must point to an HTML file")
+                html_source_bytes = html_source_path.read_bytes()
+                try:
+                    html_source_text = html_source_bytes.decode("utf-8")
+                except UnicodeDecodeError as error:
+                    raise AlphaContractError(
+                        "zero-context HTML must be valid UTF-8"
+                    ) from error
+                try:
+                    validate_zero_context_prd_html(html_source_text)
+                except ValueError as error:
+                    raise AlphaContractError(str(error)) from error
+                html_generation = {
+                    "schema_version": "bpg2-html-generation.v1",
+                    "mode": "AGENT_AUTHORED_ZERO_CONTEXT_VIEW",
+                    "input_ref": deepcopy(html_source_ref),
+                }
+            elif normalized_delivery_options["LOCAL_HTML"]:
+                html_generation = {
+                    "schema_version": "bpg2-html-generation.v1",
+                    "mode": "LEGACY_MARKDOWN_RENDER_FALLBACK",
+                    "input_ref": None,
+                }
+            else:
+                html_generation = {
+                    "schema_version": "bpg2-html-generation.v1",
+                    "mode": "NOT_SELECTED",
+                    "input_ref": None,
+                }
             final_target = assert_managed_path(
                 self.run_path(run_id), Path("handoff/local")
             )
@@ -2599,6 +2673,7 @@ class BPG2AlphaController:
                     ready=state["ready"],
                     delivery_options=normalized_delivery_options,
                     source_truth_ref=source_truth_ref,
+                    html_generation=html_generation,
                 )
                 record_complete_handoff(manifest, manifest_ref)
                 return
@@ -2692,26 +2767,29 @@ class BPG2AlphaController:
                         "output_refs": rendered_visual_refs,
                     }
                 if normalized_delivery_options["LOCAL_HTML"]:
-                    assets = (
-                        {
-                            path.relative_to(target).as_posix(): path.read_bytes()
-                            for path in sorted((target / "assets").rglob("*"))
-                            if path.is_file()
-                        }
-                        if (target / "assets").is_dir()
-                        else {}
-                    )
-                    html_bytes = render_self_contained_prd_html(
-                        source_markdown,
-                        assets,
-                        mermaid_svgs=(
-                            rendered_mermaid
-                            if normalized_delivery_options[
-                                "LOCAL_RENDERED_VISUALS"
-                            ]
-                            else None
-                        ),
-                    ).encode("utf-8")
+                    if html_source_bytes is not None:
+                        html_bytes = html_source_bytes
+                    else:
+                        assets = (
+                            {
+                                path.relative_to(target).as_posix(): path.read_bytes()
+                                for path in sorted((target / "assets").rglob("*"))
+                                if path.is_file()
+                            }
+                            if (target / "assets").is_dir()
+                            else {}
+                        )
+                        html_bytes = render_self_contained_prd_html(
+                            source_markdown,
+                            assets,
+                            mermaid_svgs=(
+                                rendered_mermaid
+                                if normalized_delivery_options[
+                                    "LOCAL_RENDERED_VISUALS"
+                                ]
+                                else None
+                            ),
+                        ).encode("utf-8")
                     atomic_write_bytes(target / "PRD.html", html_bytes)
                     html_ref = published_ref(
                         target / "PRD.html", version=candidate["version"]
@@ -2746,6 +2824,7 @@ class BPG2AlphaController:
                     "本交接只包含当前精确 PRD Release Set 的本地文件。\n\n"
                     f"- 默认阅读：{primary_reading_name}\n"
                     "- 编辑真源：PRD.md\n"
+                    f"- HTML 生成方式：{html_generation['mode']}\n"
                     "- Handoff 方式开关：\n"
                     f"{option_lines}"
                     f"- Contract Readiness：{evidence_summary['contract_readiness']}\n"
@@ -2771,7 +2850,7 @@ class BPG2AlphaController:
                             }
                         )
                 manifest = {
-                    "schema_version": "bpg2-alpha-local-handoff.v4",
+                    "schema_version": "bpg2-alpha-local-handoff.v5",
                     "run_id": run_id,
                     "candidate_ref": self._candidate_ref(candidate),
                     "ready_ref": deepcopy(state["ready"]),
@@ -2779,6 +2858,7 @@ class BPG2AlphaController:
                     "delivery_options": deepcopy(normalized_delivery_options),
                     "delivery": {
                         "source_truth_ref": source_truth_ref,
+                        "html_generation": html_generation,
                         "selected_modes": sorted(
                             mode
                             for mode, enabled in normalized_delivery_options.items()

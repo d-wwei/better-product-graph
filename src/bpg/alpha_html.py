@@ -9,7 +9,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections import Counter
+from html.parser import HTMLParser
 from pathlib import PurePosixPath
+from urllib.parse import unquote, urlsplit
 
 from .visual_assets import VisualAssetError, _validate_svg
 
@@ -23,10 +26,259 @@ _LIST_ITEM = re.compile(
 )
 _FENCE_OPEN = re.compile(r"^ {0,3}(?P<fence>`{3,})(?P<language>[^`]*)$")
 _FENCE_CLOSE = re.compile(r"^ {0,3}(?P<fence>`{3,})[ \t]*$")
+_CSS_URL = re.compile(r"url\(\s*(['\"]?)(.*?)\1\s*\)", re.IGNORECASE | re.DOTALL)
+_FORBIDDEN_READER_TAGS = frozenset(
+    {
+        "applet",
+        "audio",
+        "base",
+        "button",
+        "embed",
+        "form",
+        "frame",
+        "frameset",
+        "iframe",
+        "input",
+        "link",
+        "math",
+        "object",
+        "picture",
+        "script",
+        "select",
+        "source",
+        "svg",
+        "textarea",
+        "track",
+        "video",
+    }
+)
+_READER_HTML_MAX_BYTES = 2_000_000
+_READER_VIEW_VERSION = "zero-context-v1"
 
 
 class MermaidRenderError(ValueError):
     """A Handoff Mermaid source could not be materialized."""
+
+
+class _ZeroContextHTMLParser(HTMLParser):
+    def __init__(self, source_href: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.source_href = source_href
+        self.doctype_html = False
+        self.counts: Counter[str] = Counter()
+        self.ids: set[str] = set()
+        self.navigation_targets: list[str] = []
+        self.errors: list[str] = []
+        self.style_parts: list[str] = []
+        self._style_depth = 0
+        self._nav_depth = 0
+        self._footer_depth = 0
+        self.has_reader_marker = False
+        self.has_viewport = False
+        self.has_footer_source_link = False
+        self.title_text: list[str] = []
+        self._title_depth = 0
+
+    def handle_decl(self, decl: str) -> None:
+        if decl.strip().casefold() == "doctype html":
+            self.doctype_html = True
+
+    def _css(self, value: str) -> None:
+        lowered = value.casefold()
+        if "@import" in lowered or "expression(" in lowered or "javascript:" in lowered:
+            self.errors.append("CSS contains active or external content")
+        for match in _CSS_URL.finditer(value):
+            target = match.group(2).strip()
+            if target:
+                self.errors.append("CSS URL resources are forbidden")
+
+    def _attrs(self, attrs: list[tuple[str, str | None]]) -> dict[str, str]:
+        names = [name.casefold() for name, _ in attrs]
+        if len(names) != len(set(names)):
+            self.errors.append("element contains duplicate attributes")
+        return {
+            name.casefold(): value or ""
+            for name, value in attrs
+        }
+
+    def _href(self, value: str) -> None:
+        href = value.strip()
+        normalized = unquote(href)
+        if normalized == self.source_href:
+            if self._footer_depth:
+                self.has_footer_source_link = True
+            return
+        if href.startswith("#"):
+            if href == "#":
+                self.errors.append("navigation anchor target is empty")
+                return
+            if self._nav_depth:
+                self.navigation_targets.append(unquote(href[1:]))
+            return
+        parsed = urlsplit(href)
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            return
+        if (
+            parsed.scheme
+            or parsed.netloc
+            or href.startswith(("/", "//"))
+            or ".." in PurePosixPath(normalized).parts
+        ):
+            self.errors.append("link target is unsafe")
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        normalized_tag = tag.casefold()
+        normalized_attrs = self._attrs(attrs)
+        self.counts[normalized_tag] += 1
+
+        if normalized_tag in _FORBIDDEN_READER_TAGS:
+            self.errors.append(f"forbidden element: {normalized_tag}")
+        if any(name.startswith("on") for name in normalized_attrs):
+            self.errors.append("inline event handlers are forbidden")
+        if "srcset" in normalized_attrs or "ping" in normalized_attrs:
+            self.errors.append("network-capable attributes are forbidden")
+        if "style" in normalized_attrs:
+            self._css(normalized_attrs["style"])
+
+        element_id = normalized_attrs.get("id")
+        if element_id:
+            if element_id in self.ids:
+                self.errors.append(f"duplicate id: {element_id}")
+            self.ids.add(element_id)
+
+        if normalized_tag == "html":
+            self.has_reader_marker = (
+                normalized_attrs.get("data-bpg-reader-view")
+                == _READER_VIEW_VERSION
+            )
+        elif normalized_tag == "meta":
+            self.has_viewport = (
+                self.has_viewport
+                or (
+                    normalized_attrs.get("name", "").casefold() == "viewport"
+                    and "width=device-width"
+                    in normalized_attrs.get("content", "").replace(" ", "").casefold()
+                )
+            )
+            if normalized_attrs.get("http-equiv", "").casefold() == "refresh":
+                self.errors.append("meta refresh is forbidden")
+        elif normalized_tag == "nav":
+            self._nav_depth += 1
+        elif normalized_tag == "footer":
+            self._footer_depth += 1
+        elif normalized_tag == "style":
+            self._style_depth += 1
+        elif normalized_tag == "title":
+            self._title_depth += 1
+        elif normalized_tag == "a":
+            self._href(normalized_attrs.get("href", ""))
+        elif normalized_tag == "img":
+            source = normalized_attrs.get("src", "")
+            image_match = re.match(
+                r"^data:image/(?P<kind>svg\+xml|png|jpeg|gif|webp);base64,"
+                r"(?P<payload>[A-Za-z0-9+/=\\s]+)$",
+                source,
+                re.IGNORECASE,
+            )
+            if image_match is None:
+                self.errors.append("images must be embedded data URLs")
+            else:
+                try:
+                    payload = base64.b64decode(
+                        re.sub(r"\s+", "", image_match.group("payload")),
+                        validate=True,
+                    )
+                    if image_match.group("kind").casefold() == "svg+xml":
+                        _validate_svg(payload)
+                except (ValueError, VisualAssetError):
+                    self.errors.append("image data URL is invalid or unsafe")
+            if not normalized_attrs.get("alt", "").strip():
+                self.errors.append("images require non-empty alt text")
+
+    def handle_startendtag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        normalized_tag = tag.casefold()
+        if normalized_tag == "nav" and self._nav_depth:
+            self._nav_depth -= 1
+        elif normalized_tag == "footer" and self._footer_depth:
+            self._footer_depth -= 1
+        elif normalized_tag == "style" and self._style_depth:
+            self._style_depth -= 1
+        elif normalized_tag == "title" and self._title_depth:
+            self._title_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._style_depth:
+            self.style_parts.append(data)
+            self._css(data)
+        if self._title_depth:
+            self.title_text.append(data)
+
+
+def validate_zero_context_prd_html(
+    document: str,
+    *,
+    source_href: str = "PRD.md",
+) -> str:
+    """Validate one Agent-authored, self-contained zero-context PRD reading view."""
+
+    if not isinstance(document, str) or not document.strip():
+        raise ValueError("zero-context HTML must be a non-empty UTF-8 document")
+    if len(document.encode("utf-8")) > _READER_HTML_MAX_BYTES:
+        raise ValueError("zero-context HTML exceeds the 2 MB safety limit")
+
+    parser = _ZeroContextHTMLParser(source_href)
+    try:
+        parser.feed(document)
+        parser.close()
+    except Exception as error:
+        raise ValueError(f"zero-context HTML cannot be parsed: {error}") from error
+
+    if parser.errors:
+        raise ValueError("zero-context HTML is unsafe: " + parser.errors[0])
+    if not parser.doctype_html:
+        raise ValueError("zero-context HTML requires <!doctype html>")
+    if parser.counts["html"] != 1 or not parser.has_reader_marker:
+        raise ValueError(
+            f'zero-context HTML requires one html element marked '
+            f'data-bpg-reader-view="{_READER_VIEW_VERSION}"'
+        )
+    if not parser.has_viewport:
+        raise ValueError("zero-context HTML requires a device-width viewport")
+    for tag in ("title", "header", "nav", "main", "footer"):
+        if parser.counts[tag] != 1:
+            raise ValueError(f"zero-context HTML requires exactly one {tag} element")
+    if not "".join(parser.title_text).strip():
+        raise ValueError("zero-context HTML requires a non-empty title")
+    if not parser.counts["section"]:
+        raise ValueError("zero-context HTML requires at least one reading section")
+    if not parser.navigation_targets:
+        raise ValueError("zero-context HTML requires navigation anchors")
+    unresolved = [
+        target for target in parser.navigation_targets if target and target not in parser.ids
+    ]
+    if unresolved:
+        raise ValueError(
+            "zero-context HTML contains an unresolved navigation anchor: "
+            + unresolved[0]
+        )
+    if not parser.has_footer_source_link:
+        raise ValueError(
+            f"zero-context HTML footer requires a relative {source_href} source link"
+        )
+    styles = "\n".join(parser.style_parts).casefold()
+    if "@media" not in styles or "overflow-x" not in styles or "max-width" not in styles:
+        raise ValueError(
+            "zero-context HTML requires responsive CSS with max-width and overflow-x control"
+        )
+    return document
 
 
 def _markdown_lines(markdown: str) -> list[str]:
