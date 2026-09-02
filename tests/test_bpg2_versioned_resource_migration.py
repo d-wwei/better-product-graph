@@ -38,6 +38,7 @@ class BPG2VersionedResourceMigrationTests(unittest.TestCase):
 
         self.assertIn("版本：v0.4", method)
         self.assertIn("BPG Product Planning Method v0.4 — 2026-09-02", ledger)
+        self.assertIn("RELEASED_IN_V2.0.3 / IMMUTABLE", ledger)
         self.assertIn(sha256("docs/architecture/BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md"), ledger)
         self.assertIn("v0.3 保持不可变", ledger)
         self.assertEqual(reviewer_v311["resource_id"], "prd-writing-reader-review-v3.1.1")
@@ -65,7 +66,7 @@ class BPG2VersionedResourceMigrationTests(unittest.TestCase):
         )
 
         build = json.loads((ROOT / "config/plugin-build.json").read_text(encoding="utf-8"))
-        self.assertEqual(build["plugin_version"], "2.0.2")
+        self.assertEqual(build["plugin_version"], "2.0.3")
         method_bindings = [
             item
             for item in build["shared_exact_files"]

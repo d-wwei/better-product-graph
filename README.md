@@ -16,7 +16,7 @@ Better Product Graph（BPG）是一个运行在 Codex 和 Claude Code 里的本�
 
 它不会把每个 Signal 都强行写成 PRD。合理的结果也可以是：立即处理线上事故、提交 Bug 核查包、继续研究、做可逆实验、等待条件成熟，或者明确停止。
 
-> **当前正式版本：[`v2.0.2`](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.2) Developer Alpha。** 这是 BPG 2.0 的 Agent-first 质量、复审和交付成本修复；不迁移旧 Run，也不代表外部交付、研发接收、Product Evals 执行、实现或产品效果已验证。
+> **当前正式版本：[`v2.0.3`](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.3) Developer Alpha。** 它修正 `v2.0.2` 公开发行记录中的 Host-specific execution-contract fingerprint 映射，不改变运行语义、Agent-first 内容或 Issue #1–#7 结论。`v2.0.2` Tag、Release 和资产保持不可变，但其发行身份已由 `v2.0.3` supersede。
 
 ### 来自对 eli 的蒸馏
 
@@ -84,14 +84,14 @@ Idea / 用户反馈 / 线上 Issue
 
 ### 安装
 
-冻结安装资产请使用 [`v2.0.2` GitHub Release](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.2)，并按 [2.0.2 安装指南](docs/release/INSTALL_v2.0.2.md) 校验下载资产与安装身份。
+冻结安装资产请使用 [`v2.0.3` GitHub Release](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.3)，并按 [2.0.3 安装指南](docs/release/INSTALL_v2.0.3.md) 校验下载资产与安装身份。`v2.0.2` 资产保持不可变；其 ZIP 与内置 manifest 正确，但公开 `RELEASE_SOURCE.json` 的两个 Host-specific execution-contract 字段有误，因此不应再作为当前安装身份。
 
 当前冻结 Release 的最快安装方式：
 
 Codex：
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v2.0.2
+codex plugin marketplace add d-wwei/better-product-graph --ref v2.0.3
 codex plugin add better-product-graph@better-product-graph
 ```
 
@@ -121,7 +121,7 @@ $better-product-graph <产品想法、用户反馈或 Issue>
 
 ### 当前证据
 
-- 当前 `2.0.2` 源码候选的完整测试结果为 `894/894 PASS`，覆盖 Issue #1–#7 修复、双 Host 构建、隔离安装、自检和 Plugin Contract。用于验证真实 PRD Run 时间、上下文、Token 与质量收益的可比 Golden Run 仍为 `NOT_RUN`；机械测试不能替代真实产品效果证据。
+- `v2.0.2` 发布源码的完整测试结果为 `894/894 PASS`，覆盖 Issue #1–#7 修复、双 Host 构建、隔离安装、自检和 Plugin Contract。`v2.0.3` 只修正发行身份元数据并增加 Host 指纹边界的回归断言；可比 Golden Run 仍为 `NOT_RUN`，机械测试不能替代真实产品效果证据。
 - 真实 Codex Host Alpha Run `bpg2-run-alpha-dogfood-20260829` 从 Signal 走到 `LOCAL_HANDOFF_COMPLETE`；Problem、Decision 和最终 PRD 都由独立 Reviewer 检查，最终 PRD v3 的差异复查与整体回归为 `PASS`。外部发送、研发接收、实现测试和产品效果验证仍为 `NOT_RUN`。
 - `0.2.19` 的精确旧 Run 恢复能力继续保留；BPG 2.0 Alpha 与旧 Run 完全隔离，不导入、不迁移、不续跑。
 - Writing Profile、Guide、Reviewer Instruction 和评测合同与 `0.2.18` 字节一致；冻结 RC5 与最终公开候选包的 PRD Writing Reviewer Agent Eval 均为 `27/27 PASS`，本热修复没有重跑或扩大该语义声明。
@@ -151,7 +151,7 @@ Better Product Graph (BPG) is a local product workflow for Codex and Claude Code
 
 It does not force every signal into a PRD. A valid outcome may be an incident brief, a bug investigation packet, more research, a reversible experiment, a deliberate wait, or a recorded stop.
 
-> **Current formal version: [`v2.0.2`](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.2) Developer Alpha.** This release repairs Agent-first quality, re-review, and delivery-cost boundaries in BPG 2.0. It does not migrate legacy Runs or claim external delivery, engineering receipt, Product Evals execution, implementation, or product-effect validation.
+> **Current formal version: [`v2.0.3`](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.3) Developer Alpha.** It corrects the Host-specific execution-contract fingerprint mapping in the public `v2.0.2` release record without changing runtime semantics, Agent-first content, or the Issue #1–#7 conclusions. The `v2.0.2` Tag, Release, and assets remain immutable, but `v2.0.3` supersedes that release identity.
 
 ### Distilled from eli
 
@@ -219,14 +219,14 @@ It is not yet a fit if you need:
 
 ### Install
 
-Use the [`v2.0.2` GitHub Release](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.2) for frozen installation assets, and verify the downloaded assets and installed identity with the [2.0.2 installation guide](docs/release/INSTALL_v2.0.2.md).
+Use the [`v2.0.3` GitHub Release](https://github.com/d-wwei/better-product-graph/releases/tag/v2.0.3) for frozen installation assets, and verify the downloaded assets and installed identity with the [2.0.3 installation guide](docs/release/INSTALL_v2.0.3.md). The `v2.0.2` assets remain immutable; its ZIPs and embedded manifests are correct, but the two Host-specific execution-contract fields in the public `RELEASE_SOURCE.json` are wrong, so it is no longer the current install identity.
 
 The shortest frozen-Release path is:
 
 Codex:
 
 ```bash
-codex plugin marketplace add d-wwei/better-product-graph --ref v2.0.2
+codex plugin marketplace add d-wwei/better-product-graph --ref v2.0.3
 codex plugin add better-product-graph@better-product-graph
 ```
 
@@ -256,7 +256,7 @@ Ordinary requests use BPG 2.0 by default. Users can start, inspect, resume, paus
 
 ### Current evidence
 
-- The current `2.0.2` source candidate passed `894/894` tests, covering the Issue #1–#7 repairs, dual-Host builds, isolated installation, self-check, and the Plugin Contract. A comparable Golden Run measuring real PRD Run time, context, token, and quality benefits remains `NOT_RUN`; mechanical tests do not substitute for product-effect evidence.
+- The `v2.0.2` release source passed `894/894` tests, covering the Issue #1–#7 repairs, dual-Host builds, isolated installation, self-check, and the Plugin Contract. Version `v2.0.3` only corrects release identity metadata and adds a regression assertion for the Host fingerprint boundary. A comparable Golden Run remains `NOT_RUN`; mechanical tests do not substitute for product-effect evidence.
 - Real Codex Host Alpha Run `bpg2-run-alpha-dogfood-20260829` reached `LOCAL_HANDOFF_COMPLETE`. Independent Reviewers checked the Problem, Decision, and final PRD; PRD v3 passed both difference review and whole-product regression. External delivery, engineering receipt, implementation tests, and product-effect validation remain `NOT_RUN`.
 - The exact legacy-Run recovery from `0.2.19` remains available. BPG 2.0 Alpha is isolated and never imports, migrates, or resumes an old Run.
 - The Writing Profile, Guide, Reviewer Instruction, and evaluation contracts are byte-identical to `0.2.18`. The frozen RC5 and final public-candidate Writing Reviewer Agent Eval phases remain `27/27 PASS`; this hotfix did not rerun or broaden that semantic claim.

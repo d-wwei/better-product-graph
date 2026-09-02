@@ -73,12 +73,35 @@ class MarketplacePackagingTests(unittest.TestCase):
             self.assertTrue(verify_installed_identity(plugin_root)["valid"])
             self.assertEqual(report["plugin_path"], "claude-plugins/better-product-graph")
 
-    def test_both_hosts_share_one_core_fingerprint(self) -> None:
+    def test_both_hosts_share_core_but_keep_host_specific_execution_fingerprints(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            codex = package_marketplace(REPO_ROOT, root / "codex.zip", host="codex")
-            claude = package_marketplace(REPO_ROOT, root / "claude.zip", host="claude")
+            codex_package = root / "codex.zip"
+            claude_package = root / "claude.zip"
+            codex = package_marketplace(REPO_ROOT, codex_package, host="codex")
+            claude = package_marketplace(REPO_ROOT, claude_package, host="claude")
+            with zipfile.ZipFile(codex_package) as archive:
+                codex_manifest = json.loads(
+                    archive.read(
+                        "plugins/better-product-graph/build-manifest.json"
+                    )
+                )
+            with zipfile.ZipFile(claude_package) as archive:
+                claude_manifest = json.loads(
+                    archive.read(
+                        "claude-plugins/better-product-graph/build-manifest.json"
+                    )
+                )
+
             self.assertEqual(codex["core_tree_fingerprint"], claude["core_tree_fingerprint"])
+            self.assertEqual(
+                codex_manifest["core_tree_fingerprint"],
+                claude_manifest["core_tree_fingerprint"],
+            )
+            self.assertNotEqual(
+                codex_manifest["execution_contract_fingerprint"],
+                claude_manifest["execution_contract_fingerprint"],
+            )
             self.assertNotEqual(codex["artifact_hash"], claude["artifact_hash"])
 
 

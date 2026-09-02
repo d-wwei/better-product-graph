@@ -304,7 +304,7 @@ class TemplatePackConfigurationTests(unittest.TestCase):
         self.assertEqual(result["status"], "CONFIGURED_AND_ACTIVE")
         self.assertEqual(result["configuration_action"], "PROJECT_TEMPLATE_CONFIGURE")
         self.assertEqual(result["graph_run_created"], False)
-        self.assertEqual(result["bpg_version"], "2.0.2")
+        self.assertEqual(result["bpg_version"], "2.0.3")
         self.assertFalse((self.project / ".better-product-graph/runs").exists())
 
     def test_public_plugin_build_excludes_private_moomoo_pack(self) -> None:

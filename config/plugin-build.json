@@ -1,6 +1,6 @@
 {
   "plugin_name": "better-product-graph",
-  "plugin_version": "2.0.2",
+  "plugin_version": "2.0.3",
   "architecture_baseline": {
     "path": "docs/architecture/PRD_GRAPH_v1.4.md",
     "version": "V1.4",

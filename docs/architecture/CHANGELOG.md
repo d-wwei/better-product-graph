@@ -2,7 +2,7 @@
 
 ## BPG Product Planning Method v0.4 — 2026-09-02
 
-- 状态：`RELEASED_IN_V2.0.2 / IMMUTABLE`；文件 `BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md`，SHA-256 `3b8523899be8c9133c14c9be23b31f6fb4c396500c4fd87fcac7ef546d1bc525`。
+- 状态：`RELEASED_IN_V2.0.3 / IMMUTABLE`；文件 `BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.4.md`，SHA-256 `3b8523899be8c9133c14c9be23b31f6fb4c396500c4fd87fcac7ef546d1bc525`。`v2.0.2` 已发布同一组不可变方法字节并保持不可变；`v2.0.3` 仅因公开发行记录的 Host-specific execution-contract fingerprint 映射错误而 supersede 其发行身份，不改变方法内容、Agent-first 运行边界或 Issue #1–#7 结论。
 - Supersedes：`BPG_PRODUCT_PLANNING_METHOD_CONFIRMED_v0.3.md`；v0.3 保持不可变，SHA-256 `e82ec004ca7dcf7b022e8d7915f4416d332529defb2a11a138fdb4221c2b6570`。
 - 版本理由：与双 Host 当前合同同步最小 Handoff 默认、可选 Retrospective 和 Agent-owned 修订复审语义。`LOCAL_HTML` 与 `LOCAL_RENDERED_VISUALS` 默认均关闭，默认只交付 Markdown；SVG 只在显式视觉开关且存在 Mermaid source 时物化；复审工作单绑定 source/current Candidate、prior Review/Finding、Planning Record 修复依据、范围与回归 Checklist，由 Reviewer 自行作语义比较，不引入 exact diff artifact 或程序化分类器。
 - 新 Run、公开 Host Skill 和安装包构建选择 v0.4；历史 Run、旧安装和旧精确引用不迁移。

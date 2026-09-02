@@ -49,7 +49,7 @@ class PluginContractSuiteTests(unittest.TestCase):
         installed_manifest = json.loads(
             (self.plugin / "build-manifest.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(installed_manifest["plugin"]["version"], "2.0.2")
+        self.assertEqual(installed_manifest["plugin"]["version"], "2.0.3")
         required = {
             "discovery",
             "default_bpg2_entry",

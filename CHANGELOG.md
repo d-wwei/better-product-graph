@@ -1,6 +1,18 @@
 # Changelog
 
-## 2.0.2 — 2026-09-02 — Agent-first quality, review, and delivery-cost repairs
+## 2.0.3 — 2026-09-02 — Release identity metadata correction
+
+- Supersede `v2.0.2` as the current formal release identity without moving, deleting, or rebuilding its Tag, Release, or assets. The frozen `v2.0.2` artifacts and their embedded Host manifests remain correct and immutable.
+- Correct public `RELEASE_SOURCE.json` so each Host's `execution_contract_fingerprint` comes from that Host's own `build-manifest.json`. The frozen `v2.0.2` Codex value is `sha256:8bab78b78923e75f659e1a7a3020f573379a6466dc24693ec1a9239d95e4d46d`; the Claude value is `sha256:a58a6ef878f75051addbd923da06c73ae8ffdfe98b83ad8790fca63087964abc`.
+- Keep the shared `core_tree_fingerprint` separate. Both frozen `v2.0.2` Host artifacts correctly report `sha256:a97027f2c614f9f97cef7640a3b3a4d8284e8f10bd0fc486f666712a562b14ec` as their common Core identity.
+- Add a dual-Host packaging regression assertion that the Core fingerprints match while the Host-specific execution-contract fingerprints differ.
+- Make no runtime, product-method, Agent instruction, template, schema, or asset-semantic change. The Agent-first behavior and Issue #1–#7 conclusions released in `v2.0.2` remain unchanged; the historical `894/894 PASS` result is not reinterpreted as a full `2.0.3` source-suite run.
+- Freeze the formal `v2.0.3` Tag and GitHub Release from the exact clean development source recorded in `RELEASE_SOURCE.json`, with deterministic Codex/Claude Marketplace ZIPs and `SHA256SUMS`.
+
+## 2.0.2 — 2026-09-02 — Agent-first quality, review, and delivery-cost repairs — Superseded by 2.0.3
+
+- Preserve the formal `v2.0.2` Tag, GitHub Release, Codex/Claude Marketplace ZIPs, and `SHA256SUMS` as immutable release evidence. Those frozen artifacts and their embedded Host manifests remain correct.
+- Supersede this release identity with `2.0.3` because the public `RELEASE_SOURCE.json` incorrectly copied the shared Core fingerprint into both Host-specific `execution_contract_fingerprint` fields. This is a release-record error, not a runtime or artifact-content failure.
 
 - Close Issue #1 with a bounded Agent-authored semantic preflight before Problem, Decision, and PRD Candidate freeze. It reuses existing diagnoses/actions, never becomes independent approval, and adds no schema, state, Gate, or Owner round.
 - Close Issue #2 by reusing `planning_context.context_summary` and the maintained Planning Record as the compact stage context. Material facts remain traceable to canonical exact refs; no Evidence Digest artifact, hash budget, or token-savings claim is introduced.
